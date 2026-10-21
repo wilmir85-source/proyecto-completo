@@ -71,7 +71,9 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
         result = cloudinary.uploader.upload(
             data, 
             public_id=path.split("/")[-1],
-            resource_type="auto"
+            resource_type="auto",
+            use_filename=True,       # <-- ARREGLO: Usa el nombre original
+            unique_filename=False    # <-- ARREGLO: No le agrega números raros
         )
         return {"url": result["secure_url"], "path": path}
     except Exception as e:
@@ -86,6 +88,7 @@ def get_object(path: str):
         img_data = requests.get(res["secure_url"]).content
         return img_data, "image/jpeg"
     except Exception as e:
+        # Si la foto no está en Cloudinary, lanzamos el error 404
         raise HTTPException(404, "Foto no encontrada")
 
 
@@ -159,6 +162,7 @@ def can_work_on(user, order) -> bool:
 
 
 def public_user(u: dict) -> dict:
+    # Aquí decidimos qué datos del usuario se envían a la pantalla
     return {k: u.get(k) for k in ("id", "email", "name", "role", "departamento", "telefono", "activo")}
 
 
