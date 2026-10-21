@@ -10,6 +10,8 @@ import logging
 import requests
 import bcrypt
 import jwt as pyjwt
+import cloudinary
+import cloudinary.uploader
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -33,13 +35,16 @@ ROLES = ["admin", "ventas", "trabajador"]
 STAFF_ROLES = ("admin", "ventas")
 DUE_SOON_HOURS = 48
 
-# ---------- Storage ----------
-STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
-STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
+# ---------- Configuración de Cloudinary ----------
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
+)
+
 APP_NAME = "jarvis-joyeria"
 ALLOWED_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
-_storage_key = None
 
 
 def shrink_image(data: bytes, max_px: int, quality: int) -> bytes:
@@ -56,28 +61,32 @@ def shrink_image(data: bytes, max_px: int, quality: int) -> bytes:
     return out.getvalue()
 
 
+# ---------- Storage (Cloudinary) ----------
 def init_storage(force: bool = False):
-    global _storage_key
-    if _storage_key and not force:
-        return _storage_key
-    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": EMERGENT_LLM_KEY}, timeout=30)
-    resp.raise_for_status()
-    _storage_key = resp.json()["storage_key"]
-    return _storage_key
+    return "cloudinary_ready"
 
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
-    resp = requests.put(f"{STORAGE_URL}/objects/{path}",
-                        headers={"X-Storage-Key": init_storage(), "Content-Type": content_type},
-                        data=data, timeout=120)
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        result = cloudinary.uploader.upload(
+            data, 
+            public_id=path.split("/")[-1],
+            resource_type="auto"
+        )
+        return {"url": result["secure_url"], "path": path}
+    except Exception as e:
+        print(f"Error subiendo a Cloudinary: {e}")
+        raise HTTPException(500, "Error al guardar la foto")
 
 
 def get_object(path: str):
-    resp = requests.get(f"{STORAGE_URL}/objects/{path}", headers={"X-Storage-Key": init_storage()}, timeout=60)
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
+    try:
+        res = cloudinary.api.resource(path.split("/")[-1])
+        import requests
+        img_data = requests.get(res["secure_url"]).content
+        return img_data, "image/jpeg"
+    except Exception as e:
+        raise HTTPException(404, "Foto no encontrada")
 
 
 # ---------- Helpers ----------
