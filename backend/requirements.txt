@@ -12,3 +12,4 @@ reportlab
 email-validator
 python-jose[cryptography]
 passlib[bcrypt]
+cloudinary
