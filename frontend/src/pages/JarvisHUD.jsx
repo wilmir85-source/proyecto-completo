@@ -23,9 +23,6 @@ export default function JarvisHUD() {
   const endRef = useRef(null);
   const audioRef = useRef(null);
   const handsFreeRef = useRef(false);
-  
-  // Parche para el hook de voz perdido
- 
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
