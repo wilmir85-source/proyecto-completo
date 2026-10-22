@@ -12,6 +12,7 @@ import bcrypt
 import jwt as pyjwt
 import cloudinary
 import cloudinary.uploader
+import cloudinary.api
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -39,11 +40,20 @@ DUE_SOON_HOURS = 48
 cloudinary.config(
     cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
     api_key=os.environ.get("CLOUDINARY_API_KEY"),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET")
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+    secure=True
 )
 
 APP_NAME = "jarvis-joyeria"
-ALLOWED_IMAGE_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+# Agregamos más formatos para que acepte casi cualquier foto de celular
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": "jpg", 
+    "image/jpg": "jpg",
+    "image/png": "png", 
+    "image/webp": "webp",
+    "image/heic": "heic",
+    "image/heif": "heif"
+}
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
 
 
@@ -68,13 +78,17 @@ def init_storage(force: bool = False):
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
     try:
+        # Quitamos la extensión para el public_id de Cloudinary
+        public_id = path.rsplit('.', 1)[0] if '.' in path else path
+        
         result = cloudinary.uploader.upload(
             data, 
-            public_id=path,          # <--- AQUÍ ESTÁ EL ARREGLO: Usa la ruta completa
+            public_id=public_id,
             resource_type="auto",
             use_filename=True,
             unique_filename=False
         )
+        # Retornamos la ruta original (con extensión) para guardarla en la DB
         return {"url": result["secure_url"], "path": path}
     except Exception as e:
         print(f"Error subiendo a Cloudinary: {e}")
@@ -83,11 +97,14 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 def get_object(path: str):
     try:
-        res = cloudinary.api.resource(path) # <--- AQUÍ ESTÁ EL ARREGLO: Busca con la ruta completa
-        import requests
+        # Le quitamos la extensión (.jpg, .png, etc) para que Cloudinary lo encuentre
+        public_id = path.rsplit('.', 1)[0] if '.' in path else path
+        
+        res = cloudinary.api.resource(public_id)
         img_data = requests.get(res["secure_url"]).content
         return img_data, "image/jpeg"
     except Exception as e:
+        logger.error(f"Error obteniendo foto de Cloudinary: {e}")
         raise HTTPException(404, "Foto no encontrada")
 
 
