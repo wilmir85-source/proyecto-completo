@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
-from fastapi.responses import Response
+from fastapi.responses import Response, RedirectResponse
 from pydantic import BaseModel, Field
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
@@ -199,7 +199,6 @@ async def upload_order_photo(order_id: str, file: UploadFile = File(...), user=D
         logger.error(f"Upload failed: {e}")
         raise HTTPException(502, "No se pudo subir la imagen")
     
-    # Guardamos la URL de Cloudinary
     foto = {
         "path": result["path"], 
         "url": result.get("url", ""), 
@@ -223,3 +222,36 @@ async def upload_order_photo(order_id: str, file: UploadFile = File(...), user=D
     
     await db.orders.update_one({"id": order_id}, {"$push": {"fotos": foto}, "$set": {"updated_at": now_iso()}})
     return foto
+
+
+@router.delete("/orders/{order_id}/photos")
+async def delete_order_photo(order_id: str, path: str = Query(...), user=Depends(current_user)):
+    order = await get_order_or_404(order_id)
+    if not can_work_on(user, order):
+        raise HTTPException(403, "No puedes editar este pedido")
+    await db.orders.update_one({"id": order_id}, {"$pull": {"fotos": {"path": path}}})
+    await db.files.update_one({"storage_path": path}, {"$set": {"is_deleted": True}})
+    return {"ok": True}
+
+
+@router.get("/files/{path:path}")
+async def download_file(path: str, auth: str = Query(...)):
+    user = await db.users.find_one({"id": decode_token(auth), "activo": {"$ne": False}}, {"_id": 0, "id": 1})
+    if not user:
+        raise HTTPException(401, "Token inválido")
+    
+    record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
+    
+    # Redirigimos a la URL de Cloudinary para evitar bloqueos del navegador (ORB)
+    if record and record.get("url"):
+        return RedirectResponse(url=record["url"])
+
+    # Si no hay URL, intentamos descargar del almacenamiento
+    try:
+        data, ctype = await asyncio.to_thread(get_object, path)
+    except Exception as e:
+        logger.error(f"Download failed: {e}")
+        raise HTTPException(502, "No se pudo obtener la imagen")
+        
+    return Response(content=data, media_type=record.get("content_type", ctype) if record else ctype,
+                    headers={"Cache-Control": "private, max-age=3600"})
