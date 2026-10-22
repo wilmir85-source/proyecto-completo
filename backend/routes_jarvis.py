@@ -235,14 +235,13 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
     for m in past[-20:]:
         role = "user" if m["role"] == "user" else "model"
         if gemini_history and gemini_history[-1]["role"] == role:
-            # Si hay dos seguidos del mismo rol, los juntamos en un solo mensaje
             gemini_history[-1]["parts"][0]["text"] += "\n" + m["content"]
         else:
             gemini_history.append({"role": role, "parts": [{"text": m["content"]}]})
         
     try:
         chat = client.chats.create(
-            model="gemini-1.5-flash",
+            model="gemini-flash-latest",  # <--- MODELO ACTUALIZADO
             history=gemini_history,
             config={'system_instruction': system}
         )
@@ -261,7 +260,6 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
              
     except Exception as e:
         logger.error(f"Error en Gemini: {e}")
-        # ALERTA: Ahora el error real se mostrará en la pantalla para saber qué pasa
         yield f"data: {json.dumps({'type': 'delta', 'content': f'⚠️ ERROR DE GOOGLE: {str(e)}'})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
