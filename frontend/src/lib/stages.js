@@ -56,8 +56,12 @@ export const waPhone = (phone, cc = "") => {
   return c && d.length <= 10 && !d.startsWith(c) ? `${c}${d}` : d;
 };
 
-export const fileUrl = (path) =>
-  `${process.env.REACT_APP_BACKEND_URL}/api/files/${path}?auth=${localStorage.getItem("jarvis_token")}`;
+export const fileUrl = (path, urlDirecta) => {
+  if (urlDirecta && urlDirecta.startsWith("http")) {
+    return urlDirecta;
+  }
+  return `${process.env.REACT_APP_BACKEND_URL}/api/files/${path}?auth=${localStorage.getItem("jarvis_token")}`;
+};
 
 export const apiError = (e, fallback = "Ocurrió un error") => {
   const d = e?.response?.data?.detail;
