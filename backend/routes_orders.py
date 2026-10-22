@@ -198,37 +198,28 @@ async def upload_order_photo(order_id: str, file: UploadFile = File(...), user=D
     except Exception as e:
         logger.error(f"Upload failed: {e}")
         raise HTTPException(502, "No se pudo subir la imagen")
-    foto = {"path": result["path"], "nombre": file.filename, "subido_por": user["name"], "created_at": now_iso()}
-    await db.files.insert_one({"id": new_id(), "user_id": user["id"], "order_id": order_id,
-                               "storage_path": result["path"], "original_filename": file.filename,
-                               "content_type": content_type, "size": result.get("size", len(data)),
-                               "is_deleted": False, "created_at": now_iso()})
+    
+    # Guardamos la URL de Cloudinary
+    foto = {
+        "path": result["path"], 
+        "url": result.get("url", ""), 
+        "nombre": file.filename, 
+        "subido_por": user["name"], 
+        "created_at": now_iso()
+    }
+    
+    await db.files.insert_one({
+        "id": new_id(), 
+        "user_id": user["id"], 
+        "order_id": order_id,
+        "storage_path": result["path"], 
+        "url": result.get("url", ""),
+        "original_filename": file.filename,
+        "content_type": content_type, 
+        "size": result.get("size", len(data)),
+        "is_deleted": False, 
+        "created_at": now_iso()
+    })
+    
     await db.orders.update_one({"id": order_id}, {"$push": {"fotos": foto}, "$set": {"updated_at": now_iso()}})
     return foto
-
-
-@router.delete("/orders/{order_id}/photos")
-async def delete_order_photo(order_id: str, path: str = Query(...), user=Depends(current_user)):
-    order = await get_order_or_404(order_id)
-    if not can_work_on(user, order):
-        raise HTTPException(403, "No puedes editar este pedido")
-    await db.orders.update_one({"id": order_id}, {"$pull": {"fotos": {"path": path}}})
-    await db.files.update_one({"storage_path": path}, {"$set": {"is_deleted": True}})
-    return {"ok": True}
-
-
-@router.get("/files/{path:path}")
-async def download_file(path: str, auth: str = Query(...)):
-    user = await db.users.find_one({"id": decode_token(auth), "activo": {"$ne": False}}, {"_id": 0, "id": 1})
-    if not user:
-        raise HTTPException(401, "Token inválido")
-    record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
-    if not record:
-        raise HTTPException(404, "Archivo no encontrado")
-    try:
-        data, ctype = await asyncio.to_thread(get_object, path)
-    except Exception as e:
-        logger.error(f"Download failed: {e}")
-        raise HTTPException(502, "No se pudo obtener la imagen")
-    return Response(content=data, media_type=record.get("content_type", ctype),
-                    headers={"Cache-Control": "private, max-age=3600"})
