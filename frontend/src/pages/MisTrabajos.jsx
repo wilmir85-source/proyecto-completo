@@ -39,7 +39,7 @@ export default function MisTrabajos() {
             className={`w-full text-left card-glass rounded-2xl p-4 flex gap-4 items-center border hover:bg-zinc-900 transition-colors ${DUE_STYLES[o.estado_entrega].card}`}
             data-testid={`my-work-${o.id}`}>
             {o.fotos?.[0]
-              ? <img src={fileUrl(o.fotos[0].path)} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+              ? <img src={fileUrl(o.fotos[0].path, o.fotos[0].url)} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
               : <div className="w-16 h-16 rounded-xl bg-zinc-900 border border-white/5 shrink-0" />}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
