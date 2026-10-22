@@ -9,7 +9,6 @@ from pydantic import BaseModel
 from google import genai
 import os
 #from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, ToolCallReady, StreamDone
-#from emergentintegrations.llm.openai import OpenAITextToSpeech
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
 from routes_misc import op_create_task, task_query
@@ -230,7 +229,6 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                                        
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    # FIX CRÍTICO: Gemini requiere que los roles alternen (user, model, user, model)
     gemini_history = []
     for m in past[-20:]:
         role = "user" if m["role"] == "user" else "model"
@@ -239,15 +237,32 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
         else:
             gemini_history.append({"role": role, "parts": [{"text": m["content"]}]})
         
+    # --- LISTA DE MODELOS DE RESPALDO (FALLBACK) ---
+    model_options = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro"]
+    
     try:
-        chat = client.chats.create(
-            model="gemini-flash-latest",  # <--- MODELO ACTUALIZADO
-            history=gemini_history,
-            config={'system_instruction': system}
-        )
+        response = None
+        full_text = ""
+        last_error = None
         
-        response = chat.send_message(message)
-        full_text = response.text
+        for model_name in model_options:
+            try:
+                logger.info(f"Intentando con modelo: {model_name}")
+                chat = client.chats.create(
+                    model=model_name,
+                    history=gemini_history,
+                    config={'system_instruction': system}
+                )
+                response = chat.send_message(message)
+                full_text = response.text
+                if full_text:
+                    break # Si funciona, salimos del bucle
+            except Exception as e:
+                logger.warning(f"El modelo {model_name} falló. Probando el siguiente... ({e})")
+                last_error = e
+                
+        if not full_text:
+            raise last_error or Exception("Ningún modelo de Google respondió.")
         
         yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -259,8 +274,8 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
              "content": full_text, "created_at": now_iso()}])
              
     except Exception as e:
-        logger.error(f"Error en Gemini: {e}")
-        yield f"data: {json.dumps({'type': 'delta', 'content': f'⚠️ ERROR DE GOOGLE: {str(e)}'})}\n\n"
+        logger.error(f"Error crítico en Gemini: {e}")
+        yield f"data: {json.dumps({'type': 'delta', 'content': f'⚠️ Error con los servidores de Google: {str(e)}'})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 @router.post("/chat")
