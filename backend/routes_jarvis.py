@@ -271,20 +271,17 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
         
     try:
         chat = client.chats.create(
-            model="gemini-3.8-flash",
+            model="gemini-1.5-flash",
             history=gemini_history,
             config={'system_instruction': system}
         )
         
-        # Pedimos la respuesta completa (sin streaming)
         response = chat.send_message(message)
         full_text = response.text
         
-        # Devolvemos el texto en el formato que espera el frontend
         yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         
-        # Guardamos la conversación en la base de datos
         await db.chat_messages.insert_many([
             {"id": new_id(), "user_id": user["id"], "session_id": session_id, "role": "user",
              "content": message, "created_at": now_iso()},
