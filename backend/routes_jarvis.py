@@ -237,8 +237,8 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
         else:
             gemini_history.append({"role": role, "parts": [{"text": m["content"]}]})
         
-    # --- LISTA DE MODELOS DE RESPALDO (FALLBACK) ---
-    model_options = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash", "gemini-1.5-pro"]
+    # --- LISTA DE MODELOS DE RESPALDO ACTUALIZADA ---
+    model_options = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"]
     
     try:
         response = None
