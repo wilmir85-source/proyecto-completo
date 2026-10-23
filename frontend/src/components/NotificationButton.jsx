@@ -18,14 +18,14 @@ export const NotificationButton = () => {
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
-    // ESTO ES CRUCIAL PARA IOS:
     return outputArray.buffer.slice(0);
   };
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setStatus("error");
-      setErrorMsg("Tu navegador no soporta notificaciones push. Asegúrate de usar HTTPS.");
+    // Verificamos si el navegador soporta TODO lo necesario (incluyendo la variable Notification)
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      setStatus("unsupported");
+      setErrorMsg("Tu dispositivo no soporta notificaciones, o no has instalado la app en la pantalla de inicio.");
       return;
     }
 
@@ -42,11 +42,20 @@ export const NotificationButton = () => {
 
   const subscribe = async () => {
     setStatus("loading");
+    setErrorMsg("");
+    
+    // Doble verificación antes de pedir permiso (para evitar el error de iOS)
+    if (!('Notification' in window)) {
+      setStatus("unsupported");
+      setErrorMsg("Debes instalar la app en tu pantalla de inicio para activar las notificaciones.");
+      return;
+    }
+
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
         setStatus("error");
-        setErrorMsg("Permiso denegado. Ve a los ajustes de tu iPhone/Safari y permite las notificaciones.");
+        setErrorMsg("Permiso denegado. Ve a los ajustes de tu iPhone > Notificaciones > Jarvis y permite las notificaciones.");
         return;
       }
 
@@ -69,9 +78,9 @@ export const NotificationButton = () => {
   const sendTest = async () => {
     try {
       await api.post('/notifications/test');
-      toast.success("Notificación enviada.");
+      toast.success("Notificación enviada. Revisa tu pantalla.");
     } catch (error) {
-      toast.error("Error enviando la prueba.");
+      toast.error("Error enviando la prueba. Revisa los logs de Render.");
     }
   };
 
@@ -88,11 +97,11 @@ export const NotificationButton = () => {
         </div>
       )}
 
-      {status === "error" && (
-        <div className="text-red-400 text-xs flex flex-col gap-1 bg-red-950/30 p-2 rounded border border-red-500/20">
-          <div className="flex items-center gap-1 font-medium"><AlertTriangle className="w-3 h-3"/> Error</div>
+      {(status === "error" || status === "unsupported") && (
+        <div className="text-red-400 text-xs flex flex-col gap-1 bg-red-950/30 p-3 rounded-lg border border-red-500/20">
+          <div className="flex items-center gap-1 font-medium"><AlertTriangle className="w-3 h-3"/> Aviso</div>
           <div>{errorMsg}</div>
-          <button onClick={() => setStatus("ready")} className="text-white underline mt-1 text-left">Intentar de nuevo</button>
+          <button onClick={() => setStatus("ready")} className="text-white underline mt-2 text-left font-medium">Reintentar</button>
         </div>
       )}
 
@@ -107,7 +116,7 @@ export const NotificationButton = () => {
 
       {status === "subscribed" && (
         <>
-          <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Notificaciones activadas.</p>
+          <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Notificaciones activadas correctamente.</p>
           <button onClick={sendTest} className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs py-2 rounded-lg transition-colors">
             Enviar notificación de prueba
           </button>
