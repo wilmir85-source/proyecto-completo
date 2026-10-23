@@ -22,8 +22,9 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
   
   return (
     <Dialog open={!!current} onOpenChange={(o) => !o && onClose()}>
-      {/* FORZAMOS EL CENTRADO Y EL TAMAÑO PARA CELULARES */}
-      <DialogContent className="fixed left-[50%] top-[50%] z-50 grid w-[92vw] max-w-lg -translate-x-[50%] -translate-y-[50%] gap-4 border bg-zinc-950 border-zinc-800 p-4 sm:p-6 shadow-lg duration-200 max-h-[85dvh] overflow-y-auto rounded-xl pb-24" data-testid="order-detail-dialog">
+      
+      {/* Le quitamos los estilos raros de centrado. Usamos el estándar, pero limitado para móvil. */}
+      <DialogContent className="w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto z-[100] bg-zinc-950 border-zinc-800 p-5 pb-28">
         {order && (
           <>
             <DialogHeader>
