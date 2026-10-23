@@ -68,12 +68,12 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Contenido Principal (con pb-24 para que el menú de abajo no lo tape) */}
+      {/* Contenido Principal */}
       <main className="flex-1 min-w-0 md:ml-64 min-h-screen pb-24 md:pb-0">
         <FinishOrderProvider><Outlet /></FinishOrderProvider>
       </main>
       
-      {/* Menú inferior (Solo para celular) */}
+      {/* Menú inferior (Solo celular) */}
       <BottomNav />
     </div>
   );
