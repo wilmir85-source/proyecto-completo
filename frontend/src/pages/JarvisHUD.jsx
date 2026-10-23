@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Send, Mic } from "lucide-react";
+import { Loader2, Send, Mic, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { ArcReactor } from "@/components/ArcReactor";
 import { api, API } from "@/lib/api";
@@ -28,25 +28,46 @@ export default function JarvisHUD() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, state]);
 
+  // FUNCIÓN PARA QUE JARVIS HABLE USANDO LA VOZ DEL IPHONE
+  const speak = (text) => {
+    if (!voiceOn || !window.speechSynthesis) return;
+    
+    // Detenemos cualquier voz anterior
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "es-MX"; // Español latino
+    utterance.rate = 1.0; // Velocidad normal
+    utterance.pitch = 1.0; // Tono normal
+    
+    // Buscamos la mejor voz en español disponible en el dispositivo
+    const voices = window.speechSynthesis.getVoices();
+    const spanishVoice = voices.find(v => v.lang.includes("es"));
+    if (spanishVoice) utterance.voice = spanishVoice;
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
   const listen = () => {
     if (state === "thinking") return;
     
-    // Si ya está escuchando, detenemos la grabación
     if (speech.listening) {
       speech.stop();
       return;
     }
 
-    // Si no, empezamos a grabar y le decimos qué hacer con el texto
     speech.start((textoDictado) => {
       setInput(textoDictado);
-      toast.success("¡Texto dictado!");
+      // Auto-enviar el mensaje después de que se transcriba
+      setTimeout(() => {
+        send(null, textoDictado);
+      }, 500);
     });
   };
 
-  const send = async (e) => {
+  const send = async (e, overrideText = null) => {
     if (e) e.preventDefault();
-    const text = input.trim();
+    const text = (overrideText || input).trim();
     if (!text || state === "thinking") return;
 
     setInput("");
@@ -59,8 +80,6 @@ export default function JarvisHUD() {
 
     try {
       const token = localStorage.getItem("jarvis_token");
-      
-      // Temporizador de seguridad para que no se quede trabado
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -94,11 +113,14 @@ export default function JarvisHUD() {
       }
       
       setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
+      
+      // ¡AQUÍ HACEMOS QUE HABLE!
+      speak(acc);
 
     } catch (err) {
       if (err.name === 'AbortError') {
-        toast.error("Jarvis tardó mucho en responder (el servidor está despertando). Intenta de nuevo.");
-        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando. Intente de nuevo." } : x)));
+        toast.error("Jarvis tardó mucho en responder. Intenta de nuevo.");
+        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando." } : x)));
       } else {
         toast.error("Error al comunicarse con Jarvis");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
@@ -121,8 +143,12 @@ export default function JarvisHUD() {
         </div>
         <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 150 : 220} />
         <div className="flex flex-col gap-3 w-64 mt-4 text-xs text-zinc-400">
-          <label className="flex items-center justify-between">Respuesta por voz <Switch checked={voiceOn} onCheckedChange={setVoiceOn} data-testid="toggle-voice" /></label>
-          <label className="flex items-center justify-between">Manos libres <Switch checked={handsFree} onCheckedChange={(v) => { setHandsFree(v); handsFreeRef.current = v; }} data-testid="toggle-handsfree" /></label>
+          <label className="flex items-center justify-between">
+            Respuesta por voz <Switch checked={voiceOn} onCheckedChange={setVoiceOn} data-testid="toggle-voice" />
+          </label>
+          <label className="flex items-center justify-between">
+            Manos libres <Switch checked={handsFree} onCheckedChange={(v) => { setHandsFree(v); handsFreeRef.current = v; }} data-testid="toggle-handsfree" />
+          </label>
         </div>
       </section>
 
