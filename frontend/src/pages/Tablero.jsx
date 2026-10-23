@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { STAGES, STAGE_STYLES, apiError } from "@/lib/stages";
@@ -8,7 +8,7 @@ import { OrderDetail } from "@/components/OrderDetail";
 import { OrderCard } from "@/components/OrderCard";
 import { NewOrderDialog } from "@/components/NewOrderDialog";
 import { useFinishOrder } from "@/components/FinishOrderDialog";
-import { Filter, User, AlertTriangle, Clock, ListFilter } from "lucide-react";
+import { User, AlertTriangle, Clock } from "lucide-react";
 
 const canWork = (user, o) => ["admin", "ventas"].includes(user?.role) || o.asignado_a === user?.id || o.stage === user?.departamento;
 
@@ -49,7 +49,6 @@ export default function Tablero() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
-  // --- LÓGICA DE FILTROS ---
   const lateOrders = orders.filter((o) => o.estado_entrega === "atrasado");
   const soonOrders = orders.filter((o) => o.estado_entrega === "por_vencer");
   
@@ -60,7 +59,6 @@ export default function Tablero() {
     return true;
   });
 
-  // Función para saltar a una columna en el celular
   const scrollToStage = (stageName) => {
     const el = document.getElementById(`kanban-col-${stageName.replace(/\s+/g, '-')}`);
     if (el) {
@@ -69,16 +67,16 @@ export default function Tablero() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] md:h-screen flex flex-col bg-[#09090b] overflow-hidden">
+    <div className="h-full flex flex-col bg-[#09090b] overflow-hidden">
       
-      {/* ENCABEZADO CON FILTROS */}
-      <header className="px-5 md:px-8 pt-6 pb-3 flex flex-col gap-3 bg-[#09090b] z-30 sticky top-0 border-b border-white/5">
+      {/* ENCABEZADO CON FILTROS (Fondo 100% sólido para que no se transparente) */}
+      <header className="px-5 md:px-8 pt-4 pb-3 flex flex-col gap-3 bg-[#09090b] z-30 border-b border-white/5 shrink-0">
         <div className="flex flex-wrap gap-4 items-end justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-2 flex items-center gap-2">
+            <div className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-zinc-500 mb-1 md:mb-2 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Tablero en vivo
             </div>
-            <h1 className="font-display text-3xl md:text-4xl font-light">Pedidos</h1>
+            <h1 className="font-display text-2xl md:text-4xl font-light">Pedidos</h1>
           </div>
           {staff && <NewOrderDialog users={users} onCreated={load} />}
         </div>
@@ -103,7 +101,7 @@ export default function Tablero() {
         <div className="md:hidden mt-1">
           <select 
             onChange={(e) => scrollToStage(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 text-sm text-zinc-300 rounded-lg p-2.5 focus:outline-none focus:border-amber-500/50 appearance-none"
+            className="w-full bg-zinc-900 border border-zinc-800 text-sm text-zinc-300 rounded-lg p-2 focus:outline-none focus:border-amber-500/50 appearance-none"
             defaultValue=""
           >
             <option value="" disabled>Saltar a departamento...</option>
@@ -112,7 +110,7 @@ export default function Tablero() {
         </div>
       </header>
 
-      {/* CONTENEDOR DEL KANBAN CON EFECTO SNAP */}
+      {/* CONTENEDOR DEL KANBAN */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory md:snap-none scroll-smooth">
         <div className="flex gap-4 md:gap-5 px-4 md:px-8 pb-8 pt-4 h-full min-w-max">
           {STAGES.map((stage) => {
@@ -122,13 +120,13 @@ export default function Tablero() {
               <div 
                 key={stage} 
                 id={`kanban-col-${stage.replace(/\s+/g, '-')}`}
-                className="w-[85vw] md:w-[300px] flex flex-col flex-shrink-0 snap-center md:snap-align-none" 
+                className="w-[85vw] md:w-[300px] flex flex-col flex-shrink-0 snap-center md:snap-align-none h-full" 
                 data-testid={`kanban-col-${stage}`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragging) { moveTo(dragging, stage); setDragging(null); } }}
               >
-                {/* TÍTULO DE LA COLUMNA STICKY */}
-                <div className={`sticky top-0 bg-[#09090b]/95 backdrop-blur-sm z-20 flex items-center justify-between pb-3 pt-1 border-b-2 ${a.border}`}>
+                {/* TÍTULO DE LA COLUMNA (Fondo sólido) */}
+                <div className={`flex items-center justify-between pb-3 pt-1 border-b-2 ${a.border} bg-[#09090b] shrink-0`}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${a.bar}`} />
                     <span className={`font-display text-sm uppercase tracking-widest ${a.text}`}>{stage}</span>

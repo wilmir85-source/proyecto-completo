@@ -28,7 +28,7 @@ export default function Layout() {
   const items = NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(user?.role));
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-[100dvh] flex overflow-hidden bg-[#09090b]">
       {/* Menú Lateral (Solo para PC) */}
       <aside className="w-64 border-r border-white/5 bg-zinc-950/70 backdrop-blur-xl fixed left-0 top-0 h-screen hidden md:flex flex-col p-5 z-20 overflow-y-auto">
         <button onClick={() => nav("/")} className="mb-10 group" data-testid="brand-home">
@@ -68,9 +68,11 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Contenido Principal */}
-      <main className="flex-1 min-w-0 md:ml-64 min-h-screen pb-24 md:pb-0">
-        <FinishOrderProvider><Outlet /></FinishOrderProvider>
+      {/* Contenido Principal (ajustado para iPhone y Tablets) */}
+      <main className="flex-1 min-w-0 md:ml-64 h-full flex flex-col pb-16 md:pb-0 pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto md:overflow-visible">
+          <FinishOrderProvider><Outlet /></FinishOrderProvider>
+        </div>
       </main>
       
       {/* Menú inferior (Solo celular) */}
