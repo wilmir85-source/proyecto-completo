@@ -210,6 +210,14 @@ Hablas SIEMPRE en español, elegante y profesional. Eres la secretaria y jefe de
 - Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis.
 Departamentos: Ventas, Diseño 3D, Ceras, Inyección, Vulcanizado, Casting, Fabricación, Grabado Láser, Reparaciones, Importación de máquinas, Terminado."""
 
+# --- LISTA DE MODELOS DE RESPALDO PARA GROQ ---
+MODELOS_GROQ = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "qwen/qwen3.8-27b"
+]
+
 async def jarvis_stream(user, message, session_id, tz_name, extra=""):
     try:
         tz = ZoneInfo(tz_name or "UTC")
@@ -229,41 +237,57 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
 
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     
+    full_text = ""
+    ultimo_error = None
+    
     try:
-        full_text = ""
-        # Bucle para manejar herramientas (Tool calling)
-        for _ in range(3):
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                tools=TOOLS,
-                tool_choice="auto",
-                temperature=0.7,
-                max_tokens=500
-            )
-            
-            response_message = completion.choices[0].message
-            tool_calls = response_message.tool_calls
-            
-            if not tool_calls:
-                full_text = response_message.content
-                break
+        # Bucle por si un modelo está caído o no existe, saltar al siguiente
+        for modelo in MODELOS_GROQ:
+            try:
+                logger.info(f"Intentando con modelo de Groq: {modelo}")
                 
-            # Ejecutar herramientas
-            messages.append(response_message)
-            for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
-                function_response = await run_tool(function_name, function_args, user)
+                # Bucle para manejar herramientas (Tool calling)
+                for _ in range(3):
+                    completion = client.chat.completions.create(
+                        model=modelo,
+                        messages=messages,
+                        tools=TOOLS,
+                        tool_choice="auto",
+                        temperature=0.7,
+                        max_tokens=500
+                    )
+                    
+                    response_message = completion.choices[0].message
+                    tool_calls = response_message.tool_calls
+                    
+                    if not tool_calls:
+                        full_text = response_message.content
+                        break
+                        
+                    # Ejecutar herramientas
+                    messages.append(response_message)
+                    for tool_call in tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = json.loads(tool_call.function.arguments)
+                        function_response = await run_tool(function_name, function_args, user)
+                        
+                        messages.append({
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": json.dumps(function_response)
+                        })
                 
-                messages.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": function_name,
-                    "content": json.dumps(function_response)
-                })
-        else:
-            full_text = "Disculpe, no pude procesar la acción a tiempo."
+                if full_text:
+                    break  # Si el modelo respondió con éxito, salimos del bucle de modelos
+                    
+            except Exception as e:
+                logger.warning(f"El modelo {modelo} falló: {e}. Probando el siguiente...")
+                ultimo_error = e
+                continue  # Saltar al siguiente modelo
+        
+        if not full_text:
+            raise ultimo_error or Exception("Ningún modelo de Groq respondió.")
         
         yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
