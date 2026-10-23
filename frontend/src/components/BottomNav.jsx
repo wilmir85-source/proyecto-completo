@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, Hammer, Bot, Menu } from "lucide-react";
+import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 export const BottomNav = () => {
   const location = useLocation();
   const path = location.pathname;
   const [showMore, setShowMore] = useState(false);
+  const { logout } = useAuth();
 
   const handleTabClick = () => {
     if (navigator.vibrate) navigator.vibrate(10);
@@ -42,7 +44,6 @@ export const BottomNav = () => {
             );
           })}
           
-          {/* Botón "Más" */}
           <button
             onClick={() => { if(navigator.vibrate) navigator.vibrate(10); setShowMore(!showMore); }}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
@@ -76,6 +77,13 @@ export const BottomNav = () => {
           <Link to="/equipo" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
             <span className="bg-zinc-800 p-3 rounded-full mb-1">👨‍💼</span> Equipo
           </Link>
+          {/* NUEVOS BOTONES AGREGADOS AQUÍ */}
+          <Link to="/iphone" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
+            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Smartphone className="w-5 h-5 text-amber-500"/></span> Siri y App
+          </Link>
+          <button onClick={() => { handleTabClick(); logout(); }} className="flex flex-col items-center text-red-400 text-xs hover:text-red-300">
+            <span className="bg-red-950/50 p-3 rounded-full mb-1"><LogOut className="w-5 h-5 text-red-500"/></span> Salir
+          </button>
         </div>
       )}
     </>
