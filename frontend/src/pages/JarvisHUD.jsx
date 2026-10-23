@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Send, Mic, Volume2 } from "lucide-react";
+import { Loader2, Send, Mic, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { ArcReactor } from "@/components/ArcReactor";
 import { api, API } from "@/lib/api";
@@ -28,28 +28,45 @@ export default function JarvisHUD() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, state]);
 
-  // FUNCIÓN PARA QUE JARVIS HABLE USANDO LA VOZ DEL IPHONE
+  // TRUCO PARA DESBLOQUEAR EL AUDIO EN IPHONE
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
+
   const speak = (text) => {
-    if (!voiceOn || !window.speechSynthesis) return;
+    if (!voiceOn || !window.speechSynthesis) {
+      // Si la voz está apagada, y hay manos libres, volvemos a escuchar
+      if (handsFreeRef.current) setTimeout(() => listen(), 500);
+      return;
+    }
     
-    // Detenemos cualquier voz anterior
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "es-MX"; // Español latino
-    utterance.rate = 1.0; // Velocidad normal
-    utterance.pitch = 1.0; // Tono normal
+    utterance.lang = "es-MX"; 
+    utterance.rate = 1.0; 
+    utterance.pitch = 1.0; 
     
-    // Buscamos la mejor voz en español disponible en el dispositivo
     const voices = window.speechSynthesis.getVoices();
     const spanishVoice = voices.find(v => v.lang.includes("es"));
     if (spanishVoice) utterance.voice = spanishVoice;
-    
+
+    utterance.onstart = () => setState("speaking");
+    utterance.onend = () => {
+      setState("idle");
+      // Si manos libres está activo, escuchamos de nuevo DESPUÉS de que termine de hablar
+      if (handsFreeRef.current) {
+        setTimeout(() => listen(), 500);
+      }
+    };
+
     window.speechSynthesis.speak(utterance);
   };
 
   const listen = () => {
-    if (state === "thinking") return;
+    if (state === "thinking" || state === "speaking") return;
     
     if (speech.listening) {
       speech.stop();
@@ -58,7 +75,6 @@ export default function JarvisHUD() {
 
     speech.start((textoDictado) => {
       setInput(textoDictado);
-      // Auto-enviar el mensaje después de que se transcriba
       setTimeout(() => {
         send(null, textoDictado);
       }, 500);
@@ -69,6 +85,11 @@ export default function JarvisHUD() {
     if (e) e.preventDefault();
     const text = (overrideText || input).trim();
     if (!text || state === "thinking") return;
+
+    // Desbloqueo de audio para iOS (se ejecuta en el toque del usuario)
+    if (voiceOn && window.speechSynthesis) {
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(" "));
+    }
 
     setInput("");
     const userMsg = { id: Date.now().toString(), role: "user", content: text };
@@ -114,20 +135,19 @@ export default function JarvisHUD() {
       
       setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
       
-      // ¡AQUÍ HACEMOS QUE HABLE!
+      // HACEMOS QUE HABLE
       speak(acc);
 
     } catch (err) {
       if (err.name === 'AbortError') {
         toast.error("Jarvis tardó mucho en responder. Intenta de nuevo.");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando." } : x)));
+        setState("idle");
       } else {
         toast.error("Error al comunicarse con Jarvis");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
+        setState("idle");
       }
-    } finally {
-      setState("idle");
-      if (handsFreeRef.current) listen();
     }
   };
 
@@ -142,12 +162,15 @@ export default function JarvisHUD() {
           <h1 className="font-display text-4xl font-light tracking-[0.3em] mt-2 text-cyan-100">J.A.R.V.I.S.</h1>
         </div>
         <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 150 : 220} />
+        
         <div className="flex flex-col gap-3 w-64 mt-4 text-xs text-zinc-400">
           <label className="flex items-center justify-between">
-            Respuesta por voz <Switch checked={voiceOn} onCheckedChange={setVoiceOn} data-testid="toggle-voice" />
+            <span className="flex items-center gap-2"><Volume2 className="w-4 h-4" /> Respuesta por voz</span>
+            <Switch checked={voiceOn} onCheckedChange={setVoiceOn} data-testid="toggle-voice" />
           </label>
           <label className="flex items-center justify-between">
-            Manos libres <Switch checked={handsFree} onCheckedChange={(v) => { setHandsFree(v); handsFreeRef.current = v; }} data-testid="toggle-handsfree" />
+            <span className="flex items-center gap-2"><Mic className="w-4 h-4" /> Manos libres</span>
+            <Switch checked={handsFree} onCheckedChange={(v) => { setHandsFree(v); handsFreeRef.current = v; }} data-testid="toggle-handsfree" />
           </label>
         </div>
       </section>
