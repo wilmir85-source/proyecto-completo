@@ -21,32 +21,26 @@ export const NotificationButton = () => {
   };
 
   useEffect(() => {
-    // 1. Verificaciones de soporte
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       setStatus("unsupported");
       setErrorMsg("Tu dispositivo no soporta notificaciones, o no has instalado la app en la pantalla de inicio.");
       return;
     }
 
-    // 2. Temporizador de seguridad: Si en 3 segundos no pasa nada, mostramos el botón
     const timer = setTimeout(() => {
       setStatus((prev) => (prev === "loading" ? "ready" : prev));
     }, 3000);
 
-    // 3. Verificamos el Service Worker de forma más agresiva
     const checkSW = async () => {
       try {
         await navigator.serviceWorker.register('/sw.js');
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          setStatus("subscribed");
-        } else {
-          setStatus("ready");
-        }
+        if (sub) setStatus("subscribed");
+        else setStatus("ready");
       } catch (err) {
         console.error("Error SW:", err);
-        setStatus("ready"); // Si falla, igual mostramos el botón
+        setStatus("ready");
       } finally {
         clearTimeout(timer);
       }
@@ -66,27 +60,43 @@ export const NotificationButton = () => {
       return;
     }
 
+    // 🚨 FRENO DE EMERGENCIA: Si en 15 segundos no pasa nada, mostramos error
+    const timeoutId = setTimeout(() => {
+      setStatus("error");
+      setErrorMsg("El servidor está tardando mucho en responder. Revisa tu conexión a internet o intenta de nuevo.");
+    }, 15000);
+
     try {
+      // 1. Pedir permiso (esto debe ser lo primero en iOS)
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
+        clearTimeout(timeoutId);
         setStatus("error");
-        setErrorMsg("Permiso denegado. Ve a los ajustes de tu iPhone > Notificaciones > Jarvis y permite las notificaciones.");
+        setErrorMsg("Permiso denegado. Ve a Ajustes de tu iPhone > Notificaciones > Jarvis y actívalas.");
         return;
       }
 
+      // 2. Registrar Service Worker
       const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // 3. Suscribir al Push
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
 
+      // 4. Enviar a Render
       await api.post('/notifications/subscribe', subscription.toJSON());
+      
+      clearTimeout(timeoutId);
       setStatus("subscribed");
       toast.success("¡Notificaciones activadas!");
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error(error);
       setStatus("error");
-      setErrorMsg(`Error: ${error.name} - ${error.message}`);
+      // Si el error es por el Service Worker, mostramos el mensaje real
+      setErrorMsg(`Error: ${error.name || 'Desconocido'} - ${error.message || 'Fallo al conectar'}`);
     }
   };
 
@@ -108,7 +118,7 @@ export const NotificationButton = () => {
       
       {status === "loading" && (
         <div className="text-zinc-400 text-sm flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin"/> Verificando...
+          <Loader2 className="w-4 h-4 animate-spin"/> Procesando...
         </div>
       )}
 
