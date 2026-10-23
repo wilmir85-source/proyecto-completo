@@ -13,12 +13,15 @@ export const OrderCard = ({ order: o, canEdit, canDelete, onOpen, onMove, onDele
   >
     {o.fotos?.length > 0 && (
       <div className="relative -mx-4 -mt-4 mb-3 h-28 overflow-hidden rounded-t-xl">
-        <img src={fileUrl(o.fotos[0].path)} alt="" className="w-full h-full object-cover" data-testid={`order-thumb-${o.id}`} />
+        {/* Aquí está el arreglo para que jale la foto de Cloudinary */}
+        <img src={fileUrl(o.fotos[0].path, o.fotos[0].url)} alt="" className="w-full h-full object-cover" data-testid={`order-thumb-${o.id}`} />
         {o.fotos.length > 1 && <span className="absolute bottom-1.5 right-1.5 text-[10px] px-1.5 py-0.5 rounded bg-black/70 text-zinc-200">+{o.fotos.length - 1}</span>}
       </div>
     )}
     <div className="flex items-start justify-between gap-2">
       <div className="flex-1 min-w-0">
+        {/* Aquí agregamos el número de Folio */}
+        <div className="text-[10px] font-mono text-amber-500/80 mb-0.5 tracking-wider">{o.folio || "S/N"}</div>
         <div className="font-medium text-sm truncate">{o.cliente}</div>
         <div className="text-xs text-zinc-400 mt-1 line-clamp-2">{o.descripcion}</div>
       </div>
