@@ -6,9 +6,9 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
-from google import genai
+from groq import Groq
 import os
-#from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, ToolCallReady, StreamDone
+
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
 from routes_misc import op_create_task, task_query
@@ -39,13 +39,19 @@ async def find_order(ref):
     return (active or hits or [None])[0]
 
 async def find_user(name):
-    if not name:
-        return None
+    if not name: return None
     q = norm(name)
     for u in await db.users.find({"activo": {"$ne": False}}, {"_id": 0, "password": 0}).to_list(500):
         if q in norm(u["name"]) or q == norm(u["email"]):
             return u
     raise HTTPException(400, f"No encontré al trabajador '{name}'")
+
+async def find_client(name):
+    q = norm(name)
+    for c in await db.clients.find({}, {"_id": 0, "id": 1, "nombre": 1}).to_list(5000):
+        if q in norm(c["nombre"]):
+            return c
+    return None
 
 TOOLS = [
     {"type": "function", "function": {
@@ -90,13 +96,6 @@ TOOLS = [
         "parameters": {"type": "object", "properties": {"nombre": {"type": "string"}, "nota": {"type": "string"}},
                        "required": ["nombre", "nota"]}}},
 ]
-
-async def find_client(name):
-    q = norm(name)
-    for c in await db.clients.find({}, {"_id": 0, "id": 1, "nombre": 1}).to_list(5000):
-        if q in norm(c["nombre"]):
-            return c
-    return None
 
 async def run_tool(name, args, user):
     try:
@@ -178,11 +177,6 @@ async def run_tool(name, args, user):
     except HTTPException as e:
         return {"error": e.detail}
 
-def action_note(actions):
-    if not actions: return ""
-    done = "; ".join(f"{a['tool']} {json.dumps(a['result'], ensure_ascii=False, default=str)}" for a in actions)
-    return f"\n[ACCIONES YA EJECUTADAS EN ESTE TURNO: {done}]"
-
 async def build_context(user, tz) -> str:
     orders = [enrich_order(o) for o in await db.orders.find({}, {"_id": 0}).sort("fecha_entrega", 1).to_list(300)]
     tasks = await db.tasks.find({**task_query(user), "completada": False}, {"_id": 0}).to_list(100)
@@ -210,7 +204,7 @@ async def build_context(user, tz) -> str:
     return "\n".join(lines)
 
 JARVIS_SYSTEM = """Eres JARVIS, el asistente de inteligencia artificial 24/7 de la joyería "Mundo de Joyas".
-Hablas SIEMPRE en español, elegante y profesional. Eres secretaria y jefe de producción.
+Hablas SIEMPRE en español, elegante y profesional. Eres la secretaria y jefe de producción.
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
 - EJECUTAS acciones usando tus herramientas cuando te lo piden.
 - Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis.
@@ -225,44 +219,51 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
     system = JARVIS_SYSTEM + extra + "\n\n=== DATOS EN VIVO ===\n" + await build_context(user, tz)
     
     past = await db.chat_messages.find({"user_id": user["id"], "session_id": session_id},
-                                       {"_id": 0, "role": 1, "content": 1}).sort("created_at", 1).to_list(40)
-                                       
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+                                       {"_id": 0, "role": 1, "content": 1}).sort("created_at", 1).to_list(20)
     
-    gemini_history = []
-    for m in past[-20:]:
-        role = "user" if m["role"] == "user" else "model"
-        if gemini_history and gemini_history[-1]["role"] == role:
-            gemini_history[-1]["parts"][0]["text"] += "\n" + m["content"]
-        else:
-            gemini_history.append({"role": role, "parts": [{"text": m["content"]}]})
-        
-    # --- LISTA DE MODELOS DE RESPALDO ACTUALIZADA ---
-    model_options = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"]
+    messages = [{"role": "system", "content": system}]
+    for m in past:
+        role = "user" if m["role"] == "user" else "assistant"
+        messages.append({"role": role, "content": m["content"]})
+    messages.append({"role": "user", "content": message})
+
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     
     try:
-        response = None
         full_text = ""
-        last_error = None
-        
-        for model_name in model_options:
-            try:
-                logger.info(f"Intentando con modelo: {model_name}")
-                chat = client.chats.create(
-                    model=model_name,
-                    history=gemini_history,
-                    config={'system_instruction': system}
-                )
-                response = chat.send_message(message)
-                full_text = response.text
-                if full_text:
-                    break # Si funciona, salimos del bucle
-            except Exception as e:
-                logger.warning(f"El modelo {model_name} falló. Probando el siguiente... ({e})")
-                last_error = e
+        # Bucle para manejar herramientas (Tool calling)
+        for _ in range(3):
+            completion = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                tools=TOOLS,
+                tool_choice="auto",
+                temperature=0.7,
+                max_tokens=500
+            )
+            
+            response_message = completion.choices[0].message
+            tool_calls = response_message.tool_calls
+            
+            if not tool_calls:
+                full_text = response_message.content
+                break
                 
-        if not full_text:
-            raise last_error or Exception("Ningún modelo de Google respondió.")
+            # Ejecutar herramientas
+            messages.append(response_message)
+            for tool_call in tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = await run_tool(function_name, function_args, user)
+                
+                messages.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": json.dumps(function_response)
+                })
+        else:
+            full_text = "Disculpe, no pude procesar la acción a tiempo."
         
         yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -274,8 +275,8 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
              "content": full_text, "created_at": now_iso()}])
              
     except Exception as e:
-        logger.error(f"Error crítico en Gemini: {e}")
-        yield f"data: {json.dumps({'type': 'delta', 'content': f'⚠️ Error con los servidores de Google: {str(e)}'})}\n\n"
+        logger.error(f"Error en Groq: {e}")
+        yield f"data: {json.dumps({'type': 'delta', 'content': f'⚠️ Error con Groq: {str(e)}'})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
 @router.post("/chat")
@@ -283,43 +284,6 @@ async def chat_endpoint(payload: ChatIn, user=Depends(current_user)):
     session_id = payload.session_id or new_id()
     return StreamingResponse(jarvis_stream(user, payload.message, session_id, payload.tz), media_type="text/plain",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Session-Id": session_id})
-
-# ---------- Siri / Apple Shortcuts ----------
-SIRI_EXTRA = "\nESTÁS RESPONDIENDO A TRAVÉS DE SIRI: responde en 1-2 frases cortas."
-
-class SiriIn(BaseModel):
-    key: str
-    texto: str
-    tz: Optional[str] = None
-
-async def user_siri_key(user_id, regenerate=False):
-    u = await db.users.find_one({"id": user_id}, {"_id": 0, "siri_key": 1})
-    key = u.get("siri_key")
-    if regenerate or not key:
-        key = "jv_" + new_id().replace("-", "")
-        await db.users.update_one({"id": user_id}, {"$set": {"siri_key": key}})
-    return key
-
-@router.get("/me/siri")
-async def my_siri(user=Depends(current_user)):
-    return {"key": await user_siri_key(user["id"]), "path": "/api/siri"}
-
-@router.post("/me/siri/regenerate")
-async def regenerate_siri(user=Depends(current_user)):
-    return {"key": await user_siri_key(user["id"], regenerate=True), "path": "/api/siri"}
-
-@router.post("/siri")
-async def siri(payload: SiriIn):
-    user = await db.users.find_one({"siri_key": payload.key, "activo": {"$ne": False}}, {"_id": 0, "password": 0})
-    if not user:
-        return Response("Clave de Jarvis inválida.", media_type="text/plain; charset=utf-8", status_code=401)
-    if not payload.texto.strip():
-        return Response("No escuché ningún comando.", media_type="text/plain; charset=utf-8")
-    tz = payload.tz or user.get("tz") or "America/Mexico_City"
-    session_id = f"siri-{user['id']}-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
-    chunks = [c async for c in jarvis_stream(user, payload.texto, session_id, tz, SIRI_EXTRA)]
-    text = "".join(chunks).split(ACTION_MARK)[0].strip() or "Listo."
-    return Response(text, media_type="text/plain; charset=utf-8")
 
 @router.post("/tts")
 async def tts(payload: TTSIn, user=Depends(current_user)):
