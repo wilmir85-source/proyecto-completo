@@ -51,6 +51,8 @@ export default function App() {
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+          
+          {/* El Layout se encarga de mostrar el menú de arriba (PC) y el de abajo (Celular) */}
           <Route element={<Protected><Layout /></Protected>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pedidos" element={<Tablero />} />
@@ -65,6 +67,7 @@ export default function App() {
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
           </Route>
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
