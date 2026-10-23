@@ -23,13 +23,16 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
   return (
     <Dialog open={!!current} onOpenChange={(o) => !o && onClose()}>
       
-      {/* Le quitamos los estilos raros de centrado. Usamos el estándar, pero limitado para móvil. */}
       <DialogContent className="w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto z-[100] bg-zinc-950 border-zinc-800 p-5 pb-28">
         {order && (
           <>
             <DialogHeader>
               <DialogTitle className="font-display text-xl pr-8">{order.cliente}</DialogTitle>
             </DialogHeader>
+            
+            {/* AQUÍ ESTÁ EL FOLIO AGREGADO */}
+            <div className="text-xs font-mono text-amber-500 mb-2 -mt-1">Folio: {order.folio || "S/N"}</div>
+            
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2 items-center">
                 <StageBadge stage={order.stage} />
