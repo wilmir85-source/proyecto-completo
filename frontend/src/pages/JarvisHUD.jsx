@@ -30,7 +30,18 @@ export default function JarvisHUD() {
 
   const listen = () => {
     if (state === "thinking") return;
-    if (speech && speech.start) speech.start();
+    
+    // Si ya está escuchando, detenemos la grabación
+    if (speech.listening) {
+      speech.stop();
+      return;
+    }
+
+    // Si no, empezamos a grabar y le decimos qué hacer con el texto
+    speech.start((textoDictado) => {
+      setInput(textoDictado);
+      toast.success("¡Texto dictado!");
+    });
   };
 
   const send = async (e) => {
@@ -48,14 +59,22 @@ export default function JarvisHUD() {
 
     try {
       const token = localStorage.getItem("jarvis_token");
+      
+      // Temporizador de seguridad para que no se quede trabado
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
       const response = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ message: text, session_id: "default" })
+        body: JSON.stringify({ message: text, session_id: "default" }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.body) throw new Error("No stream");
 
@@ -77,8 +96,13 @@ export default function JarvisHUD() {
       setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
 
     } catch (err) {
-      toast.error("Error al comunicarse con Jarvis");
-      setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
+      if (err.name === 'AbortError') {
+        toast.error("Jarvis tardó mucho en responder (el servidor está despertando). Intenta de nuevo.");
+        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando. Intente de nuevo." } : x)));
+      } else {
+        toast.error("Error al comunicarse con Jarvis");
+        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
+      }
     } finally {
       setState("idle");
       if (handsFreeRef.current) listen();
@@ -117,10 +141,10 @@ export default function JarvisHUD() {
         </div>
         <div className="p-4 border-t border-white/5">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
-            <Button type="button" variant="outline" size="icon" onClick={listen} className="h-12 w-12 bg-zinc-950 border-zinc-800" data-testid="chat-mic">
+            <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-12 w-12 bg-zinc-950 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`} data-testid="chat-mic">
               <Mic className="w-4 h-4" />
             </Button>
-            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Escriba a Jarvis..." className="bg-zinc-950 border-zinc-800 h-12 text-sm" disabled={state === "thinking"} data-testid="chat-input" />
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Escriba a Jarvis..."} className="bg-zinc-950 border-zinc-800 h-12 text-sm" disabled={state === "thinking"} data-testid="chat-input" />
             <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-12 bg-cyan-600 hover:bg-cyan-500 text-black" data-testid="chat-send">
               {state === "thinking" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
