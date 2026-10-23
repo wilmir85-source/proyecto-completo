@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarPlus, Copy, Smartphone, Share, PlusSquare } from "lucide-react";
 import { toast } from "sonner";
 import { SiriSetup } from "@/components/SiriSetup";
+import { NotificationButton } from "@/components/NotificationButton"; // <-- IMPORTAMOS EL BOTÓN
 
 const Step = ({ n, children }) => (
   <li className="flex gap-3 text-sm text-zinc-300">
@@ -30,7 +31,13 @@ export default function IPhone() {
         <h1 className="font-display text-4xl font-light">Jarvis en tu iPhone, Android y PC</h1>
       </header>
 
+      {/* BOTÓN DE NOTIFICACIONES PUSH */}
+      <div className="mb-6">
+        <NotificationButton />
+      </div>
+
       <SiriSetup />
+      
       <div className="card-glass rounded-2xl p-6 mb-6" data-testid="calendar-card">
         <div className="flex items-center gap-3 mb-4">
           <CalendarPlus className="w-6 h-6 text-cyan-400" />
