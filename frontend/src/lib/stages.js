@@ -40,7 +40,9 @@ export const PAY_STYLES = {
 
 export const ROLE_LABELS = { admin: "Admin", ventas: "Ventas", trabajador: "Trabajador" };
 
-export const money = (n) => `$${Number(n || 0).toLocaleString("es", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+// CAMBIO DE MONEDA A QUETZALES
+export const money = (n) => `Q${Number(n || 0).toLocaleString("es", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
 export const toISO = (local) => (local ? new Date(local).toISOString() : null);
 export const toLocalInput = (iso) => {
   if (!iso) return "";
