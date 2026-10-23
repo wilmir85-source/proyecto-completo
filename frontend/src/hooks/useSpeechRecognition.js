@@ -11,10 +11,8 @@ export const useSpeechRecognition = () => {
     if (listening) return;
 
     try {
-      // Pedimos permiso al micrófono
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Elegimos el mejor formato de audio compatible con el celular
       let mimeType = 'audio/webm';
       if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
       if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
@@ -33,9 +31,11 @@ export const useSpeechRecognition = () => {
         setListening(false);
         setInterim("Procesando voz...");
         
+        const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        
         const formData = new FormData();
-        formData.append("file", audioBlob, mimeType === 'audio/mp4' ? "audio.mp4" : "audio.webm");
+        formData.append("file", audioBlob, `audio.${extension}`);
 
         try {
           const token = localStorage.getItem("jarvis_token");
@@ -57,13 +57,20 @@ export const useSpeechRecognition = () => {
           console.error("Error enviando audio:", err);
         } finally {
           setInterim("");
-          stream.getTracks().forEach(track => track.stop()); // Apagar el micrófono
+          stream.getTracks().forEach(track => track.stop());
         }
       };
 
       mediaRecorder.start();
       setListening(true);
-      setInterim("Escuchando... Habla ahora");
+      setInterim("Escuchando... (6 seg máx)");
+
+      // AUTO-STOP: Se detiene solo a los 6 segundos para no trabarse
+      setTimeout(() => {
+        if (mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+        }
+      }, 6000);
 
     } catch (err) {
       console.warn("No se pudo acceder al micrófono:", err);
