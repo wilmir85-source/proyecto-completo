@@ -11,6 +11,7 @@ import routes_inventory
 import routes_clients
 import routes_pdf
 import routes_settings
+import routes_notifications # <-- NUEVA IMPORTACIÓN
 
 app = FastAPI(title="Jarvis Joyería API")
 health = APIRouter(prefix="/api")
@@ -21,8 +22,10 @@ async def root():
     return {"service": "Jarvis Joyería", "ok": True}
 
 
+# AGREGAMOS EL ROUTER DE NOTIFICACIONES A LA LISTA
 for r in (health, routes_auth.router, routes_orders.router, routes_misc.router, routes_jarvis.router,
-          routes_inventory.router, routes_clients.router, routes_pdf.router, routes_settings.router):
+          routes_inventory.router, routes_clients.router, routes_pdf.router, routes_settings.router,
+          routes_notifications.router): 
     app.include_router(r)
 
 app.add_middleware(
