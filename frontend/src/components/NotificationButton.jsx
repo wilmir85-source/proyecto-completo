@@ -7,7 +7,6 @@ export const NotificationButton = () => {
   const [status, setStatus] = useState("loading");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // NUEVA LLAVE PÚBLICA GENERADA
   const VAPID_PUBLIC_KEY = "BBpVRfkvCX4Nq-Hzj84NvvIB1i08Tys9T2NPIpsWXioKzwPCIpcFF7QSCkpCzi8dIsobn6gHVDuq7UvV2g7yDAM";
 
   const urlBase64ToUint8Array = (base64String) => {
@@ -22,29 +21,45 @@ export const NotificationButton = () => {
   };
 
   useEffect(() => {
-    // Verificamos si el navegador soporta TODO lo necesario (incluyendo la variable Notification)
+    // 1. Verificaciones de soporte
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       setStatus("unsupported");
       setErrorMsg("Tu dispositivo no soporta notificaciones, o no has instalado la app en la pantalla de inicio.");
       return;
     }
 
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.pushManager.getSubscription().then((sub) => {
-        if (sub) setStatus("subscribed");
-        else setStatus("ready");
-      }).catch(() => setStatus("ready"));
-    }).catch((err) => {
-      console.error("Error SW:", err);
-      setStatus("ready");
-    });
+    // 2. Temporizador de seguridad: Si en 3 segundos no pasa nada, mostramos el botón
+    const timer = setTimeout(() => {
+      setStatus((prev) => (prev === "loading" ? "ready" : prev));
+    }, 3000);
+
+    // 3. Verificamos el Service Worker de forma más agresiva
+    const checkSW = async () => {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          setStatus("subscribed");
+        } else {
+          setStatus("ready");
+        }
+      } catch (err) {
+        console.error("Error SW:", err);
+        setStatus("ready"); // Si falla, igual mostramos el botón
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    checkSW();
+    return () => clearTimeout(timer);
   }, []);
 
   const subscribe = async () => {
     setStatus("loading");
     setErrorMsg("");
     
-    // Doble verificación antes de pedir permiso (para evitar el error de iOS)
     if (!('Notification' in window)) {
       setStatus("unsupported");
       setErrorMsg("Debes instalar la app en tu pantalla de inicio para activar las notificaciones.");
