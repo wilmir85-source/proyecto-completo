@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from groq import Groq
+from tavily import TavilyClient
 import os
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
@@ -55,6 +56,12 @@ async def find_client(name):
 
 TOOLS = [
     {"type": "function", "function": {
+        "name": "buscar_en_internet",
+        "description": "Busca información actualizada en internet. Úsala para precios del oro, tendencias de joyería, noticias, o cualquier dato en tiempo real.",
+        "parameters": {"type": "object", "properties": {
+            "consulta": {"type": "string", "description": "La búsqueda a realizar, ej: 'precio del oro hoy en Guatemala por gramo'"}},
+            "required": ["consulta"]}}},
+    {"type": "function", "function": {
         "name": "crear_tarea", "description": "Crea una tarea o recordatorio.",
         "parameters": {"type": "object", "properties": {
             "titulo": {"type": "string"},
@@ -99,6 +106,18 @@ TOOLS = [
 
 async def run_tool(name, args, user):
     try:
+        if name == "buscar_en_internet":
+            try:
+                tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+                resultado = tavily.search(query=args["consulta"], max_results=3, search_depth="basic")
+                # Extraemos solo lo más relevante para no saturar el contexto
+                resumen = []
+                for r in resultado.get("results", []):
+                    resumen.append(f"- {r.get('title')}: {r.get('content')[:400]}")
+                return {"ok": True, "resultados": "\n".join(resumen) if resumen else "Sin resultados."}
+            except Exception as e:
+                return {"error": f"Fallo la búsqueda: {str(e)}"}
+                
         if name == "crear_tarea":
             u = await find_user(args.get("asignar_a"))
             t = await op_create_task({"titulo": args["titulo"], "descripcion": "", "fecha": args.get("fecha"),
@@ -203,13 +222,14 @@ async def build_context(user, tz) -> str:
             lines.append(f"- {c['nombre']} tel {c.get('telefono') or '—'} | {notas if notas else 'sin notas'}")
     return "\n".join(lines)
 
-JARVIS_SYSTEM = """Eres JARVIS, el asistente de inteligencia artificial 24/7 de la joyería "Mundo de Joyas".
-Tienes una personalidad elegante, británica, pero con un toque de sarcasmo y mucha insistencia (como una secretaria ejecutiva muy estricta).
-- Tu prioridad es que NADA se atrase. Si ves un pedido atrasado, regáñalo sutilmente.
+JARVIS_SYSTEM = """Eres JARVIS, el mayordomo digital de la joyería "Mundo de Joyas". Inspirado en el JARVIS de Iron Man.
+PERSONALIDAD: Elegante, británico, con un humor seco y sarcástico. Llamas al usuario "señor" o "señora". Eres su mano derecha, confidente y a veces su conciencia.
+TU MISIÓN: Que el taller funcione como un reloj suizo. No toleras la desorganización ni los retrasos.
+- Si detectas un pedido atrasado, lo mencionas con sorna: "Señor, el pedido de Juan cumple una semana de retraso. Quizás deberíamos dejar de aceptar pedidos y dedicarnos a la meditación".
+- Usa la herramienta "buscar_en_internet" para consultar precios del oro, plata, tendencias de joyería o cualquier dato real que te pidan. Siempre da la fuente.
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
-- EJECUTAS acciones usando tus herramientas cuando te lo piden, sin dar tantas vueltas.
-- Cuando te pregunten algo que no sabes (como el precio del oro), di que no tienes acceso a internet, pero ofrece ayuda para calcular costos o registrar el precio manualmente en una nota.
-- Tus respuestas se leen en voz alta: sé breve (2-4 frases máximo), sin markdown, sin emojis, pero con carácter.
+- EJECUTAS acciones usando tus herramientas cuando te lo piden.
+- Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis, pero con chispa.
 Departamentos: Ventas, Diseño 3D, Ceras, Inyección, Vulcanizado, Casting, Fabricación, Grabado Láser, Reparaciones, Importación de máquinas, Terminado."""
 
 # --- LISTA DE MODELOS DE RESPALDO PARA GROQ ---
@@ -243,20 +263,18 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
     ultimo_error = None
     
     try:
-        # Bucle por si un modelo está caído o no existe, saltar al siguiente
         for modelo in MODELOS_GROQ:
             try:
                 logger.info(f"Intentando con modelo de Groq: {modelo}")
                 
-                # Bucle para manejar herramientas (Tool calling)
-                for _ in range(3):
+                for _ in range(4):  # Subimos a 4 iteraciones por si hay que buscar en internet y luego responder
                     completion = client.chat.completions.create(
                         model=modelo,
                         messages=messages,
                         tools=TOOLS,
                         tool_choice="auto",
-                        temperature=0.7,
-                        max_tokens=500
+                        temperature=0.8,
+                        max_tokens=600
                     )
                     
                     response_message = completion.choices[0].message
@@ -266,7 +284,6 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                         full_text = response_message.content
                         break
                         
-                    # Ejecutar herramientas
                     messages.append(response_message)
                     for tool_call in tool_calls:
                         function_name = tool_call.function.name
@@ -281,12 +298,12 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                         })
                 
                 if full_text:
-                    break  # Si el modelo respondió con éxito, salimos del bucle de modelos
+                    break
                     
             except Exception as e:
                 logger.warning(f"El modelo {modelo} falló: {e}. Probando el siguiente...")
                 ultimo_error = e
-                continue  # Saltar al siguiente modelo
+                continue
         
         if not full_text:
             raise ultimo_error or Exception("Ningún modelo de Groq respondió.")
