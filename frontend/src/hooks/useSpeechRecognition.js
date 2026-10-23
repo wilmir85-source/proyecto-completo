@@ -13,16 +13,19 @@ export const useSpeechRecognition = () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      let mimeType = 'audio/webm';
-      if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
-      if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
+      // Dejamos que el navegador elija el mejor formato (Safari usa mp4)
+      let options = {};
+      if (typeof MediaRecorder.isTypeSupported === 'function') {
+        if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+        else if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
+      }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
@@ -31,9 +34,18 @@ export const useSpeechRecognition = () => {
         setListening(false);
         setInterim("Procesando voz...");
         
+        const mimeType = mediaRecorder.mimeType || 'audio/mp4';
         const extension = mimeType.includes('mp4') ? 'mp4' : 'webm';
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         
+        // Si el audio está vacío, avisamos en lugar de mandar basura
+        if (audioBlob.size === 0) {
+          alert("El micrófono no grabó audio. Intenta hablar más fuerte o más tiempo.");
+          setInterim("");
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+
         const formData = new FormData();
         formData.append("file", audioBlob, `audio.${extension}`);
 
@@ -61,11 +73,11 @@ export const useSpeechRecognition = () => {
         }
       };
 
-      mediaRecorder.start();
+      // EL TRUCO PARA SAFARI: start(1000) guarda pedacitos cada segundo
+      mediaRecorder.start(1000);
       setListening(true);
       setInterim("Escuchando... (6 seg máx)");
 
-      // AUTO-STOP: Se detiene solo a los 6 segundos para no trabarse
       setTimeout(() => {
         if (mediaRecorder.state === "recording") {
           mediaRecorder.stop();
