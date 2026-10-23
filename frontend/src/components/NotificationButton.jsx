@@ -8,7 +8,7 @@ export const NotificationButton = () => {
   const [loading, setLoading] = useState(true);
   const [reg, setReg] = useState(null);
 
-  const VAPID_PUBLIC_KEY = "3mjEFGmUlG-aDoQRi0Uqh4Xn73nJ60cPF7eE84deKcY";
+  const VAPID_PUBLIC_KEY = "BBpVRfkvCX4Nq-Hzj84NvvIB1i08Tys9T2NPIpsWXioKzwPCIpcFF7QSCkpCzi8dIsobn6gHVDuq7UvV2g7yDAM";
 
   const urlBase64ToUint8Array = (base64String) => {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
