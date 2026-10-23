@@ -2,7 +2,7 @@ import { Outlet, useNavigate, NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
-import { MobileNav } from "@/components/MobileNav";
+import { BottomNav } from "@/components/BottomNav";
 import { FinishOrderProvider } from "@/components/FinishOrderDialog";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -29,6 +29,7 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex">
+      {/* Menú Lateral (Solo para PC) */}
       <aside className="w-64 border-r border-white/5 bg-zinc-950/70 backdrop-blur-xl fixed left-0 top-0 h-screen hidden md:flex flex-col p-5 z-20 overflow-y-auto">
         <button onClick={() => nav("/")} className="mb-10 group" data-testid="brand-home">
           <BrandMark />
@@ -67,10 +68,13 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 md:ml-64 min-h-screen pb-20 md:pb-0">
+      {/* Contenido Principal (con pb-24 para que el menú de abajo no lo tape) */}
+      <main className="flex-1 min-w-0 md:ml-64 min-h-screen pb-24 md:pb-0">
         <FinishOrderProvider><Outlet /></FinishOrderProvider>
       </main>
-      <MobileNav items={items} onLogout={logout} />
+      
+      {/* Menú inferior (Solo para celular) */}
+      <BottomNav />
     </div>
   );
 }
