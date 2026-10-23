@@ -3,12 +3,13 @@ import unicodedata
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 from groq import Groq
 from tavily import TavilyClient
 import os
+import io
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -110,7 +111,6 @@ async def run_tool(name, args, user):
             try:
                 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
                 resultado = tavily.search(query=args["consulta"], max_results=3, search_depth="basic")
-                # Extraemos solo lo más relevante para no saturar el contexto
                 resumen = []
                 for r in resultado.get("results", []):
                     resumen.append(f"- {r.get('title')}: {r.get('content')[:400]}")
@@ -230,6 +230,7 @@ TU MISIÓN: Que el taller funcione como un reloj suizo. No toleras la desorganiz
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
 - EJECUTAS acciones usando tus herramientas cuando te lo piden.
 - Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis, pero con chispa.
+- IMPORTANTE: La moneda de la joyería son Quetzales (Q). Siempre usa 'Q' en lugar de '$' al hablar de dinero.
 Departamentos: Ventas, Diseño 3D, Ceras, Inyección, Vulcanizado, Casting, Fabricación, Grabado Láser, Reparaciones, Importación de máquinas, Terminado."""
 
 # --- LISTA DE MODELOS DE RESPALDO PARA GROQ ---
@@ -267,7 +268,7 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
             try:
                 logger.info(f"Intentando con modelo de Groq: {modelo}")
                 
-                for _ in range(4):  # Subimos a 4 iteraciones por si hay que buscar en internet y luego responder
+                for _ in range(4):
                     completion = client.chat.completions.create(
                         model=modelo,
                         messages=messages,
@@ -327,6 +328,23 @@ async def chat_endpoint(payload: ChatIn, user=Depends(current_user)):
     session_id = payload.session_id or new_id()
     return StreamingResponse(jarvis_stream(user, payload.message, session_id, payload.tz), media_type="text/plain",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "X-Session-Id": session_id})
+
+@router.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...), user=Depends(current_user)):
+    try:
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        audio_data = await file.read()
+        
+        transcription = client.audio.transcriptions.create(
+            file=(file.filename, audio_data),
+            model="whisper-large-v3-turbo",
+            language="es",
+            response_format="json"
+        )
+        return {"text": transcription.text}
+    except Exception as e:
+        logger.error(f"Error transcribiendo: {e}")
+        raise HTTPException(500, f"Error al transcribir: {str(e)}")
 
 @router.post("/tts")
 async def tts(payload: TTSIn, user=Depends(current_user)):

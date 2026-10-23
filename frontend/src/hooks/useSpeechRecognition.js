@@ -1,69 +1,82 @@
 import { useRef, useState } from "react";
-
-const Recognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+import { API } from "@/lib/api";
 
 export const useSpeechRecognition = () => {
-  const recRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
 
-  const stop = () => {
-    if (recRef.current) {
-      recRef.current.stop();
-      recRef.current = null;
-    }
-    setListening(false);
-    setInterim("");
-  };
+  const start = async (onFinal) => {
+    if (listening) return;
 
-  const start = (onFinal) => {
-    if (!Recognition || listening) return;
-    
     try {
-      const rec = new Recognition();
-      rec.lang = navigator.language?.startsWith("es") ? navigator.language : "es-MX";
-      rec.interimResults = true;
-      rec.continuous = false;
-      let finalText = "";
+      // Pedimos permiso al micrófono
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Elegimos el mejor formato de audio compatible con el celular
+      let mimeType = 'audio/webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+      if (MediaRecorder.isTypeSupported('audio/aac')) mimeType = 'audio/aac';
 
-      rec.onresult = (e) => {
-        let txt = "";
-        for (const r of e.results) {
-          if (r.isFinal) finalText = r[0].transcript;
-          else txt += r[0].transcript;
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
-        setInterim(finalText || txt);
       };
 
-      rec.onend = () => {
+      mediaRecorder.onstop = async () => {
         setListening(false);
-        setInterim("");
-        if (finalText.trim()) onFinal(finalText.trim());
+        setInterim("Procesando voz...");
+        
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const formData = new FormData();
+        formData.append("file", audioBlob, mimeType === 'audio/mp4' ? "audio.mp4" : "audio.webm");
+
+        try {
+          const token = localStorage.getItem("jarvis_token");
+          const res = await fetch(`${API}/transcribe`, {
+            method: "POST",
+            headers: {
+              ...(token ? { "Authorization": `Bearer ${token}` } : {})
+            },
+            body: formData
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) onFinal(data.text);
+          } else {
+            console.error("Error en el servidor al transcribir");
+          }
+        } catch (err) {
+          console.error("Error enviando audio:", err);
+        } finally {
+          setInterim("");
+          stream.getTracks().forEach(track => track.stop()); // Apagar el micrófono
+        }
       };
 
-      rec.onerror = (e) => {
-        console.warn("Error de micrófono:", e.error);
-        setListening(false);
-        setInterim("");
-        // Si hay error (ej. sin permiso), apagamos el micro
-      };
-
-      recRef.current = rec;
+      mediaRecorder.start();
       setListening(true);
-      rec.start();
-
-      // SALVAVIDAS: Si en 8 segundos no ha pasado nada, lo apagamos para que no se trabe
-      setTimeout(() => {
-        if (recRef.current === rec) {
-          stop();
-        }
-      }, 8000);
+      setInterim("Escuchando... Habla ahora");
 
     } catch (err) {
-      console.warn("No se pudo iniciar el micrófono:", err);
+      console.warn("No se pudo acceder al micrófono:", err);
       setListening(false);
+      alert("Debes permitir el micrófono en los ajustes de tu iPhone/Safari.");
     }
   };
 
-  return { supported: !!Recognition, listening, interim, start, stop };
+  const stop = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  return { supported: true, listening, interim, start, stop };
 };
