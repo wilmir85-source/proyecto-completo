@@ -79,20 +79,24 @@ def photo_grid(buffers, width):
     return t
 
 
-def build_pdf(o, photos, tz, logo_data, negocio) -> bytes:
+def build_pdf(o, photos, tz, logo_data, negocio, is_staff) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=1.6 * cm, rightMargin=1.6 * cm,
                             topMargin=1.4 * cm, bottomMargin=1.4 * cm, title=f"Orden {o['id'][:8].upper()}")
     width = doc.width
     logo = Image(io.BytesIO(logo_data), width=1.8 * cm, height=1.8 * cm, kind="proportional") if logo_data else ""
+    
     head = Table([[logo, [Paragraph(esc(negocio.get("nombre")), SMALL), Paragraph("Orden de Trabajo", H1),
                           Paragraph(f"Pedido #{o['id'][:8].upper()} · Creado {fmt(o.get('created_at'), tz)}", SMALL)],
                    [Paragraph(f"<b>Entrega estimada</b><br/>{fmt(o.get('fecha_entrega'), tz)}", BODY),
                     Paragraph(f"Etapa: {esc(o.get('stage'))}", SMALL)]]],
                  colWidths=[2.2 * cm, width - 7.2 * cm, 5 * cm])
+    
     head.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LINEBELOW", (0, 0), (-1, 0), 1.2, GOLD),
                               ("BOTTOMPADDING", (0, 0), (-1, -1), 10)]))
+    
     peso = f"{o['peso_metal']} g" if o.get("peso_metal") else None
+    
     story = [head,
              Paragraph("Datos del cliente", H2),
              kv_table([("Nombre", o.get("cliente")), ("Teléfono", o.get("telefono_cliente"))], [4 * cm, width - 4 * cm]),
@@ -101,11 +105,30 @@ def build_pdf(o, photos, tz, logo_data, negocio) -> bytes:
                        ("Peso del metal", peso), ("Tipo de piedra", o.get("piedra")),
                        ("Joyero asignado", o.get("asignado_nombre")), ("Progreso", f"{o.get('progreso', 0)}%"),
                        ("Notas", o.get("notas"))], [4 * cm, width - 4 * cm])]
+
+    # --- SECCIÓN FINANCIERA (Solo para Admin y Ventas) ---
+    if is_staff:
+        total = float(o.get("precio") or 0)
+        abonado = o.get("abonado", 0)
+        saldo = o.get("saldo", 0)
+        
+        fin_rows = [
+            ("Total", f"Q{total:,.2f}"),
+            ("Abonado", f"Q{abonado:,.2f}"),
+            ("Saldo Pendiente", f"Q{saldo:,.2f}")
+        ]
+        story.append(Paragraph("Estado de Cuenta", H2))
+        story.append(kv_table(fin_rows, [4 * cm, width - 4 * cm]))
+
+    # --- FOTOS ---
     story += [Paragraph(f"Fotos de referencia ({len(photos)})", H2),
               photo_grid(photos, width) if photos else Paragraph("Sin fotos de referencia.", SMALL)]
+    
+    # --- FIRMAS ---
     story += [Spacer(1, 1.2 * cm),
               Table([["Firma del joyero: ______________________", "Revisado por: ______________________"]],
                     colWidths=[width / 2] * 2, style=[("FONTSIZE", (0, 0), (-1, -1), 9), ("TEXTCOLOR", (0, 0), (-1, -1), MUTED)])]
+    
     doc.build(story)
     return buf.getvalue()
 
@@ -115,13 +138,22 @@ async def order_pdf(order_id: str, tz: str = Query("America/Mexico_City"), user=
     o = enrich_order(await get_order_or_404(order_id))
     if not can_work_on(user, o):
         raise HTTPException(403, "Este trabajo no está asignado a ti ni a tu departamento")
+    
+    # Verificamos si el usuario es Admin o Ventas
+    is_staff = user.get("role") in ("admin", "ventas")
+    
     try:
         zone = ZoneInfo(tz)
     except Exception:
         zone = ZoneInfo("America/Mexico_City")
+        
     photos = [p for p in await asyncio.gather(*(load_photo(f["path"]) for f in o["fotos"][:12])) if p]
-    pdf = await asyncio.to_thread(build_pdf, o, photos, zone, await logo_bytes(), await get_settings())
+    
+    # Pasamos el parámetro is_staff a la función build_pdf
+    pdf = await asyncio.to_thread(build_pdf, o, photos, zone, await logo_bytes(), await get_settings(), is_staff)
+    
     base = re.sub(r"[^A-Za-z0-9_-]+", "_", unicodedata.normalize("NFKD", o["cliente"]).encode("ascii", "ignore").decode()).strip("_")
     name = f"orden_{base or 'pedido'}_{o['id'][:8]}.pdf"
+    
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="{name}"'})
