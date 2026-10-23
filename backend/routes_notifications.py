@@ -27,26 +27,16 @@ async def subscribe(subscription: PushSubscription, user=Depends(current_user)):
 
 async def send_push_notification(user_id: str, title: str, body: str, url: str = "/"):
     user = await db.users.find_one({"id": user_id})
-    if not user or not user.get("push_subscription"):
-        return False
+    if not user or not user.get("push_subscription"): return False
     
-    subscription_info = user["push_subscription"]
     payload = {
-        "title": title,
-        "body": body,
-        "url": url,
-        "icon": "/icon-192.png",
-        "badge": "/icon-192.png",
+        "title": title, "body": body, "url": url,
+        "icon": "/icon-192.png", "badge": "/icon-192.png",
         "apns": {"payload": {"aps": {"sound": "default"}}}
     }
-
     try:
-        webpush(
-            subscription_info=subscription_info,
-            data=json.dumps(payload),
-            vapid_private_key=VAPID_PRIVATE_KEY,
-            vapid_claims=VAPID_CLAIMS
-        )
+        webpush(subscription_info=user["push_subscription"], data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims=VAPID_CLAIMS)
         return True
     except WebPushException as ex:
         print(f"Error enviando push: {ex}")
@@ -54,86 +44,122 @@ async def send_push_notification(user_id: str, title: str, body: str, url: str =
             await db.users.update_one({"id": user_id}, {"$unset": {"push_subscription": ""}})
         return False
 
-@router.post("/notifications/test")
-async def test_notification(user=Depends(current_user)):
-    success = await send_push_notification(
-        user_id=user["id"], title="Prueba de Jarvis", body="¡Todo listo para trabajar!", url="/pedidos"
-    )
-    if success: return {"ok": True, "message": "Notificación enviada."}
-    raise HTTPException(400, "No se pudo enviar.")
+# --- FUNCIÓN AUXILIAR PARA NOTIFICAR A TODOS ---
+async def notify_all_users(title: str, body: str, url: str = "/"):
+    users_with_push = await db.users.find({"push_subscription": {"$exists": True}}).to_list(100)
+    enviados = 0
+    for u in users_with_push:
+        if await send_push_notification(u["id"], title, body, url):
+            enviados += 1
+    return enviados
 
-# --- LA SECRETARIA TÓXICA (Cron Job PRO) ---
-@router.get("/cron/reminders")
-async def trigger_daily_reminders():
-    try:
-        users_with_push = await db.users.find({"push_subscription": {"$exists": True}}).to_list(100)
-        if not users_with_push:
-            return {"ok": True, "message": "Nadie tiene notificaciones activadas."}
+# --- 1. REPORTE MATUTINO (8:00 AM) ---
+@router.get("/cron/morning")
+async def morning_reminders():
+    orders = await db.orders.find({"is_archived": {"$ne": True}}).to_list(1000)
+    materials = await db.materials.find({}).to_list(500)
+    hoy = datetime.now(timezone.utc)
+    
+    atrasados, inminentes, estancados = 0, 0, 0
 
-        orders = await db.orders.find({"is_archived": {"$ne": True}}).to_list(1000)
-        materials = await db.materials.find({}).to_list(500)
+    for o in orders:
+        if o.get("stage") == "Terminado": continue
+        fecha_str = o.get("fecha_entrega")
+        if fecha_str:
+            try:
+                fecha = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
+                if fecha < hoy: atrasados += 1
+                elif (fecha - hoy).total_seconds() < 86400: inminentes += 1
+            except: pass
         
-        hoy = datetime.now(timezone.utc)
-        reporte = []
+        updated_str = o.get("updated_at")
+        if updated_str and o.get("stage") not in ["Ventas", "Terminado"]:
+            try:
+                updated = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
+                if (hoy - updated).days >= 3: estancados += 1
+            except: pass
 
-        atrasados = 0
-        estancados = 0
-        inminentes = 0
+    stock_bajo = sum(1 for m in materials if float(m.get("cantidad", 0)) <= float(m.get("minimo", 0)))
+    
+    reporte = []
+    if atrasados > 0: reporte.append(f"🔴 {atrasados} atrasados.")
+    if inminentes > 0: reporte.append(f"⏰ {inminentes} vencen hoy/mañana.")
+    if estancados > 0: reporte.append(f"⚠️ {estancados} estancados (+3 días).")
+    if stock_bajo > 0: reporte.append(f"📦 {stock_bajo} materiales bajos.")
 
-        for o in orders:
-            if o.get("stage") == "Terminado":
-                continue
+    if not reporte:
+        title, body = "Todo en orden ☕", "Buenos días, señor. No hay retrasos ni problemas de inventario. Excelente trabajo."
+    else:
+        title, body = "¡A trabajar! 📋", " ".join(reporte) + " Revise el tablero."
 
-            # 1. Pedidos Atrasados y Entregas Inminentes
-            fecha_str = o.get("fecha_entrega")
-            if fecha_str:
-                try:
-                    fecha = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
-                    if fecha < hoy:
-                        atrasados += 1
-                    elif (fecha - hoy).total_seconds() < 86400: # Menos de 24 horas
-                        inminentes += 1
-                except:
-                    pass
+    enviados = await notify_all_users(title, body, "/pedidos")
+    return {"ok": True, "enviados": enviados, "reporte": body}
 
-            # 2. Pedidos Estancados (Más de 3 días sin actualizar)
-            updated_str = o.get("updated_at")
-            if updated_str and o.get("stage") not in ["Ventas", "Terminado"]:
-                try:
-                    updated = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
-                    if (hoy - updated).days >= 3:
-                        estancados += 1
-                except:
-                    pass
+# --- 2. RESUMEN NOCTURNO (8:00 PM) ---
+@router.get("/cron/evening")
+async def evening_summary():
+    orders = await db.orders.find({"is_archived": {"$ne": True}}).to_list(1000)
+    hoy = datetime.now(timezone.utc)
+    
+    terminados_hoy = 0
+    pendientes_manana = 0
 
-        # 3. Inventario Bajo
-        stock_bajo = 0
-        for m in materials:
-            if float(m.get("cantidad", 0)) <= float(m.get("minimo", 0)):
-                stock_bajo += 1
+    for o in orders:
+        updated_str = o.get("updated_at")
+        if updated_str:
+            try:
+                updated = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
+                if o.get("stage") == "Terminado" and (hoy - updated).days == 0:
+                    terminados_hoy += 1
+            except: pass
+        
+        fecha_str = o.get("fecha_entrega")
+        if fecha_str and o.get("stage") != "Terminado":
+            try:
+                fecha = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
+                if fecha.date() == (hoy + timedelta(days=1)).date():
+                    pendientes_manana += 1
+            except: pass
 
-        # Armamos el reporte final
-        if atrasados > 0: reporte.append(f"🔴 {atrasados} pedido(s) ATRASADO(S).")
-        if inminentes > 0: reporte.append(f"⏰ {inminentes} pedido(s) vencen HOY o MAÑANA.")
-        if estancados > 0: reporte.append(f"⚠️ {estancados} pedido(s) llevan +3 días estancados.")
-        if stock_bajo > 0: reporte.append(f"📦 {stock_bajo} material(es) con STOCK BAJO.")
+    body = f"Resumen del día: {terminados_hoy} pedidos terminados. "
+    if pendientes_manana > 0:
+        body += f"Mañana tiene {pendientes_manana} entrega(s) programada(s). Descanse, señor."
+    else:
+        body += "Mañana no hay entregas programadas."
 
-        if not reporte:
-            mensaje = "Todo bajo control, señor. No hay retrasos ni problemas de inventario. Excelente trabajo."
-            titulo = "Reporte Matutino: Todo en orden ☕"
-        else:
-            mensaje = " ".join(reporte) + " Revise el tablero inmediatamente."
-            titulo = "¡A trabajar! Reporte de Jarvis 📋"
+    enviados = await notify_all_users("Cierre de día 🌙", body, "/")
+    return {"ok": True, "enviados": enviados, "reporte": body}
 
-        # Enviar a todos
-        enviados = 0
-        for u in users_with_push:
-            success = await send_push_notification(
-                user_id=u["id"], title=titulo, body=mensaje, url="/pedidos"
-            )
-            if success: enviados += 1
+# --- 3. CUMPLEAÑOS DE CLIENTES (11:00 AM) ---
+@router.get("/cron/birthdays")
+async def client_birthdays():
+    clients = await db.clients.find({}).to_list(5000)
+    hoy = datetime.now(timezone.utc).date()
+    
+    cumpleanos_proximos = []
+    
+    for c in clients:
+        cumple_str = c.get("cumpleanos")
+        if not cumple_str: continue
+        try:
+            # Asumimos que el formato es YYYY-MM-DD
+            cumple = datetime.fromisoformat(cumple_str).date()
+            # Calculamos el cumpleaños de este año
+            este_ano = cumple.replace(year=hoy.year)
+            # Si ya pasó, calculamos el del próximo año
+            if este_ano < hoy:
+                este_ano = cumple.replace(year=hoy.year + 1)
+                
+            dias_faltantes = (este_ano - hoy).days
+            if 0 <= dias_faltantes <= 3: # Faltan 3 días o menos
+                cumpleanos_proximos.append(c.get("nombre"))
+        except: pass
 
-        return {"ok": True, "enviados": enviados, "reporte": mensaje}
-    except Exception as e:
-        print(f"Error en cron: {e}")
-        raise HTTPException(500, str(e))
+    if not cumpleanos_proximos:
+        return {"ok": True, "message": "No hay cumpleaños próximos."}
+
+    nombres = ", ".join(cumpleanos_proximos)
+    body = f"Se acerca el cumpleaños de: {nombres}. ¿Le preparamos algo especial o le enviamos un saludo?"
+    
+    enviados = await notify_all_users("Cumpleaños Próximo 🎂", body, "/clientes")
+    return {"ok": True, "enviados": enviados, "reporte": body}

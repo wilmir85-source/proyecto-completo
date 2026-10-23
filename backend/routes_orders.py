@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response, RedirectResponse
 from pydantic import BaseModel, Field
+from pymongo import ReturnDocument # <-- IMPORTACIÓN NECESARIA PARA EL CONTADOR
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
 
@@ -76,9 +77,29 @@ async def get_order_or_404(order_id):
 async def op_create_order(data: dict, user) -> dict:
     check_stage(data.get("stage"))
     check_tipo(data.get("tipo"))
-    order = {**data, "id": new_id(), "fotos": [], "abonos": [], "progreso": 0, "creado_por": user["name"],
-             "asignado_nombre": await assignee_name(data.get("asignado_a")),
-             "historial": [log_entry(user, "Pedido creado")], "created_at": now_iso(), "updated_at": now_iso()}
+    
+    # --- GENERADOR DE FOLIO (MJ-0001) ---
+    counter = await db.counters.find_one_and_update(
+        {"_id": "order_folio"},
+        {"$inc": {"seq": 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER
+    )
+    folio = f"MJ-{counter['seq']:04d}"
+    
+    order = {
+        **data, 
+        "id": new_id(), 
+        "folio": folio, # <-- Guardamos el número de orden
+        "fotos": [], 
+        "abonos": [], 
+        "progreso": 0, 
+        "creado_por": user["name"],
+        "asignado_nombre": await assignee_name(data.get("asignado_a")),
+        "historial": [log_entry(user, "Pedido creado")], 
+        "created_at": now_iso(), 
+        "updated_at": now_iso()
+    }
     await db.orders.insert_one(order)
     order.pop("_id", None)
     return enrich_order(order)
@@ -99,7 +120,7 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
             update["progreso"] = 100
             saldo = enrich_order(dict(order))["saldo"]
             if saldo > 0:
-                logs.append(log_entry(user, f"⚠ Terminado con SALDO PENDIENTE de ${saldo:,.2f}"))
+                logs.append(log_entry(user, f"⚠ Terminado con SALDO PENDIENTE de Q{saldo:,.2f}"))
     if "asignado_a" in update and update["asignado_a"] != order.get("asignado_a"):
         update["asignado_nombre"] = await assignee_name(update["asignado_a"])
         logs.append(log_entry(user, f"Asignó a {update['asignado_nombre']}"))
@@ -116,7 +137,7 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
 async def op_add_abono(order_id: str, monto: float, nota: str, user) -> dict:
     await get_order_or_404(order_id)
     abono = {"id": new_id(), "monto": round(monto, 2), "nota": nota or "", "fecha": now_iso(), "registrado_por": user["name"]}
-    await db.orders.update_one({"id": order_id}, {"$push": {"abonos": abono, "historial": log_entry(user, f"Abono ${monto:,.2f}")},
+    await db.orders.update_one({"id": order_id}, {"$push": {"abonos": abono, "historial": log_entry(user, f"Abono Q{monto:,.2f}")},
                                                   "$set": {"updated_at": now_iso()}})
     return enrich_order(await get_order_or_404(order_id))
 
@@ -124,7 +145,9 @@ async def op_add_abono(order_id: str, monto: float, nota: str, user) -> dict:
 # ---------- Routes ----------
 @router.get("/orders")
 async def list_orders(mine: bool = False, user=Depends(current_user)):
-    orders = await db.orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    # Solo mostramos los pedidos que NO estén archivados
+    query = {"is_archived": {"$ne": True}}
+    orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
     if mine:
         orders = [o for o in orders if o.get("asignado_a") == user["id"] or
                   (user.get("departamento") and o.get("stage") == user.get("departamento"))]
@@ -145,11 +168,14 @@ async def update_order(order_id: str, payload: OrderUpdate, user=Depends(current
 
 @router.delete("/orders/{order_id}")
 async def delete_order(order_id: str, user=Depends(STAFF)):
-    r = await db.orders.delete_one({"id": order_id})
-    if r.deleted_count == 0:
+    # En lugar de borrar de la base de datos, lo marcamos como archivado
+    r = await db.orders.update_one(
+        {"id": order_id}, 
+        {"$set": {"is_archived": True, "archived_at": now_iso(), "archived_by": user["name"]}}
+    )
+    if r.modified_count == 0:
         raise HTTPException(404, "Pedido no encontrado")
-    await db.files.update_many({"order_id": order_id}, {"$set": {"is_deleted": True}})
-    return {"ok": True}
+    return {"ok": True, "message": "Pedido archivado en el historial."}
 
 
 @router.post("/orders/{order_id}/abonos")
@@ -242,11 +268,9 @@ async def download_file(path: str, auth: str = Query(...)):
     
     record = await db.files.find_one({"storage_path": path, "is_deleted": False}, {"_id": 0})
     
-    # Redirigimos a la URL de Cloudinary para evitar bloqueos del navegador (ORB)
     if record and record.get("url"):
         return RedirectResponse(url=record["url"])
 
-    # Si no hay URL, intentamos descargar del almacenamiento
     try:
         data, ctype = await asyncio.to_thread(get_object, path)
     except Exception as e:
