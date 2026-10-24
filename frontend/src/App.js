@@ -18,6 +18,7 @@ import IPhone from "@/pages/IPhone";
 import Inventario from "@/pages/Inventario";
 import MiJoyeria from "@/pages/MiJoyeria";
 import Seguimiento from "@/pages/Seguimiento";
+import Historial from "@/pages/Historial"; // <-- IMPORTAMOS EL HISTORIAL
 import { Loader2 } from "lucide-react";
 
 const ADMIN_VENTAS = ["admin", "ventas"];
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
+            <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} /> {/* <-- NUEVA RUTA */}
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
