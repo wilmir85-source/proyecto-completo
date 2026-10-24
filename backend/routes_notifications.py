@@ -53,6 +53,19 @@ async def notify_all_users(title: str, body: str, url: str = "/"):
             enviados += 1
     return enviados
 
+# --- RUTA DE PRUEBA (Para el botón de la app) ---
+@router.post("/notifications/test")
+async def test_notification(user=Depends(current_user)):
+    success = await send_push_notification(
+        user_id=user["id"],
+        title="¡Hola, señor!",
+        body="Soy Jarvis. Esta es una prueba de mi nueva voz. Todo está funcionando perfectamente.",
+        url="/pedidos"
+    )
+    if success:
+        return {"ok": True, "message": "Notificación enviada. Revisa tu pantalla."}
+    raise HTTPException(400, "No se pudo enviar. Revisa si diste permiso o si la suscripción expiró.")
+
 # --- 1. REPORTE MATUTINO (8:00 AM) ---
 @router.get("/cron/morning")
 async def morning_reminders():
@@ -142,16 +155,13 @@ async def client_birthdays():
         cumple_str = c.get("cumpleanos")
         if not cumple_str: continue
         try:
-            # Asumimos que el formato es YYYY-MM-DD
             cumple = datetime.fromisoformat(cumple_str).date()
-            # Calculamos el cumpleaños de este año
             este_ano = cumple.replace(year=hoy.year)
-            # Si ya pasó, calculamos el del próximo año
             if este_ano < hoy:
                 este_ano = cumple.replace(year=hoy.year + 1)
                 
             dias_faltantes = (este_ano - hoy).days
-            if 0 <= dias_faltantes <= 3: # Faltan 3 días o menos
+            if 0 <= dias_faltantes <= 3:
                 cumpleanos_proximos.append(c.get("nombre"))
         except: pass
 
