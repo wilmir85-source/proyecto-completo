@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut } from "lucide-react";
+import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut, Archive } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -74,10 +74,15 @@ export const BottomNav = () => {
           <Link to="/mi-joyeria" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
             <span className="bg-zinc-800 p-3 rounded-full mb-1">🏪</span> Mi Joyería
           </Link>
+          
+          {/* BOTÓN DE HISTORIAL AGREGADO AQUÍ */}
+          <Link to="/historial" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
+            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Archive className="w-5 h-5 text-amber-500"/></span> Historial
+          </Link>
+
           <Link to="/equipo" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
             <span className="bg-zinc-800 p-3 rounded-full mb-1">👨‍💼</span> Equipo
           </Link>
-          {/* NUEVOS BOTONES AGREGADOS AQUÍ */}
           <Link to="/iphone" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
             <span className="bg-zinc-800 p-3 rounded-full mb-1"><Smartphone className="w-5 h-5 text-amber-500"/></span> Siri y App
           </Link>
