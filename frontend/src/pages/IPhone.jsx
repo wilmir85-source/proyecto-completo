@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CalendarPlus, Copy, Smartphone, Share, PlusSquare } from "lucide-react";
 import { toast } from "sonner";
 import { SiriSetup } from "@/components/SiriSetup";
-import { NotificationButton } from "@/components/NotificationButton"; // <-- IMPORTAMOS EL BOTÓN
+import { NotificationButton } from "@/components/NotificationButton";
 
 const Step = ({ n, children }) => (
   <li className="flex gap-3 text-sm text-zinc-300">
@@ -25,7 +25,8 @@ export default function IPhone() {
   };
 
   return (
-    <div className="p-5 md:p-12 max-w-3xl">
+    /* Agregamos pb-32 para que el menú de abajo no tape nada, y overflow-x-hidden para evitar que la pantalla se mueva a los lados */
+    <div className="p-5 md:p-12 max-w-3xl mx-auto pb-32 overflow-x-hidden">
       <header className="mb-8">
         <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Recordatorios</div>
         <h1 className="font-display text-4xl font-light">Jarvis en tu iPhone, Android y PC</h1>
