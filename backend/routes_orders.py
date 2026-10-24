@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response, RedirectResponse
 from pydantic import BaseModel, Field
-from pymongo import ReturnDocument # <-- IMPORTACIÓN NECESARIA PARA EL CONTADOR
+from pymongo import ReturnDocument
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
 
@@ -90,7 +90,7 @@ async def op_create_order(data: dict, user) -> dict:
     order = {
         **data, 
         "id": new_id(), 
-        "folio": folio, # <-- Guardamos el número de orden
+        "folio": folio,
         "fotos": [], 
         "abonos": [], 
         "progreso": 0, 
@@ -151,6 +151,14 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
     if mine:
         orders = [o for o in orders if o.get("asignado_a") == user["id"] or
                   (user.get("departamento") and o.get("stage") == user.get("departamento"))]
+    return [enrich_order(o) for o in orders]
+
+
+# --- NUEVA RUTA PARA EL HISTORIAL (Pedidos Archivados) ---
+@router.get("/orders/archived")
+async def list_archived_orders(user=Depends(STAFF)):
+    # Buscamos SOLO los que están archivados
+    orders = await db.orders.find({"is_archived": True}, {"_id": 0}).sort("archived_at", -1).to_list(2000)
     return [enrich_order(o) for o in orders]
 
 
