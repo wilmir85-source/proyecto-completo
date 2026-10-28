@@ -77,7 +77,7 @@ export default function JarvisHUD() {
   const generateImage = (prompt) => {
     // Codificamos el prompt para que funcione en la URL
     const encodedPrompt = encodeURIComponent(prompt);
-    // Usamos Pollinations.ai (Gratis, sin API Key). width/height=1024 y nologo=true
+    // Usamos Pollinations.ai (Gratis). width/height=1024 y nologo=true
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
     
     return {
@@ -101,12 +101,28 @@ export default function JarvisHUD() {
     setMessages((m) => [...m, userMsg]);
     
     // Detección simple de intención de imagen
-    const imageKeywords = /(genera|crea|dibuja|haz|imagen|foto|renderiza)/i;
+    const imageKeywords = /(genera|crea|dibuja|haz|imagen|foto|renderiza|diseña)/i;
     if (imageKeywords.test(text)) {
       setState("thinking");
       // Simulamos un pequeño delay para que se sienta natural
       setTimeout(() => {
-        const imagePrompt = text.replace(/jarvis|genera|crea|dibuja|haz|imagen|foto|de|un|una|el|la/gi, "").trim();
+        let imagePrompt = text.replace(/jarvis|puedes|generar|genera|crea|dibuja|haz|imagen|foto|diseña|de|un|una|el|la|con/gi, "").trim();
+        
+        // Diccionario básico para mejorar la precisión de la IA gratuita
+        imagePrompt = imagePrompt
+          .replace(/ónix/gi, "black onyx stone")
+          .replace(/zafiro/gi, "blue sapphire stone")
+          .replace(/rubí/gi, "red ruby stone")
+          .replace(/esmeralda/gi, "green emerald stone")
+          .replace(/diamante/gi, "brilliant diamond")
+          .replace(/oro/gi, "gold")
+          .replace(/plata/gi, "silver")
+          .replace(/dama/gi, "women's")
+          .replace(/caballero/gi, "men's");
+
+        // Agregamos palabras clave para que parezca foto de catálogo profesional
+        imagePrompt += ", realistic jewelry photography, macro lens, high quality, studio lighting, 8k, detailed";
+
         const imgMsg = generateImage(imagePrompt);
         setMessages((m) => [...m, imgMsg]);
         setState("idle");
