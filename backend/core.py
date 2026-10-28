@@ -173,8 +173,20 @@ def is_staff(user) -> bool:
 def can_work_on(user, order) -> bool:
     if is_staff(user):
         return True
-    return order.get("asignado_a") == user["id"] or (
-        user.get("departamento") and order.get("stage") == user.get("departamento"))
+    
+    if order.get("asignado_a") == user["id"]:
+        return True
+        
+    depto_usuario = user.get("departamento")
+    if not depto_usuario:
+        return False
+        
+    # Si el usuario tiene una lista de departamentos (ej. Casting y Terminado)
+    if isinstance(depto_usuario, list):
+        return order.get("stage") in depto_usuario
+        
+    # Si solo tiene uno (string)
+    return order.get("stage") == depto_usuario
 
 
 def public_user(u: dict) -> dict:
