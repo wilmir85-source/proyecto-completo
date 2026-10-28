@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
 import { BottomNav } from "@/components/BottomNav";
+import { FloatingActionButton } from "@/components/FloatingActionButton"; // <-- 1. IMPORTAMOS EL BOTÓN
 import { FinishOrderProvider } from "@/components/FinishOrderDialog";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -77,6 +78,9 @@ export default function Layout() {
       
       {/* Menú inferior (Solo celular) */}
       <BottomNav />
+
+      {/* 2. BOTÓN FLOTANTE (Solo para Admin y Ventas) */}
+      {["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
     </div>
   );
 }
