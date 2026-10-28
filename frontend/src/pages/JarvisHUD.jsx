@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Send, Mic, Volume2 } from "lucide-react";
+import { Loader2, Send, Mic, Volume2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ArcReactor } from "@/components/ArcReactor";
 import { api, API } from "@/lib/api";
@@ -23,10 +23,9 @@ export default function JarvisHUD() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, state]);
 
-  // Función para "desbloquear" el audio en iOS (requiere interacción del usuario)
   const unlockAudio = () => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
-      const u = new SpeechSynthesisUtterance('');
+      const u = new SpeechSynthesisUtterance(' ');
       u.volume = 0;
       window.speechSynthesis.speak(u);
     }
@@ -34,50 +33,60 @@ export default function JarvisHUD() {
 
   const speak = (text) => {
     if (!window.speechSynthesis) return;
-    
-    // Cancelamos cualquier lectura anterior
     window.speechSynthesis.cancel();
+    speech.stop(); 
     
     if (!voiceOn) {
-      setState("idle"); // Si la voz está apagada, liberamos el chat de inmediato
+      setState("idle"); 
+      if (handsFreeRef.current) setTimeout(() => { if(handsFreeRef.current) listen(); }, 1000);
       return;
     }
 
-    // Limpiamos el texto de posibles asteriscos o markdown para que la voz fluya
-    const cleanText = text.replace(/[*#_]/g, "");
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "es-MX"; 
     utterance.rate = 1.0; 
     
-    // Buscamos la mejor voz en español disponible en el dispositivo
     const voices = window.speechSynthesis.getVoices();
     const spanishVoice = voices.find(v => v.lang.includes("es"));
     if (spanishVoice) utterance.voice = spanishVoice;
 
     utterance.onstart = () => setState("speaking");
-    utterance.onend = () => setState("idle");
-    utterance.onerror = () => setState("idle");
+    utterance.onend = () => {
+      setState("idle");
+      if (handsFreeRef.current) setTimeout(() => { if(handsFreeRef.current) listen(); }, 1500);
+    };
+    utterance.onerror = () => {
+      setState("idle");
+      if (handsFreeRef.current) setTimeout(() => { if(handsFreeRef.current) listen(); }, 1500);
+    };
 
     window.speechSynthesis.speak(utterance);
   };
 
   const listen = () => {
     if (state === "thinking" || state === "speaking") return;
-    
-    unlockAudio(); // Desbloquea el audio si es la primera vez que tocan el micrófono
-
-    if (speech.listening) {
-      speech.stop();
-      return;
-    }
-
+    unlockAudio();
+    if (speech.listening) { speech.stop(); return; }
     speech.start((textoDictado) => {
       setInput(textoDictado);
-      setTimeout(() => {
-        send(null, textoDictado);
-      }, 500);
+      setTimeout(() => { send(null, textoDictado); }, 500);
     });
+  };
+
+  // --- LÓGICA DE GENERACIÓN DE IMÁGENES ---
+  const generateImage = (prompt) => {
+    // Codificamos el prompt para que funcione en la URL
+    const encodedPrompt = encodeURIComponent(prompt);
+    // Usamos Pollinations.ai (Gratis, sin API Key). width/height=1024 y nologo=true
+    const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
+    
+    return {
+      id: Date.now().toString(),
+      role: "assistant",
+      type: "image",
+      content: imageUrl,
+      prompt: prompt
+    };
   };
 
   const send = async (e, overrideText = null) => {
@@ -85,33 +94,44 @@ export default function JarvisHUD() {
     const text = (overrideText || input).trim();
     if (!text || state === "thinking") return;
 
-    // Desbloqueamos el audio aquí también por si enviaron por texto
-    unlockAudio();
-
     setInput("");
+    speech.stop();
+
     const userMsg = { id: Date.now().toString(), role: "user", content: text };
+    setMessages((m) => [...m, userMsg]);
+    
+    // Detección simple de intención de imagen
+    const imageKeywords = /(genera|crea|dibuja|haz|imagen|foto|renderiza)/i;
+    if (imageKeywords.test(text)) {
+      setState("thinking");
+      // Simulamos un pequeño delay para que se sienta natural
+      setTimeout(() => {
+        const imagePrompt = text.replace(/jarvis|genera|crea|dibuja|haz|imagen|foto|de|un|una|el|la/gi, "").trim();
+        const imgMsg = generateImage(imagePrompt);
+        setMessages((m) => [...m, imgMsg]);
+        setState("idle");
+        speak("Aquí tiene su diseño, señor.");
+      }, 1500);
+      return;
+    }
+
+    // Si no es imagen, hablamos con el backend normal
     const replyId = (Date.now() + 1).toString();
     const replyMsg = { id: replyId, role: "assistant", content: "" };
 
-    setMessages((m) => [...m, userMsg, replyMsg]);
+    setMessages((m) => [...m, replyMsg]);
     setState("thinking");
 
     try {
       const token = localStorage.getItem("jarvis_token");
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
-
       const response = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ message: text, session_id: "default" }),
-        signal: controller.signal
+        body: JSON.stringify({ message: text, session_id: "default" })
       });
-      
-      clearTimeout(timeoutId);
 
       if (!response.body) throw new Error("No stream");
 
@@ -123,28 +143,18 @@ export default function JarvisHUD() {
         if (line.startsWith("data: ")) {
           try {
             const data = JSON.parse(line.slice(6));
-            if (data.type === "delta") {
-              acc += data.content;
-            }
+            if (data.type === "delta") acc += data.content;
           } catch (err) {}
         }
       }
       
       setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
-      
-      // Llamamos a la función de hablar
       speak(acc);
 
     } catch (err) {
-      if (err.name === 'AbortError') {
-        toast.error("Jarvis tardó mucho en responder.");
-        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando." } : x)));
-        setState("idle");
-      } else {
-        toast.error("Error al comunicarse con Jarvis");
-        setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
-        setState("idle");
-      }
+      toast.error("Error al comunicarse con Jarvis");
+      setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
+      setState("idle");
     }
   };
 
@@ -152,7 +162,7 @@ export default function JarvisHUD() {
 
   return (
     <div className="h-[calc(100vh-5rem)] md:h-screen flex flex-col lg:flex-row jarvis-hud">
-      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-10 py-8 lg:border-r border-white/5 relative">
+      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-8 py-8 lg:border-r border-white/5 relative">
         <div className="text-center">
           <div className="text-[10px] uppercase tracking-[0.5em] text-cyan-400/70">Just A Rather Very Intelligent System</div>
           <h1 className="font-display text-4xl font-light tracking-[0.3em] mt-2 text-cyan-100">J.A.R.V.I.S.</h1>
@@ -162,7 +172,7 @@ export default function JarvisHUD() {
         <div className="flex flex-col gap-3 w-64 mt-4 text-xs text-zinc-400">
           <label className="flex items-center justify-between">
             <span className="flex items-center gap-2"><Volume2 className="w-4 h-4" /> Respuesta por voz</span>
-            <Switch checked={voiceOn} onCheckedChange={(v) => { setVoiceOn(v); if(v) unlockAudio(); }} />
+            <Switch checked={voiceOn} onCheckedChange={setVoiceOn} />
           </label>
           <label className="flex items-center justify-between">
             <span className="flex items-center gap-2"><Mic className="w-4 h-4" /> Manos libres</span>
@@ -176,20 +186,32 @@ export default function JarvisHUD() {
           <div className="max-w-3xl mx-auto space-y-5">
             {messages.map((m, i) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-amber-600 text-black" : "card-glass border-cyan-500/15 text-zinc-200"}`}>
-                  {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : "")}
-                </div>
+                {m.type === "image" ? (
+                  // Renderizado de la imagen generada
+                  <div className="bg-zinc-900 border border-white/10 rounded-2xl p-3 max-w-[85%]">
+                    <div className="text-xs text-zinc-400 mb-2 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-amber-500" /> Diseño generado
+                    </div>
+                    <img src={m.content} alt={m.prompt} className="rounded-xl w-full object-cover" />
+                    <div className="text-[10px] text-zinc-500 mt-2 italic">Prompt: {m.prompt}</div>
+                  </div>
+                ) : (
+                  // Renderizado de texto normal
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-amber-600 text-black" : "card-glass border-cyan-500/15 text-zinc-200"}`}>
+                    {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : "")}
+                  </div>
+                )}
               </div>
             ))}
             <div ref={endRef} />
           </div>
         </div>
-        <div className="p-4 border-t border-white/5 pb-24 md:pb-4">
+        <div className="p-4 border-t border-white/5">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
             <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-12 w-12 bg-zinc-950 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
               <Mic className="w-4 h-4" />
             </Button>
-            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Escriba a Jarvis..."} className="bg-zinc-950 border-zinc-800 h-12 text-sm" disabled={state === "thinking"} />
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Pídele a Jarvis que genere un diseño..."} className="bg-zinc-950 border-zinc-800 h-12 text-sm" disabled={state === "thinking"} />
             <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-12 bg-cyan-600 hover:bg-cyan-500 text-black">
               {state === "thinking" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
