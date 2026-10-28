@@ -18,7 +18,7 @@ import IPhone from "@/pages/IPhone";
 import Inventario from "@/pages/Inventario";
 import MiJoyeria from "@/pages/MiJoyeria";
 import Seguimiento from "@/pages/Seguimiento";
-import Historial from "@/pages/Historial"; // <-- IMPORTAMOS EL HISTORIAL
+import Historial from "@/pages/Historial";
 import { Loader2 } from "lucide-react";
 
 const ADMIN_VENTAS = ["admin", "ventas"];
@@ -47,13 +47,24 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster theme="dark" position="top-right" richColors />
+        {/* CAMBIO AQUÍ: Posición abajo, centrado, y con margen extra para no chocar con el menú */}
+        <Toaster 
+          theme="dark" 
+          position="bottom-center" 
+          richColors 
+          toastOptions={{ 
+            style: { 
+              bottom: '80px', // Sube el mensaje 80px para que no lo tape el menú inferior
+              marginBottom: 'env(safe-area-inset-bottom)' // Respeta la barra de gestos del iPhone
+            } 
+          }} 
+        />
+        
         <Routes>
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           
-          {/* El Layout se encarga de mostrar el menú de arriba (PC) y el de abajo (Celular) */}
           <Route element={<Protected><Layout /></Protected>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pedidos" element={<Tablero />} />
@@ -67,7 +78,7 @@ export default function App() {
             <Route path="/inventario" element={<Inventario />} />
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
-            <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} /> {/* <-- NUEVA RUTA */}
+            <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
