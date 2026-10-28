@@ -10,7 +10,8 @@ const ITEM_STYLE = { color: "#e4e4e7" };
 const LEGEND_STYLE = { fontSize: 12 };
 const DOT = { r: 3 };
 const ACTIVE_DOT = { r: 6 };
-const yTick = (v) => `$${v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : v}`;
+// CAMBIO QUIRÚRGICO: Cambiamos el $ por Q
+const yTick = (v) => `Q${v >= 1000 ? `${+(v / 1000).toFixed(1)}k` : v}`;
 const tooltipStyle = { background: "#09090b", border: "1px solid #27272a", borderRadius: 12, fontSize: 12 };
 
 const RevenueChart = ({ data }) => (
