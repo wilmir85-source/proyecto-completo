@@ -10,6 +10,8 @@ from groq import Groq
 from tavily import TavilyClient
 import os
 import io
+import asyncio
+import replicate # <-- NUEVA IMPORTACIÓN PARA REPLICATE
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -28,6 +30,9 @@ class ChatIn(BaseModel):
 class TTSIn(BaseModel):
     text: str
     voice: Optional[str] = "onyx"
+
+class ImageGenIn(BaseModel):
+    prompt: str
 
 def norm(s):
     return "".join(c for c in unicodedata.normalize("NFD", str(s or "").lower()) if unicodedata.category(c) != "Mn")
@@ -345,6 +350,28 @@ async def transcribe_audio(file: UploadFile = File(...), user=Depends(current_us
     except Exception as e:
         logger.error(f"Error transcribiendo: {e}")
         raise HTTPException(500, f"Error al transcribir: {str(e)}")
+
+# ---------- RUTA DE GENERACIÓN DE IMÁGENES CON REPLICATE ----------
+@router.post("/generate-image")
+async def generate_image_replicate(payload: ImageGenIn, user=Depends(current_user)):
+    try:
+        # Usamos Flux (modelo de vanguardia) en modo asíncrono para no bloquear
+        output = await asyncio.to_thread(
+            replicate.run,
+            "black-forest-labs/flux-schnell",
+            input={
+                "prompt": payload.prompt,
+                "aspect_ratio": "1:1",
+                "output_format": "webp",
+                "output_quality": 90
+            }
+        )
+        if output and len(output) > 0:
+            return {"url": output[0]}
+        raise HTTPException(500, "No se pudo generar la imagen.")
+    except Exception as e:
+        logger.error(f"Error en Replicate: {e}")
+        raise HTTPException(500, f"Error al generar imagen: {str(e)}")
 
 # ---------- Siri / Apple Shortcuts ----------
 SIRI_EXTRA = "\nESTÁS RESPONDIENDO A TRAVÉS DE SIRI: responde en 1-2 frases cortas."
