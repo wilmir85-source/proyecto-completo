@@ -8,8 +8,6 @@ import { ArcReactor } from "@/components/ArcReactor";
 import { api, API } from "@/lib/api";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"; 
 
-const VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"];
-
 export default function JarvisHUD() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -25,6 +23,7 @@ export default function JarvisHUD() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, state]);
 
+  // Función para "desbloquear" el audio en iOS (requiere interacción del usuario)
   const unlockAudio = () => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       const u = new SpeechSynthesisUtterance('');
@@ -36,38 +35,29 @@ export default function JarvisHUD() {
   const speak = (text) => {
     if (!window.speechSynthesis) return;
     
+    // Cancelamos cualquier lectura anterior
     window.speechSynthesis.cancel();
     
     if (!voiceOn) {
-      // ARREGLO 1: Si la voz está apagada, quitamos el "pensando" de inmediato
-      setState("idle"); 
-      if (handsFreeRef.current) {
-        setTimeout(() => { if(handsFreeRef.current) listen(); }, 2000);
-      }
+      setState("idle"); // Si la voz está apagada, liberamos el chat de inmediato
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Limpiamos el texto de posibles asteriscos o markdown para que la voz fluya
+    const cleanText = text.replace(/[*#_]/g, "");
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = "es-MX"; 
     utterance.rate = 1.0; 
     
+    // Buscamos la mejor voz en español disponible en el dispositivo
     const voices = window.speechSynthesis.getVoices();
     const spanishVoice = voices.find(v => v.lang.includes("es"));
     if (spanishVoice) utterance.voice = spanishVoice;
 
     utterance.onstart = () => setState("speaking");
-    utterance.onend = () => {
-      setState("idle");
-      if (handsFreeRef.current) {
-        setTimeout(() => { if(handsFreeRef.current) listen(); }, 2000);
-      }
-    };
-    utterance.onerror = () => {
-      setState("idle");
-      if (handsFreeRef.current) {
-        setTimeout(() => { if(handsFreeRef.current) listen(); }, 2000);
-      }
-    };
+    utterance.onend = () => setState("idle");
+    utterance.onerror = () => setState("idle");
 
     window.speechSynthesis.speak(utterance);
   };
@@ -75,7 +65,7 @@ export default function JarvisHUD() {
   const listen = () => {
     if (state === "thinking" || state === "speaking") return;
     
-    unlockAudio();
+    unlockAudio(); // Desbloquea el audio si es la primera vez que tocan el micrófono
 
     if (speech.listening) {
       speech.stop();
@@ -94,6 +84,9 @@ export default function JarvisHUD() {
     if (e) e.preventDefault();
     const text = (overrideText || input).trim();
     if (!text || state === "thinking") return;
+
+    // Desbloqueamos el audio aquí también por si enviaron por texto
+    unlockAudio();
 
     setInput("");
     const userMsg = { id: Date.now().toString(), role: "user", content: text };
@@ -139,19 +132,19 @@ export default function JarvisHUD() {
       
       setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
       
+      // Llamamos a la función de hablar
       speak(acc);
 
     } catch (err) {
       if (err.name === 'AbortError') {
         toast.error("Jarvis tardó mucho en responder.");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando." } : x)));
+        setState("idle");
       } else {
         toast.error("Error al comunicarse con Jarvis");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
+        setState("idle");
       }
-    } finally {
-      // ARREGLO 2: Pase lo que pase, si la voz está apagada, quitamos el "pensando"
-      if (!voiceOn) setState("idle");
     }
   };
 
@@ -169,7 +162,7 @@ export default function JarvisHUD() {
         <div className="flex flex-col gap-3 w-64 mt-4 text-xs text-zinc-400">
           <label className="flex items-center justify-between">
             <span className="flex items-center gap-2"><Volume2 className="w-4 h-4" /> Respuesta por voz</span>
-            <Switch checked={voiceOn} onCheckedChange={setVoiceOn} />
+            <Switch checked={voiceOn} onCheckedChange={(v) => { setVoiceOn(v); if(v) unlockAudio(); }} />
           </label>
           <label className="flex items-center justify-between">
             <span className="flex items-center gap-2"><Mic className="w-4 h-4" /> Manos libres</span>
