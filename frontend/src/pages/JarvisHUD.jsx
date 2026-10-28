@@ -75,9 +75,7 @@ export default function JarvisHUD() {
 
   // --- LÓGICA DE GENERACIÓN DE IMÁGENES ---
   const generateImage = (prompt) => {
-    // Codificamos el prompt para que funcione en la URL
     const encodedPrompt = encodeURIComponent(prompt);
-    // Usamos Pollinations.ai (Gratis). width/height=1024 y nologo=true
     const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 100000)}`;
     
     return {
@@ -101,14 +99,14 @@ export default function JarvisHUD() {
     setMessages((m) => [...m, userMsg]);
     
     // Detección simple de intención de imagen
-    const imageKeywords = /(genera|crea|dibuja|haz|imagen|foto|renderiza|diseña)/i;
+    const imageKeywords = /(genera|crea|dibuja|haz|hazme|imagen|foto|renderiza|diseña)/i;
     if (imageKeywords.test(text)) {
       setState("thinking");
-      // Simulamos un pequeño delay para que se sienta natural
       setTimeout(() => {
-        let imagePrompt = text.replace(/jarvis|puedes|generar|genera|crea|dibuja|haz|imagen|foto|diseña|de|un|una|el|la|con/gi, "").trim();
+        // Limpieza profunda del texto
+        let imagePrompt = text.replace(/(jarvis|me ayudas|puedes|generar|genera|crear|crea|hacer|hazme|haz|una imagen|imagen|foto|dibuja|diseña|quisiera|quiero|por favor|de|un|una|el|la|con|para|y|dama|carrera|me)/gi, "").trim();
         
-        // Diccionario básico para mejorar la precisión de la IA gratuita
+        // Diccionario para traducir y forzar el resultado a joyería
         imagePrompt = imagePrompt
           .replace(/ónix/gi, "black onyx stone")
           .replace(/zafiro/gi, "blue sapphire stone")
@@ -117,13 +115,14 @@ export default function JarvisHUD() {
           .replace(/diamante/gi, "brilliant diamond")
           .replace(/oro/gi, "gold")
           .replace(/plata/gi, "silver")
-          .replace(/dama/gi, "women's")
-          .replace(/caballero/gi, "men's");
+          .replace(/blanco/gi, "white")
+          .replace(/negro/gi, "black")
+          .replace(/rojo/gi, "red");
 
-        // Agregamos palabras clave para que parezca foto de catálogo profesional
-        imagePrompt += ", realistic jewelry photography, macro lens, high quality, studio lighting, 8k, detailed";
-
-        const imgMsg = generateImage(imagePrompt);
+        // FORZAMOS a que sea una fotografía de joyería
+        const finalPrompt = `A close-up luxury jewelry ring, ${imagePrompt}, realistic jewelry photography, macro lens, high quality, studio lighting, 8k, detailed, isolated on dark background`;
+        
+        const imgMsg = generateImage(finalPrompt);
         setMessages((m) => [...m, imgMsg]);
         setState("idle");
         speak("Aquí tiene su diseño, señor.");
@@ -203,7 +202,6 @@ export default function JarvisHUD() {
             {messages.map((m, i) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.type === "image" ? (
-                  // Renderizado de la imagen generada
                   <div className="bg-zinc-900 border border-white/10 rounded-2xl p-3 max-w-[85%]">
                     <div className="text-xs text-zinc-400 mb-2 flex items-center gap-2">
                       <ImageIcon className="w-4 h-4 text-amber-500" /> Diseño generado
@@ -212,7 +210,6 @@ export default function JarvisHUD() {
                     <div className="text-[10px] text-zinc-500 mt-2 italic">Prompt: {m.prompt}</div>
                   </div>
                 ) : (
-                  // Renderizado de texto normal
                   <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-amber-600 text-black" : "card-glass border-cyan-500/15 text-zinc-200"}`}>
                     {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-cyan-400" /> : "")}
                   </div>
