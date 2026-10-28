@@ -39,8 +39,9 @@ export default function JarvisHUD() {
     window.speechSynthesis.cancel();
     
     if (!voiceOn) {
+      // ARREGLO 1: Si la voz está apagada, quitamos el "pensando" de inmediato
+      setState("idle"); 
       if (handsFreeRef.current) {
-        // Espera 2 segundos antes de volver a escuchar
         setTimeout(() => { if(handsFreeRef.current) listen(); }, 2000);
       }
       return;
@@ -58,7 +59,6 @@ export default function JarvisHUD() {
     utterance.onend = () => {
       setState("idle");
       if (handsFreeRef.current) {
-        // CRUCIAL: Espera 2 segundos después de hablar para no trabar el micrófono
         setTimeout(() => { if(handsFreeRef.current) listen(); }, 2000);
       }
     };
@@ -145,12 +145,13 @@ export default function JarvisHUD() {
       if (err.name === 'AbortError') {
         toast.error("Jarvis tardó mucho en responder.");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, el servidor se está despertando." } : x)));
-        setState("idle");
       } else {
         toast.error("Error al comunicarse con Jarvis");
         setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: "Disculpe, perdí la conexión." } : x)));
-        setState("idle");
       }
+    } finally {
+      // ARREGLO 2: Pase lo que pase, si la voz está apagada, quitamos el "pensando"
+      if (!voiceOn) setState("idle");
     }
   };
 
@@ -190,7 +191,7 @@ export default function JarvisHUD() {
             <div ref={endRef} />
           </div>
         </div>
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 border-t border-white/5 pb-24 md:pb-4">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
             <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-12 w-12 bg-zinc-950 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
               <Mic className="w-4 h-4" />
