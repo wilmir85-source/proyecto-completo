@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Union, List # <-- Agregamos Union y List
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr, Field
 from core import (db, STAGES, ROLES, now_iso, new_id, hash_password, verify_password, create_token,
@@ -26,7 +26,7 @@ class LoginIn(BaseModel):
 
 class UserUpdate(BaseModel):
     role: Optional[str] = None
-    departamento: Optional[str] = None
+    departamento: Optional[Union[str, List[str]]] = None # <-- Acepta texto O lista
     telefono: Optional[str] = None
     activo: Optional[bool] = None
     name: Optional[str] = None
@@ -89,8 +89,19 @@ async def update_user(user_id: str, payload: UserUpdate, admin=Depends(require_r
     update = {k: v for k, v in payload.model_dump().items() if v is not None}
     if "role" in update and update["role"] not in ROLES:
         raise HTTPException(400, "Rol inválido")
-    if update.get("departamento") and update["departamento"] not in STAGES:
-        raise HTTPException(400, "Departamento inválido")
+    
+    # --- VALIDACIÓN QUIRÚRGICA (Acepta un solo depto o una lista de deptos) ---
+    depto_val = update.get("departamento")
+    if depto_val:
+        if isinstance(depto_val, list):
+            for d in depto_val:
+                if d not in STAGES:
+                    raise HTTPException(400, f"Departamento inválido: {d}")
+        elif isinstance(depto_val, str):
+            if depto_val not in STAGES:
+                raise HTTPException(400, "Departamento inválido")
+    # --------------------------------------------------------------------------
+
     if user_id == admin["id"] and (update.get("role", "admin") != "admin" or update.get("activo") is False):
         raise HTTPException(400, "No puedes quitarte el rol de admin")
     r = await db.users.update_one({"id": user_id}, {"$set": update})
