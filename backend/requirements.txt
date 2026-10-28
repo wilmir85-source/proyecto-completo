@@ -16,3 +16,4 @@ cloudinary
 groq
 tavily-python
 pywebpush
+replicate
