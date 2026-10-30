@@ -39,13 +39,13 @@ export default function Dashboard() {
         <p className="text-zinc-400 mt-3 text-sm max-w-lg">Tu taller inteligente a tiempo real. Pedidos, tareas y asistente 24/7.</p>
       </header>
 
-      {/* Stats */}
+      {/* Stats (Ahora son clickeables) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10" data-testid="stats-grid">
-        <StatCard icon={GanttChartSquare} label="Pedidos activos" value={stats?.pedidos_activos ?? 0} testid="stat-total" />
-        <StatCard icon={AlertTriangle} label="Atrasados" value={stats?.pedidos_atrasados ?? 0} tone="danger" testid="stat-overdue" />
-        <StatCard icon={Clock} label="Vencen en 48h" value={stats?.pedidos_por_vencer ?? 0} tone="warning" testid="stat-soon" />
-        <StatCard icon={Hammer} label="Mis trabajos" value={stats?.mis_trabajos ?? 0} tone="success" testid="stat-mine" />
-        <StatCard icon={ListTodo} label="Tareas pendientes" value={stats?.tareas_pendientes ?? 0} tone="accent" testid="stat-tasks" />
+        <StatCard to="/pedidos" icon={GanttChartSquare} label="Pedidos activos" value={stats?.pedidos_activos ?? 0} testid="stat-total" />
+        <StatCard to="/pedidos?filter=atrasados" icon={AlertTriangle} label="Atrasados" value={stats?.pedidos_atrasados ?? 0} tone="danger" testid="stat-overdue" />
+        <StatCard to="/pedidos?filter=por_vencer" icon={Clock} label="Vencen en 48h" value={stats?.pedidos_por_vencer ?? 0} tone="warning" testid="stat-soon" />
+        <StatCard to="/mis-trabajos" icon={Hammer} label="Mis trabajos" value={stats?.mis_trabajos ?? 0} tone="success" testid="stat-mine" />
+        <StatCard to="/tareas" icon={ListTodo} label="Tareas pendientes" value={stats?.tareas_pendientes ?? 0} tone="accent" testid="stat-tasks" />
       </div>
 
       <AttentionList orders={allOrders} />
@@ -65,10 +65,10 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {STAGES.map((s) => (
-              <div key={s} className={`rounded-xl border p-4 ${stageColors[s]}`} data-testid={`stage-count-${s}`}>
+              <Link key={s} to={`/pedidos?stage=${s}`} className={`rounded-xl border p-4 hover:scale-[1.02] transition-transform ${stageColors[s]}`} data-testid={`stage-count-${s}`}>
                 <div className="text-xs uppercase tracking-widest opacity-80">{s}</div>
                 <div className="font-display text-3xl font-light mt-2">{stats?.pedidos_por_etapa?.[s] ?? 0}</div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -120,7 +120,8 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, tone = "default", testid }) {
+// Modificamos el componente StatCard para que acepte la propiedad "to" y sea un enlace
+function StatCard({ to, icon: Icon, label, value, tone = "default", testid }) {
   const tones = {
     default: "text-zinc-100",
     danger: "text-red-400",
@@ -129,10 +130,10 @@ function StatCard({ icon: Icon, label, value, tone = "default", testid }) {
     accent: "text-cyan-400",
   };
   return (
-    <div className="card-glass rounded-2xl p-5 relative hover:border-white/10 transition-colors" data-testid={testid}>
+    <Link to={to} className="card-glass rounded-2xl p-5 relative hover:border-amber-500/30 hover:bg-zinc-900 transition-all cursor-pointer block" data-testid={testid}>
       <Icon className={`w-5 h-5 ${tones[tone]} mb-4`} />
       <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">{label}</div>
       <div className={`font-display text-4xl font-light ${tones[tone]}`}>{value}</div>
-    </div>
+    </Link>
   );
 }
