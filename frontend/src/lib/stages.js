@@ -1,13 +1,13 @@
 export const STAGES = [
   "Ventas", "Diseño 3D", "Ceras", "Inyección", "Vulcanizado",
-  "Casting", "Fabricación", "Grabado Láser", "Reparaciones", "Importación de máquinas", "Terminado",
+  "Casting", "Fabricación", "Grabado Láser", "Reparaciones", "Importación de máquinas", "Terminado", "Entregado",
 ];
 export const ORDER_TYPES = ["Diseño", "Fabricación", "Reparación", "Grabado", "Importación de máquinas", "Otro"];
-export const DEPARTMENTS = STAGES.filter((s) => s !== "Terminado");
+export const DEPARTMENTS = STAGES.filter((s) => s !== "Terminado" && s !== "Entregado");
 
 export const STAGE_HEX = {
   "Ventas": "#0ea5e9", "Diseño 3D": "#3b82f6", "Ceras": "#eab308", "Inyección": "#14b8a6", "Vulcanizado": "#8b5cf6",
-  "Casting": "#f97316", "Fabricación": "#f59e0b", "Grabado Láser": "#ec4899", "Reparaciones": "#f43f5e", "Importación de máquinas": "#84cc16", "Terminado": "#10b981",
+  "Casting": "#f97316", "Fabricación": "#f59e0b", "Grabado Láser": "#ec4899", "Reparaciones": "#f43f5e", "Importación de máquinas": "#84cc16", "Terminado": "#10b981", "Entregado": "#71717a",
 };
 
 export const STAGE_STYLES = {
@@ -22,6 +22,7 @@ export const STAGE_STYLES = {
   "Reparaciones": { bar: "bg-rose-500", text: "text-rose-400", border: "border-rose-500/30", chip: "bg-rose-500/15 text-rose-400 border-rose-500/30" },
   "Importación de máquinas": { bar: "bg-lime-500", text: "text-lime-400", border: "border-lime-500/30", chip: "bg-lime-500/15 text-lime-400 border-lime-500/30" },
   "Terminado": { bar: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-500/30", chip: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  "Entregado": { bar: "bg-zinc-500", text: "text-zinc-400", border: "border-zinc-500/30", chip: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30" },
 };
 
 export const DUE_STYLES = {
@@ -40,9 +41,7 @@ export const PAY_STYLES = {
 
 export const ROLE_LABELS = { admin: "Admin", ventas: "Ventas", trabajador: "Trabajador" };
 
-// CAMBIO DE MONEDA A QUETZALES
 export const money = (n) => `Q${Number(n || 0).toLocaleString("es", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-
 export const toISO = (local) => (local ? new Date(local).toISOString() : null);
 export const toLocalInput = (iso) => {
   if (!iso) return "";
