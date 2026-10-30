@@ -54,9 +54,10 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
                 {staff && <ShareButton order={order} />}
               </div>
               
-              {/* BOTONES DE ESTADO (Entregado y Eliminar) - AQUÍ ESTÁN LOS QUE BUSCAS */}
-              <div className="flex flex-col gap-2 mt-2 pt-4 border-t border-white/5">
-                {canEdit && order.stage === "Terminado" && (
+              <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-white/5">
+                
+                {/* BOTÓN DE ENTREGADO: Ahora sale siempre */}
+                {canEdit && (
                   <button 
                     onClick={async () => {
                       if (window.confirm("¿Confirmas que el cliente ya recibió el pedido y se cerró la cuenta?")) {
@@ -76,10 +77,11 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
                   </button>
                 )}
 
+                {/* BOTÓN DE ELIMINAR */}
                 {staff && (
                   <button 
                     onClick={async () => {
-                      if (window.confirm("¿Estás seguro de archivar este pedido? Se moverá al Historial.")) {
+                      if (window.confirm("¿Estás seguro de eliminar/cancelar este pedido? Se moverá al Historial.")) {
                         try {
                           await api.delete(`/orders/${order.id}`);
                           toast.success("Pedido archivado");
@@ -92,15 +94,13 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
                     }}
                     className="w-full bg-zinc-900 border border-red-900/30 hover:bg-red-950/30 text-red-400 font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
-                    <Trash2 className="w-5 h-5" /> Archivar Pedido (Eliminar)
+                    <Trash2 className="w-5 h-5" /> Eliminar / Cancelar Pedido
                   </button>
                 )}
               </div>
 
-              {/* SECCIÓN DE TRABAJO (Aquí está el selector de departamentos) */}
-              {/* OJO: Cambiamos la "key" para que ya no se cierre sola al seleccionar */}
               <Section>{canEdit
-                ? <OrderWork key={order.id} order={order} staff={staff} users={users} onChange={onChange} />
+                ? <OrderWork key={`${order.id}-${order.progreso}`} order={order} staff={staff} users={users} onChange={onChange} />
                 : <div className="text-xs text-zinc-500 bg-zinc-900/60 border border-white/5 rounded-lg p-3" data-testid="detail-readonly-hint">Solo lectura: este trabajo está en {order.stage}{order.asignado_nombre ? ` con ${order.asignado_nombre}` : ""}. Puedes actualizarlo cuando llegue a tu departamento o te lo asignen.</div>}</Section>
               {staff && <Section><OrderPayments order={order} onChange={onChange} /></Section>}
               <Section><OrderHistory order={order} onChange={onChange} readOnly={!canEdit} /></Section>
