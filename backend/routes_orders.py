@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response, RedirectResponse
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
+from datetime import datetime, timezone, timedelta # <-- IMPORTANTE PARA LA LIMPIEZA
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
 
@@ -90,7 +91,7 @@ async def op_create_order(data: dict, user) -> dict:
     order = {
         **data, 
         "id": new_id(), 
-        "folio": folio,
+        "folio": folio, 
         "fotos": [], 
         "abonos": [], 
         "progreso": 0, 
@@ -116,11 +117,11 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
     logs = []
     if "stage" in update and update["stage"] != order.get("stage"):
         logs.append(log_entry(user, f"Movió de {order.get('stage')} a {update['stage']}"))
-        if update["stage"] == "Terminado":
+        if update["stage"] in ["Terminado", "Entregado"]:
             update["progreso"] = 100
             saldo = enrich_order(dict(order))["saldo"]
             if saldo > 0:
-                logs.append(log_entry(user, f"⚠ Terminado con SALDO PENDIENTE de Q{saldo:,.2f}"))
+                logs.append(log_entry(user, f"⚠ Terminado/Entregado con SALDO PENDIENTE de Q{saldo:,.2f}"))
     if "asignado_a" in update and update["asignado_a"] != order.get("asignado_a"):
         update["asignado_nombre"] = await assignee_name(update["asignado_a"])
         logs.append(log_entry(user, f"Asignó a {update['asignado_nombre']}"))
@@ -154,12 +155,25 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
     return [enrich_order(o) for o in orders]
 
 
-# --- NUEVA RUTA PARA EL HISTORIAL (Pedidos Archivados) ---
 @router.get("/orders/archived")
 async def list_archived_orders(user=Depends(STAFF)):
     # Buscamos SOLO los que están archivados
     orders = await db.orders.find({"is_archived": True}, {"_id": 0}).sort("archived_at", -1).to_list(2000)
     return [enrich_order(o) for o in orders]
+
+
+@router.get("/orders/cleanup-archive")
+async def cleanup_archive():
+    # Calcula la fecha de hace 30 días
+    hace_30_dias = datetime.now(timezone.utc) - timedelta(days=30)
+    fecha_limite = hace_30_dias.isoformat()
+    
+    # Borra físicamente de la base de datos los archivados viejos
+    result = await db.orders.delete_many({
+        "is_archived": True,
+        "archived_at": {"$lt": fecha_limite}
+    })
+    return {"ok": True, "deleted_count": result.deleted_count, "message": f"Se eliminaron {result.deleted_count} pedidos antiguos del historial."}
 
 
 @router.post("/orders")
