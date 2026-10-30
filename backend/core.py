@@ -28,8 +28,10 @@ JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALGO = "HS256"
 JWT_EXP_HOURS = 24 * 7
 
+# 1. AGREGAMOS "Entregado" AL FINAL DE LAS ETAPAS
 STAGES = ["Ventas", "Diseño 3D", "Ceras", "Inyección", "Vulcanizado", "Casting",
-          "Fabricación", "Grabado Láser", "Reparaciones", "Importación de máquinas", "Terminado"]
+          "Fabricación", "Grabado Láser", "Reparaciones", "Importación de máquinas", "Terminado", "Entregado"]
+          
 ORDER_TYPES = ["Diseño", "Fabricación", "Reparación", "Grabado", "Importación de máquinas", "Otro"]
 LEGACY_STAGES = {"3D": "Diseño 3D", "Láser": "Grabado Láser"}
 ROLES = ["admin", "ventas", "trabajador"]
@@ -45,7 +47,6 @@ cloudinary.config(
 )
 
 APP_NAME = "jarvis-joyeria"
-# Agregamos más formatos para que acepte casi cualquier foto de celular
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg": "jpg", 
     "image/jpg": "jpg",
@@ -78,9 +79,7 @@ def init_storage(force: bool = False):
 
 def put_object(path: str, data: bytes, content_type: str) -> dict:
     try:
-        # Quitamos la extensión para el public_id de Cloudinary
         public_id = path.rsplit('.', 1)[0] if '.' in path else path
-        
         result = cloudinary.uploader.upload(
             data, 
             public_id=public_id,
@@ -88,7 +87,6 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
             use_filename=True,
             unique_filename=False
         )
-        # Retornamos la ruta original (con extensión) para guardarla en la DB
         return {"url": result["secure_url"], "path": path}
     except Exception as e:
         print(f"Error subiendo a Cloudinary: {e}")
@@ -97,9 +95,7 @@ def put_object(path: str, data: bytes, content_type: str) -> dict:
 
 def get_object(path: str):
     try:
-        # Le quitamos la extensión (.jpg, .png, etc) para que Cloudinary lo encuentre
         public_id = path.rsplit('.', 1)[0] if '.' in path else path
-        
         res = cloudinary.api.resource(public_id)
         img_data = requests.get(res["secure_url"]).content
         return img_data, "image/jpeg"
@@ -138,7 +134,8 @@ def check_tipo(tipo):
 
 
 def due_status(order) -> str:
-    if order.get("stage") == "Terminado":
+    # 2. TANTO "Terminado" COMO "Entregado" YA NO CUENTAN COMO ATRASADOS
+    if order.get("stage") in ["Terminado", "Entregado"]:
         return "terminado"
     d = parse_dt(order.get("fecha_entrega"))
     if not d:
@@ -173,19 +170,13 @@ def is_staff(user) -> bool:
 def can_work_on(user, order) -> bool:
     if is_staff(user):
         return True
-    
     if order.get("asignado_a") == user["id"]:
         return True
-        
     depto_usuario = user.get("departamento")
     if not depto_usuario:
         return False
-        
-    # Si el usuario tiene una lista de departamentos (ej. Casting y Terminado)
     if isinstance(depto_usuario, list):
         return order.get("stage") in depto_usuario
-        
-    # Si solo tiene uno (string)
     return order.get("stage") == depto_usuario
 
 
