@@ -14,6 +14,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
   const timer = useRef(null);
 
   const { notifyFinished } = useFinishOrder();
+  
   const patch = async (body, msg) => {
     try {
       const { data } = await api.patch(`/orders/${order.id}`, body);
