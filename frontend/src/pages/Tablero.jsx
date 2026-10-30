@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom"; // <-- NUEVO
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { STAGES, STAGE_STYLES, apiError } from "@/lib/stages";
@@ -18,15 +19,34 @@ export default function Tablero() {
   const { users } = useUsers();
   const staff = ["admin", "ventas"].includes(user?.role);
   
+  const [searchParams] = useSearchParams(); // <-- LEEMOS LA URL
   const [orders, setOrders] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [filterMode, setFilterMode] = useState("all");
-  const [activeStage, setActiveStage] = useState("Ventas"); // Pestaña activa
+  const [activeStage, setActiveStage] = useState("Ventas");
 
   const kanbanRef = useRef(null);
 
   const load = () => api.get("/orders").then((r) => setOrders(r.data)).catch(() => toast.error("Error al cargar pedidos"));
+
+  // <-- ESTO DETECTA SI VIENES DEL DASHBOARD Y APLICA EL FILTRO
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    const stageParam = searchParams.get("stage");
+
+    if (filterParam === "atrasados") setFilterMode("late");
+    else if (filterParam === "por_vencer") setFilterMode("soon");
+    
+    if (stageParam) {
+      setActiveStage(stageParam);
+      // Hacemos un pequeño delay para que la pantalla cargue y luego hacemos scroll a la columna
+      setTimeout(() => {
+        const el = document.getElementById(`kanban-col-${stageParam.replace(/\s+/g, '-')}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+      }, 500);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     load();
@@ -47,7 +67,7 @@ export default function Tablero() {
     if (!window.confirm("¿Eliminar este pedido?")) return;
     try {
       await api.delete(`/orders/${id}`);
-      toast.success("Pedido eliminado");
+      toast.success("Pedido archivado en el historial");
       load();
     } catch (e) { toast.error(apiError(e)); }
   };
