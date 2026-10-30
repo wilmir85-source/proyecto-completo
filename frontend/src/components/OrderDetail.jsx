@@ -9,6 +9,8 @@ import { OrderHistory } from "@/components/OrderHistory";
 import { PdfButton } from "@/components/PdfButton";
 import { ShareButton } from "@/components/ShareButton";
 import { DueBadge, StageBadge } from "@/components/Badges";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const Section = ({ children }) => <div className="border-t border-white/5 pt-4">{children}</div>;
 
@@ -30,7 +32,6 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
               <DialogTitle className="font-display text-xl pr-8">{order.cliente}</DialogTitle>
             </DialogHeader>
             
-            {/* AQUÍ ESTÁ EL FOLIO AGREGADO */}
             <div className="text-xs font-mono text-amber-500 mb-2 -mt-1">Folio: {order.folio || "S/N"}</div>
             
             <div className="space-y-4">
@@ -48,6 +49,28 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
               {order.notas && <p className="text-xs text-zinc-500">{order.notas}</p>}
               {canEdit && <PdfButton order={order} />}
               {staff && <ShareButton order={order} />}
+              
+              {/* BOTÓN DE ENTREGADO */}
+              {canEdit && order.stage === "Terminado" && (
+                <button 
+                  onClick={async () => {
+                    if (window.confirm("¿Confirmas que el cliente ya recibió el pedido y se cerró la cuenta?")) {
+                      try {
+                        await api.patch(`/orders/${order.id}`, { stage: "Entregado" });
+                        toast.success("¡Pedido entregado con éxito!");
+                        onChange(); 
+                        onClose();   
+                      } catch (e) {
+                        toast.error("Error al marcar como entregado");
+                      }
+                    }
+                  }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 rounded-lg flex items-center justify-center gap-2 transition-colors mt-2 shadow-lg shadow-emerald-900/20"
+                >
+                  ✅ Marcar como Entregado al Cliente
+                </button>
+              )}
+
               <Section>{canEdit
                 ? <OrderWork key={`${order.id}-${order.progreso}`} order={order} staff={staff} users={users} onChange={onChange} />
                 : <div className="text-xs text-zinc-500 bg-zinc-900/60 border border-white/5 rounded-lg p-3" data-testid="detail-readonly-hint">Solo lectura: este trabajo está en {order.stage}{order.asignado_nombre ? ` con ${order.asignado_nombre}` : ""}. Puedes actualizarlo cuando llegue a tu departamento o te lo asignen.</div>}</Section>
