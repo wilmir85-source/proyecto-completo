@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response, RedirectResponse
 from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
-from datetime import datetime, timezone, timedelta # <-- IMPORTANTE PARA LA LIMPIEZA
+from datetime import datetime, timezone, timedelta
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
 
@@ -152,6 +152,14 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
     if mine:
         orders = [o for o in orders if o.get("asignado_a") == user["id"] or
                   (user.get("departamento") and o.get("stage") == user.get("departamento"))]
+    
+    # 🚨 ESCUDO DE SEGURIDAD FINANCIERA 🚨
+    is_staff_user = user.get("role") in ["admin", "ventas"]
+    if not is_staff_user:
+        for o in orders:
+            o["precio"] = 0
+            o["abonos"] = []
+            
     return [enrich_order(o) for o in orders]
 
 
