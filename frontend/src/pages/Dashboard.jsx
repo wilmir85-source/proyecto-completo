@@ -39,7 +39,6 @@ export default function Dashboard() {
         <p className="text-zinc-400 mt-3 text-sm max-w-lg">Tu taller inteligente a tiempo real. Pedidos, tareas y asistente 24/7.</p>
       </header>
 
-      {/* Stats (Ahora son clickeables) */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10" data-testid="stats-grid">
         <StatCard to="/pedidos" icon={GanttChartSquare} label="Pedidos activos" value={stats?.pedidos_activos ?? 0} testid="stat-total" />
         <StatCard to="/pedidos?filter=atrasados" icon={AlertTriangle} label="Atrasados" value={stats?.pedidos_atrasados ?? 0} tone="danger" testid="stat-overdue" />
@@ -51,7 +50,6 @@ export default function Dashboard() {
       <AttentionList orders={allOrders} />
       <DashboardCharts />
 
-      {/* Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         <div className="lg:col-span-2 card-glass rounded-2xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-6">
@@ -94,7 +92,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent orders */}
       <div className="card-glass rounded-2xl p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -120,7 +117,6 @@ export default function Dashboard() {
   );
 }
 
-// Modificamos el componente StatCard para que acepte la propiedad "to" y sea un enlace
 function StatCard({ to, icon: Icon, label, value, tone = "default", testid }) {
   const tones = {
     default: "text-zinc-100",
