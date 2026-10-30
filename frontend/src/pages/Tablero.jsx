@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom"; // <-- NUEVO
+import { useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { STAGES, STAGE_STYLES, apiError } from "@/lib/stages";
@@ -19,7 +19,7 @@ export default function Tablero() {
   const { users } = useUsers();
   const staff = ["admin", "ventas"].includes(user?.role);
   
-  const [searchParams] = useSearchParams(); // <-- LEEMOS LA URL
+  const [searchParams] = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -30,7 +30,7 @@ export default function Tablero() {
 
   const load = () => api.get("/orders").then((r) => setOrders(r.data)).catch(() => toast.error("Error al cargar pedidos"));
 
-  // <-- ESTO DETECTA SI VIENES DEL DASHBOARD Y APLICA EL FILTRO
+  // ESTO DETECTA SI VIENES DEL DASHBOARD Y APLICA EL FILTRO
   useEffect(() => {
     const filterParam = searchParams.get("filter");
     const stageParam = searchParams.get("stage");
@@ -40,7 +40,6 @@ export default function Tablero() {
     
     if (stageParam) {
       setActiveStage(stageParam);
-      // Hacemos un pequeño delay para que la pantalla cargue y luego hacemos scroll a la columna
       setTimeout(() => {
         const el = document.getElementById(`kanban-col-${stageParam.replace(/\s+/g, '-')}`);
         if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
@@ -93,7 +92,6 @@ export default function Tablero() {
   return (
     <div className="h-full flex flex-col bg-[#09090b] overflow-hidden">
       
-      {/* ENCABEZADO CON FILTROS Y PESTAÑAS DE NAVEGACIÓN */}
       <header className="px-4 md:px-8 pt-4 pb-0 flex flex-col gap-2 bg-[#09090b] z-30 shrink-0 border-b border-white/5">
         <div className="flex flex-wrap gap-4 items-end justify-between">
           <div>
@@ -105,7 +103,6 @@ export default function Tablero() {
           {staff && <NewOrderDialog users={users} onCreated={load} />}
         </div>
 
-        {/* FILTROS RÁPIDOS */}
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
           <button onClick={() => setFilterMode("all")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-amber-500/20 text-amber-500 border-amber-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             Todos
@@ -121,7 +118,6 @@ export default function Tablero() {
           </button>
         </div>
 
-        {/* PESTAÑAS DE NAVEGACIÓN DE ETAPAS (DOT-STRIP) */}
         <div className="flex gap-1.5 overflow-x-auto pb-2 no-scrollbar pt-1">
           {STAGES.map((stage) => {
             const count = displayOrders.filter((o) => o.stage === stage).length;
@@ -150,7 +146,6 @@ export default function Tablero() {
         </div>
       </header>
 
-      {/* CONTENEDOR DEL KANBAN CON SNAP-SCROLL */}
       <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth pb-20 md:pb-0">
         <div className="flex gap-4 md:gap-5 px-4 md:px-8 pb-8 pt-2 h-full min-w-max">
           {STAGES.map((stage) => {
@@ -165,7 +160,6 @@ export default function Tablero() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragging) { moveTo(dragging, stage); setDragging(null); } }}
               >
-                {/* TÍTULO DE LA COLUMNA (Oculto en móvil, visible en PC) */}
                 <div className={`hidden md:flex items-center justify-between pb-2 pt-1 border-b-2 ${a.border} shrink-0`}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${a.bar}`} />
@@ -174,7 +168,6 @@ export default function Tablero() {
                   <span className="text-xs bg-white/5 px-2 py-0.5 rounded-full text-zinc-400 font-mono">{list.length}</span>
                 </div>
                 
-                {/* Lista de tarjetas */}
                 <div className="flex-1 overflow-y-auto space-y-3 pt-3 pr-1 pb-10 no-scrollbar">
                   {list.map((o) => (
                     <OrderCard key={o.id} order={o} canEdit={canWork(user, o)} canDelete={staff}
