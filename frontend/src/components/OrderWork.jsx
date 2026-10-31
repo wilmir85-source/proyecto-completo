@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { STAGES, ORDER_TYPES, toISO, toLocalInput, apiError } from "@/lib/stages";
 import { useFinishOrder } from "@/components/FinishOrderDialog";
+import { DeadlineProgressBar } from "@/components/DeadlineProgressBar"; // <-- NUEVO COMPONENTE
 
 const Label = ({ children }) => <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{children}</div>;
 
@@ -99,14 +100,17 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         <div className="col-span-2 text-xs text-zinc-400">{[order.metal, order.peso_metal && `${order.peso_metal} g`, order.piedra].filter(Boolean).join(" · ")}</div>
       )}
 
-      {/* PROGRESO */}
-      <div className="col-span-2">
-        <div className="flex justify-between"><Label>Progreso</Label><span className="text-xs font-mono text-amber-400">{progreso}%</span></div>
+      {/* PROGRESO Y BARRA DE TIEMPO */}
+      <div className="col-span-2 mt-2">
+        <div className="flex justify-between mb-1"><Label>Progreso del trabajo</Label><span className="text-xs font-mono text-amber-400">{progreso}%</span></div>
         <Slider value={[progreso]} max={100} step={5} onValueChange={([v]) => setProgreso(v)}
           onValueCommit={([v]) => {
             clearTimeout(timer.current);
             timer.current = setTimeout(() => v !== order.progreso && patch({ progreso: v }, `Progreso ${v}%`), 700);
           }} />
+        
+        {/* AQUÍ INYECTAMOS LA NUEVA BARRA DE URGENCIA */}
+        <DeadlineProgressBar fecha_entrega={order.fecha_entrega} progreso={order.progreso} stage={order.stage} />
       </div>
     </div>
   );
