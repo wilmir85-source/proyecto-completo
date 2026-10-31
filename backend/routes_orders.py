@@ -8,6 +8,9 @@ from datetime import datetime, timezone, timedelta
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
 
+# IMPORTAMOS EL CARTERO DE NOTIFICACIONES
+from routes_notifications import send_push_notification
+
 router = APIRouter(prefix="/api")
 STAFF = require_roles("admin", "ventas")
 WORKER_FIELDS = {"stage", "progreso", "notas"}
@@ -103,6 +106,21 @@ async def op_create_order(data: dict, user) -> dict:
     }
     await db.orders.insert_one(order)
     order.pop("_id", None)
+    
+    # --- NOTIFICACIÓN DE NUEVO PEDIDO ---
+    try:
+        staff_users = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+        for u in staff_users:
+            await send_push_notification(
+                user_id=u["id"],
+                title="🆕 Nuevo Pedido Creado",
+                body=f"Se registró el pedido {folio} para {order['cliente']}.",
+                url="/pedidos"
+            )
+    except Exception as e:
+        logger.error(f"Error notificando nuevo pedido: {e}")
+    # ------------------------------------
+    
     return enrich_order(order)
 
 
@@ -132,6 +150,32 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
     if logs:
         ops["$push"] = {"historial": {"$each": logs}}
     await db.orders.update_one({"id": order_id}, ops)
+    
+    # --- NOTIFICACIÓN DE PEDIDO TERMINADO / ENTREGADO ---
+    if update.get("stage") in ["Terminado", "Entregado"] and order.get("stage") != update.get("stage"):
+        try:
+            # 1. Avisamos a los jefes (Admin/Ventas)
+            staff_users = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+            for u in staff_users:
+                await send_push_notification(
+                    user_id=u["id"],
+                    title=f"✅ Pedido {order['folio']} {update['stage']}",
+                    body=f"El pedido de {order['cliente']} pasó a {update['stage']}.",
+                    url="/pedidos"
+                )
+            
+            # 2. Si hay un trabajador asignado, también le avisamos
+            if order.get("asignado_a"):
+                await send_push_notification(
+                    user_id=order["asignado_a"],
+                    title=f"🎉 Trabajo {order['folio']} {update['stage']}",
+                    body=f"El pedido de {order['cliente']} ha finalizado.",
+                    url="/mis-trabajos"
+                )
+        except Exception as e:
+            logger.error(f"Error notificando pedido terminado: {e}")
+    # ----------------------------------------------------
+    
     return enrich_order(await get_order_or_404(order_id))
 
 
