@@ -46,6 +46,7 @@ class OrderUpdate(BaseModel):
     peso_metal: Optional[float] = Field(default=None, ge=0)
     piedra: Optional[str] = None
     tipo: Optional[str] = None
+    import_status: Optional[str] = None # <-- AGREGADO PARA EL RASTREADOR DE IMPORTACIONES
 
 
 class AbonoIn(BaseModel):
@@ -154,7 +155,6 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
     # --- NOTIFICACIÓN DE PEDIDO TERMINADO / ENTREGADO ---
     if update.get("stage") in ["Terminado", "Entregado"] and order.get("stage") != update.get("stage"):
         try:
-            # 1. Avisamos a los jefes (Admin/Ventas)
             staff_users = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
             for u in staff_users:
                 await send_push_notification(
@@ -163,8 +163,6 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
                     body=f"El pedido de {order['cliente']} pasó a {update['stage']}.",
                     url="/pedidos"
                 )
-            
-            # 2. Si hay un trabajador asignado, también le avisamos
             if order.get("asignado_a"):
                 await send_push_notification(
                     user_id=order["asignado_a"],
@@ -190,7 +188,6 @@ async def op_add_abono(order_id: str, monto: float, nota: str, user) -> dict:
 # ---------- Routes ----------
 @router.get("/orders")
 async def list_orders(mine: bool = False, user=Depends(current_user)):
-    # Solo mostramos los pedidos que NO estén archivados
     query = {"is_archived": {"$ne": True}}
     orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(2000)
     if mine:
@@ -209,18 +206,15 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
 
 @router.get("/orders/archived")
 async def list_archived_orders(user=Depends(STAFF)):
-    # Buscamos SOLO los que están archivados
     orders = await db.orders.find({"is_archived": True}, {"_id": 0}).sort("archived_at", -1).to_list(2000)
     return [enrich_order(o) for o in orders]
 
 
 @router.get("/orders/cleanup-archive")
 async def cleanup_archive():
-    # Calcula la fecha de hace 30 días
     hace_30_dias = datetime.now(timezone.utc) - timedelta(days=30)
     fecha_limite = hace_30_dias.isoformat()
     
-    # Borra físicamente de la base de datos los archivados viejos
     result = await db.orders.delete_many({
         "is_archived": True,
         "archived_at": {"$lt": fecha_limite}
@@ -242,7 +236,6 @@ async def update_order(order_id: str, payload: OrderUpdate, user=Depends(current
 
 @router.delete("/orders/{order_id}")
 async def delete_order(order_id: str, user=Depends(STAFF)):
-    # En lugar de borrar de la base de datos, lo marcamos como archivado
     r = await db.orders.update_one(
         {"id": order_id}, 
         {"$set": {"is_archived": True, "archived_at": now_iso(), "archived_by": user["name"]}}
