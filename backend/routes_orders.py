@@ -8,7 +8,7 @@ from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
-from routes_notifications import send_push_notification # Importamos el cartero
+from routes_notifications import send_push_notification
 
 router = APIRouter(prefix="/api")
 STAFF = require_roles("admin", "ventas")
@@ -195,7 +195,6 @@ async def list_archived_orders(user=Depends(STAFF)):
     return [enrich_order(o) for o in orders]
 
 
-# --- RUTA PARA BORRAR FOTOS A LOS 30 DÍAS ---
 @router.get("/orders/cleanup-photos")
 async def cleanup_photos():
     hace_30_dias = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
@@ -273,8 +272,10 @@ async def add_note(order_id: str, payload: NotaIn, user=Depends(current_user)):
     order = await get_order_or_404(order_id)
     if not can_work_on(user, order):
         raise HTTPException(403, "Este trabajo no está asignado a ti ni a tu departamento")
+    
+    # AQUÍ ESTABA EL ERROR, YA ESTÁ CORREGIDO
     await db.orders.update_one({"id": order_id}, {"$push": {"historial": log_entry(user, payload.texto)},
-                                                  {"$set": {"updated_at": now_iso()}}})
+                                                  "$set": {"updated_at": now_iso()}})
     return enrich_order(await get_order_or_404(order_id))
 
 
