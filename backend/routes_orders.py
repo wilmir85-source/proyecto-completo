@@ -1,4 +1,5 @@
 import asyncio
+import cloudinary
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response, RedirectResponse
@@ -7,9 +8,7 @@ from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
                   new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
-
-# IMPORTAMOS EL CARTERO DE NOTIFICACIONES
-from routes_notifications import send_push_notification
+from routes_notifications import send_push_notification # Importamos el cartero
 
 router = APIRouter(prefix="/api")
 STAFF = require_roles("admin", "ventas")
@@ -46,7 +45,6 @@ class OrderUpdate(BaseModel):
     peso_metal: Optional[float] = Field(default=None, ge=0)
     piedra: Optional[str] = None
     tipo: Optional[str] = None
-    import_status: Optional[str] = None # <-- AGREGADO PARA EL RASTREADOR DE IMPORTACIONES
 
 
 class AbonoIn(BaseModel):
@@ -83,7 +81,6 @@ async def op_create_order(data: dict, user) -> dict:
     check_stage(data.get("stage"))
     check_tipo(data.get("tipo"))
     
-    # --- GENERADOR DE FOLIO (MJ-0001) ---
     counter = await db.counters.find_one_and_update(
         {"_id": "order_folio"},
         {"$inc": {"seq": 1}},
@@ -108,19 +105,14 @@ async def op_create_order(data: dict, user) -> dict:
     await db.orders.insert_one(order)
     order.pop("_id", None)
     
-    # --- NOTIFICACIÓN DE NUEVO PEDIDO ---
+    # --- NOTIFICACIÓN INSTANTÁNEA AL CREAR PEDIDO ---
     try:
-        staff_users = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
-        for u in staff_users:
-            await send_push_notification(
-                user_id=u["id"],
-                title="🆕 Nuevo Pedido Creado",
-                body=f"Se registró el pedido {folio} para {order['cliente']}.",
-                url="/pedidos"
-            )
+        admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+        for u in admins:
+            await send_push_notification(u["id"], "🆕 Nuevo Pedido", f"Se registró el pedido {folio} para {order['cliente']}.", "/pedidos")
     except Exception as e:
         logger.error(f"Error notificando nuevo pedido: {e}")
-    # ------------------------------------
+    # ------------------------------------------------
     
     return enrich_order(order)
 
@@ -134,6 +126,7 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
     check_stage(update.get("stage"))
     check_tipo(update.get("tipo"))
     logs = []
+    
     if "stage" in update and update["stage"] != order.get("stage"):
         logs.append(log_entry(user, f"Movió de {order.get('stage')} a {update['stage']}"))
         if update["stage"] in ["Terminado", "Entregado"]:
@@ -141,38 +134,31 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
             saldo = enrich_order(dict(order))["saldo"]
             if saldo > 0:
                 logs.append(log_entry(user, f"⚠ Terminado/Entregado con SALDO PENDIENTE de Q{saldo:,.2f}"))
+                
     if "asignado_a" in update and update["asignado_a"] != order.get("asignado_a"):
         update["asignado_nombre"] = await assignee_name(update["asignado_a"])
         logs.append(log_entry(user, f"Asignó a {update['asignado_nombre']}"))
     if "progreso" in update and update["progreso"] != order.get("progreso"):
         logs.append(log_entry(user, f"Progreso {update['progreso']}%"))
+        
     update["updated_at"] = now_iso()
     ops = {"$set": update}
     if logs:
         ops["$push"] = {"historial": {"$each": logs}}
     await db.orders.update_one({"id": order_id}, ops)
     
-    # --- NOTIFICACIÓN DE PEDIDO TERMINADO / ENTREGADO ---
+    # --- NOTIFICACIÓN INSTANTÁNEA AL TERMINAR/ENTREGAR ---
     if update.get("stage") in ["Terminado", "Entregado"] and order.get("stage") != update.get("stage"):
         try:
-            staff_users = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
-            for u in staff_users:
-                await send_push_notification(
-                    user_id=u["id"],
-                    title=f"✅ Pedido {order['folio']} {update['stage']}",
-                    body=f"El pedido de {order['cliente']} pasó a {update['stage']}.",
-                    url="/pedidos"
-                )
+            admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+            for u in admins:
+                await send_push_notification(u["id"], f"✅ Pedido {update['stage']}", f"El pedido {order.get('folio')} de {order['cliente']} finalizó.", "/pedidos")
+            
             if order.get("asignado_a"):
-                await send_push_notification(
-                    user_id=order["asignado_a"],
-                    title=f"🎉 Trabajo {order['folio']} {update['stage']}",
-                    body=f"El pedido de {order['cliente']} ha finalizado.",
-                    url="/mis-trabajos"
-                )
+                await send_push_notification(order["asignado_a"], "🎉 Trabajo Finalizado", f"El pedido {order.get('folio')} terminó.", "/mis-trabajos")
         except Exception as e:
-            logger.error(f"Error notificando pedido terminado: {e}")
-    # ----------------------------------------------------
+            logger.error(f"Error notificando fin de pedido: {e}")
+    # -----------------------------------------------------
     
     return enrich_order(await get_order_or_404(order_id))
 
@@ -194,7 +180,6 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
         orders = [o for o in orders if o.get("asignado_a") == user["id"] or
                   (user.get("departamento") and o.get("stage") == user.get("departamento"))]
     
-    # 🚨 ESCUDO DE SEGURIDAD FINANCIERA 🚨
     is_staff_user = user.get("role") in ["admin", "ventas"]
     if not is_staff_user:
         for o in orders:
@@ -210,6 +195,29 @@ async def list_archived_orders(user=Depends(STAFF)):
     return [enrich_order(o) for o in orders]
 
 
+# --- RUTA PARA BORRAR FOTOS A LOS 30 DÍAS ---
+@router.get("/orders/cleanup-photos")
+async def cleanup_photos():
+    hace_30_dias = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    orders = await db.orders.find({"created_at": {"$lt": hace_30_dias}}).to_list(1000)
+    deleted_count = 0
+    
+    for o in orders:
+        for foto in o.get("fotos", []):
+            try:
+                path = foto["path"]
+                public_id = path.rsplit('.', 1)[0] if '.' in path else path
+                cloudinary.uploader.destroy(public_id)
+                deleted_count += 1
+            except Exception as e:
+                logger.error(f"Error borrando foto de Cloudinary: {e}")
+        
+        if o.get("fotos"):
+            await db.orders.update_one({"id": o["id"]}, {"$set": {"fotos": []}})
+            
+    return {"ok": True, "deleted_photos": deleted_count, "message": f"Se limpiaron fotos de {len(orders)} pedidos viejos."}
+
+
 @router.get("/orders/cleanup-archive")
 async def cleanup_archive():
     hace_30_dias = datetime.now(timezone.utc) - timedelta(days=30)
@@ -219,7 +227,7 @@ async def cleanup_archive():
         "is_archived": True,
         "archived_at": {"$lt": fecha_limite}
     })
-    return {"ok": True, "deleted_count": result.deleted_count, "message": f"Se eliminaron {result.deleted_count} pedidos antiguos del historial."}
+    return {"ok": True, "deleted_count": result.deleted_count}
 
 
 @router.post("/orders")
@@ -266,7 +274,7 @@ async def add_note(order_id: str, payload: NotaIn, user=Depends(current_user)):
     if not can_work_on(user, order):
         raise HTTPException(403, "Este trabajo no está asignado a ti ni a tu departamento")
     await db.orders.update_one({"id": order_id}, {"$push": {"historial": log_entry(user, payload.texto)},
-                                                  "$set": {"updated_at": now_iso()}})
+                                                  {"$set": {"updated_at": now_iso()}}})
     return enrich_order(await get_order_or_404(order_id))
 
 
