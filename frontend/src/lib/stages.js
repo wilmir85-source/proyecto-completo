@@ -16,7 +16,7 @@ export const STAGE_STYLES = {
   "Ceras": { bar: "bg-yellow-500", text: "text-yellow-400", border: "border-yellow-500/30", chip: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
   "Inyección": { bar: "bg-teal-500", text: "text-teal-400", border: "border-teal-500/30", chip: "bg-teal-500/15 text-teal-400 border-teal-500/30" },
   "Vulcanizado": { bar: "bg-violet-500", text: "text-violet-400", border: "border-violet-500/30", chip: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
-  "Casting": { bar: "bg-orange-500", text: "text-orange-400", border: "border-orange-500/30", chip: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  "Casting": { bar: "bg-[#c5a572]", text: "text-orange-400", border: "border-[#c5a572]/30", chip: "bg-[#c5a572]/15 text-orange-400 border-[#c5a572]/30" },
   "Fabricación": { bar: "bg-[#c5a572]", text: "text-amber-400", border: "border-[#c5a572]/30", chip: "bg-[#c5a572]/15 text-amber-400 border-[#c5a572]/30" },
   "Grabado Láser": { bar: "bg-pink-500", text: "text-pink-400", border: "border-pink-500/30", chip: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
   "Reparaciones": { bar: "bg-rose-500", text: "text-rose-400", border: "border-rose-500/30", chip: "bg-rose-500/15 text-rose-400 border-rose-500/30" },
