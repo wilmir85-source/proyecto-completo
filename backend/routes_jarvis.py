@@ -11,7 +11,7 @@ from tavily import TavilyClient
 import os
 import io
 import asyncio
-import replicate # <-- NUEVA IMPORTACIÓN PARA REPLICATE
+import requests # <-- IMPORTANTE PARA SIRAY.AI
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -351,26 +351,44 @@ async def transcribe_audio(file: UploadFile = File(...), user=Depends(current_us
         logger.error(f"Error transcribiendo: {e}")
         raise HTTPException(500, f"Error al transcribir: {str(e)}")
 
-# ---------- RUTA DE GENERACIÓN DE IMÁGENES CON REPLICATE ----------
+# ---------- RUTA DE GENERACIÓN DE IMÁGENES CON SIRAY.AI ----------
 @router.post("/generate-image")
-async def generate_image_replicate(payload: ImageGenIn, user=Depends(current_user)):
+async def generate_image_siray(payload: ImageGenIn, user=Depends(current_user)):
     try:
-        # Usamos Flux (modelo de vanguardia) en modo asíncrono para no bloquear
-        output = await asyncio.to_thread(
-            replicate.run,
-            "black-forest-labs/flux-schnell",
-            input={
-                "prompt": payload.prompt,
-                "aspect_ratio": "1:1",
-                "output_format": "webp",
-                "output_quality": 90
-            }
-        )
-        if output and len(output) > 0:
-            return {"url": output[0]}
-        raise HTTPException(500, "No se pudo generar la imagen.")
+        api_key = os.getenv("SIRAY_API_KEY")
+        if not api_key:
+            raise HTTPException(500, "Falta configurar la llave SIRAY_API_KEY en Render")
+
+        url = "https://api.siray.ai/v1/images/generations" 
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "z-image",
+            "prompt": payload.prompt,
+            "size": "1024x1024",
+            "n": 1,
+            "response_format": "url"
+        }
+
+        # Hacemos la llamada a Siray.ai de forma asíncrona para no bloquear la app
+        response = await asyncio.to_thread(requests.post, url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+
+        # Siray devuelve la URL en el formato estándar de OpenAI
+        image_url = result.get("data", [{}])[0].get("url")
+        
+        if not image_url:
+            raise Exception("No se recibió una URL de imagen válida de Siray")
+
+        return {"url": image_url}
+
     except Exception as e:
-        logger.error(f"Error en Replicate: {e}")
+        logger.error(f"Error en Siray.ai: {e}")
         raise HTTPException(500, f"Error al generar imagen: {str(e)}")
 
 # ---------- Siri / Apple Shortcuts ----------
