@@ -273,7 +273,6 @@ async def add_note(order_id: str, payload: NotaIn, user=Depends(current_user)):
     if not can_work_on(user, order):
         raise HTTPException(403, "Este trabajo no está asignado a ti ni a tu departamento")
     
-    # AQUÍ ESTABA EL ERROR, YA ESTÁ CORREGIDO
     await db.orders.update_one({"id": order_id}, {"$push": {"historial": log_entry(user, payload.texto)},
                                                   "$set": {"updated_at": now_iso()}})
     return enrich_order(await get_order_or_404(order_id))
