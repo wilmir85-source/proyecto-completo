@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -16,17 +16,18 @@ html, body, #root {
 
 body {
   margin: 0;
-  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Fondo elegante: Negro profundo con un destello dorado sutil */
   background:
-    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(217, 119, 6, 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(6, 182, 212, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(197, 165, 114, 0.08), transparent 60%),
     #09090b;
   background-attachment: fixed;
 }
 
-.font-display { font-family: 'Outfit', sans-serif; letter-spacing: -0.02em; }
+/* La fuente de los títulos ahora es Serif de lujo */
+.font-display { font-family: 'Playfair Display', serif; letter-spacing: 0.02em; font-weight: 600; }
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
 @layer base {
@@ -37,7 +38,8 @@ body {
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 33 97% 44%;
+    /* El color primario ahora es Oro Champán */
+    --primary: 38 34% 61%; 
     --primary-foreground: 0 0% 100%;
     --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
@@ -49,7 +51,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 240 4% 16%;
     --input: 240 4% 16%;
-    --ring: 33 97% 44%;
+    --ring: 38 34% 61%;
     --radius: 0.75rem;
   }
 }
@@ -58,58 +60,29 @@ body {
   * { border-color: hsl(var(--border)); }
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Scrollbar elegante */
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: #09090b; }
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+::-webkit-scrollbar-thumb:hover { background: #c5a572; } /* Brillo dorado al pasar el mouse */
 
-/* Glow for AI */
-.ai-glow {
-  box-shadow: 0 0 40px rgba(6, 182, 212, 0.25), inset 0 0 20px rgba(6, 182, 212, 0.05);
-}
-
-.grain::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.4'/%3E%3C/svg%3E");
-  opacity: 0.025;
-  pointer-events: none;
-  mix-blend-mode: overlay;
-}
-
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.5); }
-  70% { box-shadow: 0 0 0 20px rgba(6, 182, 212, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(6, 182, 212, 0); }
-}
-.pulse-ring { animation: pulse-ring 2s infinite; }
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.shimmer {
-  background: linear-gradient(90deg, transparent, rgba(217,119,6,0.15), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 3s infinite;
-}
-
+/* Efecto de cristal premium (Apple Style) */
 .card-glass {
-  background: rgba(24, 24, 27, 0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(24, 24, 27, 0.65);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(197, 165, 114, 0.15); /* Borde dorado sutil */
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
-/* ---------- Arc reactor (Jarvis) ---------- */
-.jarvis-hud { background-image: radial-gradient(circle at 20% 50%, rgba(6,182,212,0.07), transparent 45%); }
+/* ---------- Arc reactor (Jarvis) - Mantenemos las animaciones ---------- */
+.jarvis-hud { background-image: radial-gradient(circle at 20% 50%, rgba(197, 165, 114, 0.05), transparent 45%); }
 .arc-reactor { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.arc-ring { position: absolute; inset: 0; border-radius: 9999px; border: 1px solid rgba(34,211,238,0.35); }
+.arc-ring { position: absolute; inset: 0; border-radius: 9999px; border: 1px solid rgba(197, 165, 114, 0.35); }
 .arc-ring-1 { border-width: 2px; border-style: dashed; animation: arc-spin 18s linear infinite; }
-.arc-ring-2 { inset: 14%; border-color: rgba(34,211,238,0.5); border-top-color: transparent; border-bottom-color: transparent; border-width: 3px; animation: arc-spin 6s linear infinite reverse; }
-.arc-ring-3 { inset: 28%; border-color: rgba(103,232,249,0.6); box-shadow: 0 0 30px rgba(34,211,238,0.35), inset 0 0 25px rgba(34,211,238,0.3); }
-.arc-core { position: absolute; inset: 38%; border-radius: 9999px; background: radial-gradient(circle, #ecfeff 0%, #67e8f9 35%, #0891b2 70%, transparent 100%); box-shadow: 0 0 40px 10px rgba(34,211,238,0.55); transition: transform 300ms ease, box-shadow 300ms ease; }
+.arc-ring-2 { inset: 14%; border-color: rgba(197, 165, 114, 0.5); border-top-color: transparent; border-bottom-color: transparent; border-width: 3px; animation: arc-spin 6s linear infinite reverse; }
+.arc-ring-3 { inset: 28%; border-color: rgba(197, 165, 114, 0.6); box-shadow: 0 0 30px rgba(197, 165, 114, 0.35), inset 0 0 25px rgba(197, 165, 114, 0.3); }
+.arc-core { position: absolute; inset: 38%; border-radius: 9999px; background: radial-gradient(circle, #fffbeb 0%, #fcd34d 35%, #b45309 70%, transparent 100%); box-shadow: 0 0 40px 10px rgba(197, 165, 114, 0.55); transition: transform 300ms ease, box-shadow 300ms ease; }
 .arc-listening .arc-core { animation: arc-pulse 0.9s ease-in-out infinite; box-shadow: 0 0 60px 20px rgba(239,68,68,0.45); background: radial-gradient(circle, #fff1f2 0%, #fda4af 35%, #e11d48 70%, transparent 100%); }
 .arc-listening .arc-ring { border-color: rgba(244,63,94,0.5); }
 .arc-thinking .arc-ring-1 { animation-duration: 2s; }
@@ -119,4 +92,4 @@ body {
 .arc-reactor:hover .arc-core { transform: scale(1.08); }
 @keyframes arc-spin { to { transform: rotate(360deg); } }
 @keyframes arc-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }
-@keyframes arc-glow { 0%,100% { box-shadow: 0 0 30px rgba(34,211,238,0.35); } 50% { box-shadow: 0 0 70px rgba(34,211,238,0.8); } }
+@keyframes arc-glow { 0%,100% { box-shadow: 0 0 30px rgba(197, 165, 114, 0.35); } 50% { box-shadow: 0 0 70px rgba(197, 165, 114, 0.8); } }
