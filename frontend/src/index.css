@@ -68,25 +68,46 @@ body {
 ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #c5a572; }
 
-/* Efecto de cristal premium REAL (Apple Style) */
+/* =========================================
+   TARJETAS DE LUJO (Glassmorphism + Borde Metálico)
+   ========================================= */
 .card-glass {
-  /* Fondo semitransparente para que se vean los destellos de atrás */
   background: rgba(24, 24, 27, 0.55);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
-  /* Borde dorado más notorio */
   border: 1px solid rgba(197, 165, 114, 0.4); 
-  /* Sombra interna que simula el brillo del cristal (luz arriba, sombra abajo) */
   box-shadow: 
     inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5),
     0 8px 32px 0 rgba(0, 0, 0, 0.5);
   border-radius: 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Clase para los números de oro */
+/* Efecto de doble marco (como una vitrina de joyas) */
+.card-glass::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(197, 165, 114, 0.15);
+  pointer-events: none;
+}
+
+.card-glass:hover {
+  border-color: rgba(197, 165, 114, 0.7);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), 
+    0 8px 32px 0 rgba(197, 165, 114, 0.15);
+  transition: all 0.3s ease;
+}
+
+/* =========================================
+   TEXTO DORADO BRILLANTE (Para los números)
+   ========================================= */
 .text-gold-gradient {
-  background: linear-gradient(to right, #f9d976, #c5a572, #b08d5b);
+  background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -94,7 +115,9 @@ body {
   text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
 }
 
-/* ---------- Arc reactor (Jarvis) - Animaciones intactas ---------- */
+/* =========================================
+   ARC REACTOR (JARVIS) - Animaciones intactas
+   ========================================= */
 .jarvis-hud { background-image: radial-gradient(circle at 20% 50%, rgba(197, 165, 114, 0.05), transparent 45%); }
 .arc-reactor { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .arc-ring { position: absolute; inset: 0; border-radius: 9999px; border: 1px solid rgba(197, 165, 114, 0.35); }
