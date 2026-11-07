@@ -11,7 +11,7 @@ from tavily import TavilyClient
 import os
 import io
 import asyncio
-import requests # <-- IMPORTANTE PARA SIRAY.AI
+import requests # Para Siray.ai
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -62,6 +62,12 @@ async def find_client(name):
 
 TOOLS = [
     {"type": "function", "function": {
+        "name": "generar_imagen",
+        "description": "Genera una imagen o diseño de joyería a partir de una descripción. Úsala SIEMPRE que el usuario pida generar, dibujar o crear un diseño visual de un anillo, collar, personaje o idea.",
+        "parameters": {"type": "object", "properties": {
+            "prompt": {"type": "string", "description": "Descripción visual detallada de la joya o imagen. Si es un personaje, describe sus rasgos sin usar su nombre (ej. 'traje rojo y dorado con reactor en el pecho')."}},
+            "required": ["prompt"]}}},
+    {"type": "function", "function": {
         "name": "buscar_en_internet",
         "description": "Busca información actualizada en internet. Úsala para precios del oro, tendencias de joyería, noticias, o cualquier dato en tiempo real.",
         "parameters": {"type": "object", "properties": {
@@ -79,7 +85,7 @@ TOOLS = [
         "name": "completar_tarea", "description": "Marca como completada una tarea pendiente por su título.",
         "parameters": {"type": "object", "properties": {"titulo": {"type": "string"}}, "required": ["titulo"]}}},
     {"type": "function", "function": {
-        "name": "crear_pedido", "description": "Registra un pedido nuevo de joyería.",
+        "name": "crear_pedido", "description": "Registra un pedido nuevo de joyería en el taller.",
         "parameters": {"type": "object", "properties": {
             "cliente": {"type": "string"}, "descripcion": {"type": "string"},
             "etapa": {"type": "string", "enum": STAGES}, "precio": {"type": "number"},
@@ -112,6 +118,24 @@ TOOLS = [
 
 async def run_tool(name, args, user):
     try:
+        if name == "generar_imagen":
+            try:
+                api_key = os.getenv("SIRAY_API_KEY")
+                if not api_key:
+                    return {"error": "Falta configurar la llave SIRAY_API_KEY en Render."}
+                url = "https://api.siray.ai/v1/images/generations"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                data = {"model": "z-image", "prompt": args["prompt"], "size": "1024x1024", "n": 1, "response_format": "url"}
+                response = await asyncio.to_thread(requests.post, url, headers=headers, json=data)
+                response.raise_for_status()
+                result = response.json()
+                image_url = result.get("data", [{}])[0].get("url")
+                if image_url:
+                    return {"ok": True, "url": image_url}
+                return {"error": "No se pudo obtener la URL de la imagen."}
+            except Exception as e:
+                return {"error": f"Fallo la generación de imagen: {str(e)}"}
+
         if name == "buscar_en_internet":
             try:
                 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
@@ -228,10 +252,11 @@ async def build_context(user, tz) -> str:
     return "\n".join(lines)
 
 JARVIS_SYSTEM = """Eres JARVIS, el mayordomo digital de la joyería "Mundo de Joyas". Inspirado en el JARVIS de Iron Man.
-PERSONALIDAD: Elegante, británico, con un humor seco y sarcástico. Llamas al usuario "señor" o "señora". Eres su mano derecha, confidente y a veces su conciencia.
-TU MISIÓN: Que el taller funcione como un reloj suizo. No toleras la desorganización ni los retrasos.
-- Si detectas un pedido atrasado, lo mencionas con sorna: "Señor, el pedido de Juan cumple una semana de retraso. Quizás deberíamos dejar de aceptar pedidos y dedicarnos a la meditación".
-- Usa la herramienta "buscar_en_internet" para consultar precios del oro, plata, tendencias de joyería o cualquier dato real que te pidan. Siempre da la fuente.
+PERSONALIDAD: Elegante, británico, con un humor seco y sarcástico. Llamas al usuario "señor" o "señora".
+TU MISIÓN: Que el taller funcione como un reloj suizo.
+- Si el usuario pide GENERAR, DIBUJAR o CREAR UNA IMAGEN de un anillo o diseño, DEBES usar la herramienta "generar_imagen". No crees un pedido a menos que el usuario diga explícitamente "crea un pedido" o "registra este pedido".
+- Si el usuario pide un personaje con copyright (ej. Iron Man, Goku), describe sus rasgos visuales (colores, formas) en el prompt de la imagen sin usar el nombre original, para evitar bloqueos.
+- Usa la herramienta "buscar_en_internet" para consultar precios del oro, plata, tendencias, etc.
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
 - EJECUTAS acciones usando tus herramientas cuando te lo piden.
 - Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis, pero con chispa.
@@ -266,6 +291,7 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
     
     full_text = ""
+    image_url = None
     ultimo_error = None
     
     try:
@@ -296,6 +322,10 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                         function_args = json.loads(tool_call.function.arguments)
                         function_response = await run_tool(function_name, function_args, user)
                         
+                        # Si la herramienta generó una imagen, la guardamos para enviarla al frontend
+                        if function_name == "generar_imagen" and function_response.get("url"):
+                            image_url = function_response["url"]
+                        
                         messages.append({
                             "tool_call_id": tool_call.id,
                             "role": "tool",
@@ -311,17 +341,22 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                 ultimo_error = e
                 continue
         
-        if not full_text:
+        if not full_text and not image_url:
             raise ultimo_error or Exception("Ningún modelo de Groq respondió.")
         
-        yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
+        # Si hubo imagen, enviamos el evento especial para el frontend
+        if image_url:
+            yield f"data: {json.dumps({'type': 'image', 'url': image_url})}\n\n"
+            
+        if full_text:
+            yield f"data: {json.dumps({'type': 'delta', 'content': full_text})}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         
         await db.chat_messages.insert_many([
             {"id": new_id(), "user_id": user["id"], "session_id": session_id, "role": "user",
              "content": message, "created_at": now_iso()},
             {"id": new_id(), "user_id": user["id"], "session_id": session_id, "role": "assistant",
-             "content": full_text, "created_at": now_iso()}])
+             "content": full_text or "Aquí tiene su diseño.", "created_at": now_iso()}])
              
     except Exception as e:
         logger.error(f"Error en Groq: {e}")
@@ -350,46 +385,6 @@ async def transcribe_audio(file: UploadFile = File(...), user=Depends(current_us
     except Exception as e:
         logger.error(f"Error transcribiendo: {e}")
         raise HTTPException(500, f"Error al transcribir: {str(e)}")
-
-# ---------- RUTA DE GENERACIÓN DE IMÁGENES CON SIRAY.AI ----------
-@router.post("/generate-image")
-async def generate_image_siray(payload: ImageGenIn, user=Depends(current_user)):
-    try:
-        api_key = os.getenv("SIRAY_API_KEY")
-        if not api_key:
-            raise HTTPException(500, "Falta configurar la llave SIRAY_API_KEY en Render")
-
-        url = "https://api.siray.ai/v1/images/generations" 
-        
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": "z-image",
-            "prompt": payload.prompt,
-            "size": "1024x1024",
-            "n": 1,
-            "response_format": "url"
-        }
-
-        # Hacemos la llamada a Siray.ai de forma asíncrona para no bloquear la app
-        response = await asyncio.to_thread(requests.post, url, headers=headers, json=data)
-        response.raise_for_status()
-        result = response.json()
-
-        # Siray devuelve la URL en el formato estándar de OpenAI
-        image_url = result.get("data", [{}])[0].get("url")
-        
-        if not image_url:
-            raise Exception("No se recibió una URL de imagen válida de Siray")
-
-        return {"url": image_url}
-
-    except Exception as e:
-        logger.error(f"Error en Siray.ai: {e}")
-        raise HTTPException(500, f"Error al generar imagen: {str(e)}")
 
 # ---------- Siri / Apple Shortcuts ----------
 SIRI_EXTRA = "\nESTÁS RESPONDIENDO A TRAVÉS DE SIRI: responde en 1-2 frases cortas."
