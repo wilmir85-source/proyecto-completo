@@ -11,7 +11,7 @@ from tavily import TavilyClient
 import os
 import io
 import asyncio
-import perchancy # <-- NUEVA LIBRERÍA PARA IMÁGENES SIN CENSURA
+import perchancy # <-- LIBRERÍA PARA IMÁGENES
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -120,16 +120,19 @@ async def run_tool(name, args, user):
     try:
         if name == "generar_imagen":
             try:
-                # Usamos Perchance (Gratis, sin tarjeta, y sin censura)
-                client = perchancy.Client(headless=True, disable_safety_settings=True)
+                # 1. El cliente se inicializa SOLO con headless
+                client = perchancy.Client(headless=True)
                 
+                # 2. disable_safety_settings va AQUÍ, en generate
                 response = client.images.generate(
                     model="ai-text-to-image-generator",
                     prompt=args["prompt"],
-                    resolution=(1024, 1024)
+                    num_images=1,
+                    image_format="png", 
+                    disable_safety_settings=True # <-- CORREGIDO AQUÍ
                 )
                 
-                # Perchance nos devuelve la imagen en base64. La convertimos a Data URL.
+                # 3. Extraemos la imagen en base64
                 image_b64 = response.data[0].b64_json
                 image_url = f"data:image/png;base64,{image_b64}"
                 
