@@ -120,21 +120,30 @@ async def run_tool(name, args, user):
     try:
         if name == "generar_imagen":
             try:
-                # 1. El cliente se inicializa SOLO con headless
                 client = perchancy.Client(headless=True)
                 
-                # 2. disable_safety_settings va AQUÍ, en generate
-                response = client.images.generate(
+                # La respuesta de perchancy es un diccionario (dict)
+                result = client.images.generate(
                     model="ai-text-to-image-generator",
                     prompt=args["prompt"],
                     num_images=1,
                     image_format="png", 
-                    disable_safety_settings=True # <-- CORREGIDO AQUÍ
+                    disable_safety_settings=True 
                 )
                 
-                # 3. Extraemos la imagen en base64
-                image_b64 = response.data[0].b64_json
-                image_url = f"data:image/png;base64,{image_b64}"
+                # ACCESO CORREGIDO COMO DICCIONARIO
+                data_list = result.get("data", [])
+                if not data_list:
+                    return {"error": "No se generaron imágenes."}
+                
+                image_data = data_list[0]
+                
+                if "url" in image_data and image_data["url"]:
+                    image_url = image_data["url"]
+                elif "b64_json" in image_data and image_data["b64_json"]:
+                    image_url = f"data:image/png;base64,{image_data['b64_json']}"
+                else:
+                    return {"error": "Formato de respuesta desconocido."}
                 
                 return {"ok": True, "url": image_url}
             except Exception as e:
