@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, NavLink } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store } from "lucide-react";
+import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store, Gem } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
 import { BottomNav } from "@/components/BottomNav";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
@@ -14,6 +14,7 @@ export const NAV_ITEMS = [
   { to: "/pedidos", label: "Pedidos", icon: GanttChartSquare, testid: "nav-orders" },
   { to: "/produccion", label: "Producción", icon: Factory, testid: "nav-production" },
   { to: "/mis-trabajos", label: "Mis trabajos", icon: Hammer, testid: "nav-my-work" },
+  { to: "/moldes", label: "Moldes", icon: Gem, testid: "nav-molds" }, // <-- NUEVO BOTÓN DE MOLDES
   { to: "/ventas", label: "Ventas y abonos", icon: Wallet, testid: "nav-sales", roles: STAFF },
   { to: "/inventario", label: "Inventario", icon: Boxes, testid: "nav-inventory" },
   { to: "/tareas", label: "Tareas", icon: ListTodo, testid: "nav-tasks" },
@@ -26,7 +27,22 @@ export const NAV_ITEMS = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const items = NAV_ITEMS.filter((i) => !i.roles || i.roles.includes(user?.role));
+  
+  // Filtro especial para mostrar/ocultar botones según el rol Y el departamento
+  const items = NAV_ITEMS.filter((i) => {
+    // 1. Si el botón pide un rol específico y no lo tiene, se oculta
+    if (i.roles && !i.roles.includes(user?.role)) return false;
+    
+    // 2. Regla especial para Moldes: Admin, Ventas, o si es de Ceras/Inyección
+    if (i.to === "/moldes") {
+      const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
+                          user?.departamento === "Ceras" || 
+                          user?.departamento === "Inyección";
+      if (!canSeeMolds) return false;
+    }
+    
+    return true;
+  });
 
   return (
     <div className="h-[100dvh] flex overflow-hidden bg-[#09090b]">
