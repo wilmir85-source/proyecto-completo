@@ -17,10 +17,10 @@ const Timeline = ({ flujo, stage }) => {
         return (
           <li key={s} className="flex gap-3">
             <div className="flex flex-col items-center">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${done ? "bg-amber-500 border-amber-500 text-black" : current ? "border-amber-400 text-amber-300 animate-pulse" : "border-zinc-700 text-zinc-700"}`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center border ${done ? "bg-[#c5a572] border-[#c5a572] text-black" : current ? "border-amber-400 text-amber-300 animate-pulse" : "border-zinc-700 text-zinc-700"}`}>
                 {done ? <Check className="w-3.5 h-3.5" /> : <span className="w-1.5 h-1.5 rounded-full bg-current" />}
               </span>
-              {i < flujo.length - 1 && <span className={`w-px h-6 ${done ? "bg-amber-500" : "bg-zinc-800"}`} />}
+              {i < flujo.length - 1 && <span className={`w-px h-6 ${done ? "bg-[#c5a572]" : "bg-zinc-800"}`} />}
             </div>
             <span className={`text-sm pt-0.5 ${current ? "text-amber-300 font-medium" : done ? "text-zinc-300" : "text-zinc-600"}`}>{s}{current && " · en proceso"}</span>
           </li>
@@ -41,7 +41,7 @@ export default function Seguimiento() {
   useEffect(() => { axios.get(`${API}/public/orders/${token}`).then((r) => { setD(r.data); document.title = `Tu pedido · ${r.data.negocio.nombre}`; }).catch(() => setErr(true)); }, [token]);
 
   if (err) return <div className="min-h-screen flex items-center justify-center text-zinc-400 p-6 text-center" data-testid="tracking-error">Este enlace no es válido o el pedido ya no existe.</div>;
-  if (!d) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-amber-500" /></div>;
+  if (!d) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#c5a572]" /></div>;
   const n = d.negocio;
   const wa = n.telefono ? `https://wa.me/${waPhone(n.telefono, n.codigo_pais)}?text=${encodeURIComponent(`Hola, soy ${d.cliente}. Quisiera información sobre mi pedido: ${d.descripcion}`)}` : null;
 
@@ -49,14 +49,14 @@ export default function Seguimiento() {
     <div className="min-h-screen px-5 py-10 flex justify-center" data-testid="tracking-page">
       <div className="w-full max-w-md space-y-6">
         <header className="text-center space-y-3">
-          <img src={`${API}/public/logo?v=${n.logo_v}`} alt={n.nombre} className="w-20 h-20 rounded-2xl mx-auto object-cover border border-amber-500/30" />
+          <img src={`${API}/public/logo?v=${n.logo_v}`} alt={n.nombre} className="w-20 h-20 rounded-2xl mx-auto object-cover border border-[#c5a572]/30" />
           <div className="font-display text-2xl">{n.nombre}</div>
           <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">Seguimiento de tu pedido</div>
         </header>
         <div className="card-glass rounded-2xl p-6">
           <div className="flex items-center justify-between mb-1">
             <span className="text-zinc-400 text-sm">Hola, {d.cliente}</span>
-            {d.vip && <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300" data-testid="tracking-vip"><Crown className="w-3 h-3" />Cliente VIP</span>}
+            {d.vip && <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#c5a572]/15 border border-[#c5a572]/40 text-amber-300" data-testid="tracking-vip"><Crown className="w-3 h-3" />Cliente VIP</span>}
           </div>
           <h1 className="font-display text-2xl font-light mb-4" data-testid="tracking-description">{d.descripcion}</h1>
           <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-amber-600 to-amber-400" style={{ width: `${d.stage === "Terminado" ? 100 : d.progreso}%` }} /></div>

@@ -26,7 +26,7 @@ const ADMIN_ONLY = ["admin"];
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-amber-500" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[#c5a572]" /></div>;
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }

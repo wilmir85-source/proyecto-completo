@@ -48,7 +48,7 @@ export const OrderPhotos = ({ order, onChange, readOnly }) => {
           </div>
         ))}
         {!readOnly && <button onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="aspect-square rounded-lg border border-dashed border-white/15 hover:border-amber-500/50 hover:text-amber-400 text-zinc-500 flex flex-col items-center justify-center gap-1 text-xs transition-colors"
+          className="aspect-square rounded-lg border border-dashed border-white/15 hover:border-[#c5a572]/50 hover:text-amber-400 text-zinc-500 flex flex-col items-center justify-center gap-1 text-xs transition-colors"
           data-testid="btn-add-photo">
           {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
           {uploading ? "Subiendo..." : "Subir fotos"}

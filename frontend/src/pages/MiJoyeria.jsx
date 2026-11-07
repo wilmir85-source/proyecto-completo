@@ -53,11 +53,11 @@ export default function MiJoyeria() {
         <p className="text-sm text-zinc-500 mt-2">El logo y el nombre aparecen en la app, en las órdenes de trabajo (PDF) y en la página de seguimiento que ven tus clientes.</p>
       </header>
       <div className="card-glass rounded-2xl p-6 mb-6 flex flex-wrap items-center gap-6" data-testid="logo-card">
-        <img src={brand.logoUrl} alt="Logo" className="w-28 h-28 rounded-2xl object-cover border border-amber-500/30 bg-zinc-900" data-testid="logo-preview" />
+        <img src={brand.logoUrl} alt="Logo" className="w-28 h-28 rounded-2xl object-cover border border-[#c5a572]/30 bg-zinc-900" data-testid="logo-preview" />
         <div className="space-y-3">
           <div className="text-sm text-zinc-300">{form.has_logo ? "Logo personalizado" : "Logo provisional de Jarvis"}</div>
           <div className="flex gap-2">
-            <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-upload-logo">
+            <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-upload-logo">
               {uploading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}{form.has_logo ? "Cambiar logo" : "Subir logo"}
             </Button>
             {form.has_logo && <Button variant="outline" onClick={removeLogo} className="border-zinc-700" data-testid="btn-remove-logo"><Trash2 className="w-4 h-4" /></Button>}
@@ -72,7 +72,7 @@ export default function MiJoyeria() {
             <Input value={form[k] || ""} onChange={(e) => setForm({ ...form, [k]: e.target.value })} className="bg-zinc-900 border-zinc-800 mt-1.5 normal-case tracking-normal text-sm text-zinc-100" data-testid={`business-${k}`} />
           </label>
         ))}
-        <Button onClick={save} className="bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-save-business">Guardar</Button>
+        <Button onClick={save} className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-save-business">Guardar</Button>
       </div>
     </div>
   );

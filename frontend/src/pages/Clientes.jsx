@@ -46,7 +46,7 @@ export default function Clientes() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-new-client"><Plus className="w-4 h-4 mr-1" />Nuevo cliente</Button>
+            <Button className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-new-client"><Plus className="w-4 h-4 mr-1" />Nuevo cliente</Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-950 border-zinc-800">
             <DialogHeader><DialogTitle className="font-display">Nuevo cliente</DialogTitle></DialogHeader>
@@ -58,7 +58,7 @@ export default function Clientes() {
                 <Input type="date" value={form.cumpleanos} onChange={(e) => setForm({ ...form, cumpleanos: e.target.value })} className="bg-zinc-900 border-zinc-800 mt-1" data-testid="input-client-cumpleanos" />
               </label>
               <Input placeholder="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} className="bg-zinc-900 border-zinc-800" data-testid="input-client-notas" />
-              <Button onClick={create} className="w-full bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-create-client">Crear</Button>
+              <Button onClick={create} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-create-client">Crear</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -68,9 +68,9 @@ export default function Clientes() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="clients-grid">
         {clients.length === 0 && <div className="text-sm text-zinc-500">Aún no hay clientes</div>}
         {list.map((c) => (
-          <div key={c.id} onClick={() => setSelected(c.id)} className="card-glass rounded-2xl p-5 relative group cursor-pointer hover:border-amber-500/30 transition-colors" data-testid={`client-${c.id}`}>
+          <div key={c.id} onClick={() => setSelected(c.id)} className="card-glass rounded-2xl p-5 relative group cursor-pointer hover:border-[#c5a572]/30 transition-colors" data-testid={`client-${c.id}`}>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-amber-600/15 border border-amber-500/30 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-amber-600/15 border border-[#c5a572]/30 flex items-center justify-center">
                 <User className="w-4 h-4 text-amber-400" />
               </div>
               <div className="flex-1 min-w-0">

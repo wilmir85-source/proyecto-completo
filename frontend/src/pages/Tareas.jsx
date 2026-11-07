@@ -47,7 +47,7 @@ export default function Tareas() {
     } catch (e) { toast.error(apiError(e)); }
   };
 
-  const prioColor = { alta: "text-red-400 bg-red-500/15 border-red-500/30", media: "text-amber-400 bg-amber-500/15 border-amber-500/30", baja: "text-zinc-400 bg-zinc-500/15 border-zinc-500/30" };
+  const prioColor = { alta: "text-red-400 bg-red-500/15 border-red-500/30", media: "text-amber-400 bg-[#c5a572]/15 border-[#c5a572]/30", baja: "text-zinc-400 bg-zinc-500/15 border-zinc-500/30" };
 
   return (
     <div className="p-5 md:p-12">
@@ -58,7 +58,7 @@ export default function Tareas() {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-new-task"><Plus className="w-4 h-4 mr-1" />Nueva tarea</Button>
+            <Button className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-new-task"><Plus className="w-4 h-4 mr-1" />Nueva tarea</Button>
           </DialogTrigger>
           <DialogContent className="bg-zinc-950 border-zinc-800">
             <DialogHeader><DialogTitle className="font-display">Nueva tarea</DialogTitle></DialogHeader>
@@ -75,7 +75,7 @@ export default function Tareas() {
                 </SelectContent>
               </Select>
               <UserSelect users={users} value={form.asignado_a} onChange={(v) => setForm({ ...form, asignado_a: v })} testid="select-task-asignado" />
-              <Button onClick={create} className="w-full bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-create-task">Crear</Button>
+              <Button onClick={create} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-create-task">Crear</Button>
             </div>
           </DialogContent>
         </Dialog>

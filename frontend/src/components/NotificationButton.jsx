@@ -112,7 +112,7 @@ export const NotificationButton = () => {
   return (
     <div className="bg-zinc-900 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Bell className="w-5 h-5 text-amber-500" />
+        <Bell className="w-5 h-5 text-[#c5a572]" />
         <h3 className="font-medium text-white">Notificaciones Push</h3>
       </div>
       
@@ -133,7 +133,7 @@ export const NotificationButton = () => {
       {status === "ready" && (
         <>
           <p className="text-xs text-zinc-400">Activa las notificaciones para que Jarvis te recuerde los pedidos.</p>
-          <button onClick={subscribe} className="bg-amber-600 hover:bg-amber-500 text-black font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
+          <button onClick={subscribe} className="bg-amber-600 hover:bg-[#c5a572] text-black font-medium py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
             <Bell className="w-4 h-4" /> Activar Notificaciones
           </button>
         </>

@@ -39,7 +39,7 @@ const MaterialDialog = ({ material, onClose, onSaved }) => {
             <Input type="number" step="0.01" placeholder="Mínimo (alerta)" value={form.minimo} onChange={set("minimo")} className={inp} data-testid="input-material-minimo" />
           </div>
           <Input placeholder="Notas (proveedor, ubicación...)" value={form.notas} onChange={set("notas")} className={inp} data-testid="input-material-notas" />
-          <Button onClick={save} className="w-full bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-save-material">Guardar</Button>
+          <Button onClick={save} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-save-material">Guardar</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -75,7 +75,7 @@ const AdjustDialog = ({ material, onClose, onSaved }) => {
           </div>
           <Input type="number" step="0.01" placeholder={`Cantidad (${material?.unidad})`} value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={inp} data-testid="input-adjust-cantidad" />
           <Input placeholder="Motivo (compra, merma, fundición...)" value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inp} data-testid="input-adjust-motivo" />
-          <Button onClick={save} className="w-full bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-save-adjust">Registrar</Button>
+          <Button onClick={save} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-save-adjust">Registrar</Button>
           <div className="text-xs uppercase tracking-widest text-zinc-500 pt-2">Movimientos</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {moves.map((m) => (
@@ -137,7 +137,7 @@ export default function Inventario() {
           <h1 className="font-display text-4xl font-light">Inventario</h1>
           {low.length > 0 && <div className="text-sm text-red-400 mt-2 flex items-center gap-1.5" data-testid="inventory-low-count"><AlertTriangle className="w-4 h-4" />{low.length} material(es) bajo el mínimo</div>}
         </div>
-        {staff && <Button onClick={() => setEditing({})} className="bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-new-material"><Plus className="w-4 h-4 mr-1" />Nuevo material</Button>}
+        {staff && <Button onClick={() => setEditing({})} className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-new-material"><Plus className="w-4 h-4 mr-1" />Nuevo material</Button>}
       </header>
       {items.length === 0 && (
         <div className="card-glass rounded-2xl p-10 text-center text-zinc-500"><Boxes className="w-8 h-8 mx-auto mb-3 text-zinc-600" />Registra tu oro, plata, ceras, piedras...</div>

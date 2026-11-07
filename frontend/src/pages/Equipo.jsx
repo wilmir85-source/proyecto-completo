@@ -52,7 +52,7 @@ const DeptMultiSelect = ({ value, onChange, testid }) => {
                 onClick={() => toggle(d)}
                 className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-900 rounded-md cursor-pointer text-sm text-zinc-300 transition-colors"
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${selected.includes(d) ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'}`}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${selected.includes(d) ? 'bg-[#c5a572] border-[#c5a572]' : 'border-zinc-600'}`}>
                   {selected.includes(d) && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
                 </div>
                 {d}

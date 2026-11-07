@@ -104,7 +104,7 @@ export default function Tablero() {
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-          <button onClick={() => setFilterMode("all")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-amber-500/20 text-amber-500 border-amber-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+          <button onClick={() => setFilterMode("all")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-[#c5a572]/20 text-[#c5a572] border-[#c5a572]/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             Todos
           </button>
           <button onClick={() => setFilterMode("mine")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "mine" ? "bg-blue-500/20 text-blue-400 border-blue-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>

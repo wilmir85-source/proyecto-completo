@@ -26,7 +26,7 @@ export const PdfButton = ({ order }) => {
     setLoading(false);
   };
   return (
-    <Button onClick={download} disabled={loading} variant="outline" className="w-full border-amber-500/40 text-amber-300 hover:bg-amber-500/10" data-testid="btn-download-pdf">
+    <Button onClick={download} disabled={loading} variant="outline" className="w-full border-[#c5a572]/40 text-amber-300 hover:bg-[#c5a572]/10" data-testid="btn-download-pdf">
       {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
       {loading ? "Generando PDF..." : "Descargar Orden de Trabajo (PDF)"}
     </Button>

@@ -8,7 +8,7 @@ import { NotificationButton } from "@/components/NotificationButton";
 
 const Step = ({ n, children }) => (
   <li className="flex gap-3 text-sm text-zinc-300">
-    <span className="w-6 h-6 rounded-full bg-amber-600/20 border border-amber-500/30 text-amber-400 text-xs flex items-center justify-center shrink-0">{n}</span>
+    <span className="w-6 h-6 rounded-full bg-amber-600/20 border border-[#c5a572]/30 text-amber-400 text-xs flex items-center justify-center shrink-0">{n}</span>
     <span>{children}</span>
   </li>
 );

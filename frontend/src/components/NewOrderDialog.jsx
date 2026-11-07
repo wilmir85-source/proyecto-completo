@@ -56,7 +56,7 @@ export const NewOrderDialog = ({ users, onCreated }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-amber-600 hover:bg-amber-500 text-black font-medium" data-testid="btn-new-order"><Plus className="w-4 h-4 mr-1" /> Nuevo pedido</Button>
+        <Button className="bg-amber-600 hover:bg-[#c5a572] text-black font-medium" data-testid="btn-new-order"><Plus className="w-4 h-4 mr-1" /> Nuevo pedido</Button>
       </DialogTrigger>
       <DialogContent className="bg-zinc-950 border-zinc-800 max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="font-display">Nuevo pedido</DialogTitle></DialogHeader>
@@ -87,7 +87,7 @@ export const NewOrderDialog = ({ users, onCreated }) => {
             </label>
           </div>
           <Input placeholder="Notas (opcional)" value={form.notas} onChange={set("notas")} className={inp} data-testid="input-order-notas" />
-          <label className="flex items-center gap-2 text-sm text-zinc-400 border border-dashed border-white/15 rounded-md px-3 py-2.5 cursor-pointer hover:border-amber-500/50 hover:text-amber-400 transition-colors">
+          <label className="flex items-center gap-2 text-sm text-zinc-400 border border-dashed border-white/15 rounded-md px-3 py-2.5 cursor-pointer hover:border-[#c5a572]/50 hover:text-amber-400 transition-colors">
             <ImageIcon className="w-4 h-4" />
             {photos.length ? `${photos.length} foto(s) seleccionada(s)` : "Subir fotos de referencia (JPG, PNG)"}
             <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={(e) => setPhotos([...(e.target.files || [])])} data-testid="input-new-order-photos" />
@@ -97,7 +97,7 @@ export const NewOrderDialog = ({ users, onCreated }) => {
               {previews.map((u) => <img key={u} src={u} alt="" className="aspect-square w-full object-cover rounded-md border border-white/10" />)}
             </div>
           )}
-          <Button onClick={create} disabled={saving} className="w-full bg-amber-600 hover:bg-amber-500 text-black" data-testid="btn-create-order">{saving ? "Guardando..." : "Crear pedido"}</Button>
+          <Button onClick={create} disabled={saving} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-create-order">{saving ? "Guardando..." : "Crear pedido"}</Button>
         </div>
       </DialogContent>
     </Dialog>

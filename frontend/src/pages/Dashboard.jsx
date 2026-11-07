@@ -34,7 +34,7 @@ export default function Dashboard() {
       <header className="mb-10">
         <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Panel · {new Date().toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}</div>
         <h1 className="font-display text-4xl lg:text-5xl font-light tracking-tight">
-          {greeting()}, <span className="text-amber-500">{user?.name?.split(" ")[0]}</span>
+          {greeting()}, <span className="text-[#c5a572]">{user?.name?.split(" ")[0]}</span>
         </h1>
         <p className="text-zinc-400 mt-3 text-sm max-w-lg">Tu taller inteligente a tiempo real. Pedidos, tareas y asistente 24/7.</p>
       </header>
@@ -57,7 +57,7 @@ export default function Dashboard() {
               <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Producción en vivo</div>
               <h2 className="font-display text-xl">Pedidos por etapa</h2>
             </div>
-            <Link to="/pedidos" className="text-sm text-amber-500 hover:text-amber-400 flex items-center gap-1" data-testid="link-kanban">
+            <Link to="/pedidos" className="text-sm text-[#c5a572] hover:text-amber-400 flex items-center gap-1" data-testid="link-kanban">
               Tablero <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -78,7 +78,7 @@ export default function Dashboard() {
             {tasks.length === 0 && <div className="text-sm text-zinc-500">Sin tareas pendientes</div>}
             {tasks.map((t) => (
               <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5" data-testid={`task-item-${t.id}`}>
-                <div className={`mt-1 w-2 h-2 rounded-full ${t.prioridad === "alta" ? "bg-red-500" : t.prioridad === "media" ? "bg-amber-500" : "bg-zinc-500"}`} />
+                <div className={`mt-1 w-2 h-2 rounded-full ${t.prioridad === "alta" ? "bg-red-500" : t.prioridad === "media" ? "bg-[#c5a572]" : "bg-zinc-500"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{t.titulo}</div>
                   {t.fecha && <div className="text-xs text-zinc-500 mt-0.5">{new Date(t.fecha).toLocaleString("es")}</div>}
@@ -86,7 +86,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <Link to="/tareas" className="text-xs text-amber-500 hover:text-amber-400 mt-4 inline-flex items-center gap-1">
+          <Link to="/tareas" className="text-xs text-[#c5a572] hover:text-amber-400 mt-4 inline-flex items-center gap-1">
             Ver todas <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
@@ -126,7 +126,7 @@ function StatCard({ to, icon: Icon, label, value, tone = "default", testid }) {
     accent: "text-cyan-400",
   };
   return (
-    <Link to={to} className="card-glass rounded-2xl p-5 relative hover:border-amber-500/30 hover:bg-zinc-900 transition-all cursor-pointer block" data-testid={testid}>
+    <Link to={to} className="card-glass rounded-2xl p-5 relative hover:border-[#c5a572]/30 hover:bg-zinc-900 transition-all cursor-pointer block" data-testid={testid}>
       <Icon className={`w-5 h-5 ${tones[tone]} mb-4`} />
       <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">{label}</div>
       <div className={`font-display text-4xl font-light ${tones[tone]}`}>{value}</div>

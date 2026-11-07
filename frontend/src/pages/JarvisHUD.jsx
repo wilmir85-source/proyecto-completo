@@ -189,7 +189,7 @@ export default function JarvisHUD() {
                 {m.type === "image" ? (
                   <div className="bg-zinc-900 border border-white/10 rounded-2xl p-3 max-w-[85%]">
                     <div className="text-xs text-zinc-400 mb-2 flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-amber-500" /> Diseño generado por IA
+                      <ImageIcon className="w-4 h-4 text-[#c5a572]" /> Diseño generado por IA
                     </div>
                     <img src={m.content} alt={m.prompt} className="rounded-xl w-full object-cover" />
                   </div>

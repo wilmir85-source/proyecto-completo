@@ -46,7 +46,7 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isActive
-                    ? "bg-amber-600/15 text-amber-400 border border-amber-500/20"
+                    ? "bg-amber-600/15 text-amber-400 border border-[#c5a572]/20"
                     : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5 border border-transparent"
                 }`
               }
@@ -60,7 +60,7 @@ export default function Layout() {
         <div className="border-t border-white/5 pt-4 mt-4">
           <div className="text-sm text-zinc-200 mb-1 truncate" data-testid="current-user-name">{user?.name}</div>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-500/10" data-testid="current-user-role">{ROLE_LABELS[user?.role]}</span>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[#c5a572]/30 text-amber-400 bg-[#c5a572]/10" data-testid="current-user-role">{ROLE_LABELS[user?.role]}</span>
             {user?.departamento && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400">{user.departamento}</span>}
           </div>
           <button onClick={logout} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-red-400 transition-colors" data-testid="btn-logout">

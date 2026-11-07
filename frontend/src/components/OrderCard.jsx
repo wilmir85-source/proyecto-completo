@@ -21,7 +21,7 @@ export const OrderCard = ({ order: o, canEdit, canDelete, onOpen, onMove, onDele
     <div className="flex items-start justify-between gap-2">
       <div className="flex-1 min-w-0">
         {/* Aquí agregamos el número de Folio */}
-        <div className="text-[10px] font-mono text-amber-500/80 mb-0.5 tracking-wider">{o.folio || "S/N"}</div>
+        <div className="text-[10px] font-mono text-[#c5a572]/80 mb-0.5 tracking-wider">{o.folio || "S/N"}</div>
         <div className="font-medium text-sm truncate">{o.cliente}</div>
         <div className="text-xs text-zinc-400 mt-1 line-clamp-2">{o.descripcion}</div>
       </div>

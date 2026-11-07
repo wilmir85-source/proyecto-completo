@@ -45,7 +45,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         <select 
           value={order.stage} 
           onChange={(e) => patch({ stage: e.target.value }, `Movido a ${e.target.value}`)}
-          className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500"
+          className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
         >
           {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -73,7 +73,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           <select 
             value={order.tipo || "Fabricación"} 
             onChange={(e) => patch({ tipo: e.target.value }, `Tipo: ${e.target.value}`)}
-            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500"
+            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
           >
             {ORDER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -87,7 +87,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           <select 
             value={order.asignado_a || ""} 
             onChange={(e) => patch({ asignado_a: e.target.value || null }, "Asignación actualizada")}
-            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500"
+            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
           >
             <option value="">Sin asignar</option>
             {users?.map((u) => (

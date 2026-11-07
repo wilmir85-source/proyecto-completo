@@ -44,7 +44,7 @@ export default function Historial() {
           placeholder="Buscar por Folio (MJ-0001), cliente o descripción..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-zinc-900 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-amber-500/50"
+          className="w-full bg-zinc-900 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-[#c5a572]/50"
         />
       </div>
 
@@ -64,7 +64,7 @@ export default function Historial() {
             >
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <span className="text-xs font-mono text-amber-500">{o.folio || "S/N"}</span>
+                  <span className="text-xs font-mono text-[#c5a572]">{o.folio || "S/N"}</span>
                   <span className="text-sm font-medium text-white">{o.cliente}</span>
                 </div>
                 <div className="text-xs text-zinc-400">{o.descripcion}</div>

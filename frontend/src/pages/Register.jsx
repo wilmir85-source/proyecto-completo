@@ -62,13 +62,13 @@ export default function Register() {
                 <Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} className="bg-zinc-950 border-zinc-800 h-11" placeholder="Opcional" data-testid="register-telefono" />
               </div>
             </div>
-            <Button type="submit" disabled={loading} className="w-full h-11 bg-amber-600 hover:bg-amber-500 text-black font-medium rounded-xl mt-2" data-testid="register-submit">
+            <Button type="submit" disabled={loading} className="w-full h-11 bg-amber-600 hover:bg-[#c5a572] text-black font-medium rounded-xl mt-2" data-testid="register-submit">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Crear cuenta"}
             </Button>
           </form>
           <div className="mt-6 text-sm text-zinc-500 text-center">
             ¿Ya tienes cuenta?{" "}
-            <Link to="/login" className="text-amber-500 hover:text-amber-400" data-testid="link-login">Ingresar</Link>
+            <Link to="/login" className="text-[#c5a572] hover:text-amber-400" data-testid="link-login">Ingresar</Link>
           </div>
         </div>
       </div>

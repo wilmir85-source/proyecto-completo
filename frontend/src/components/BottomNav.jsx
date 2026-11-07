@@ -35,7 +35,7 @@ export const BottomNav = () => {
                 to={tab.path}
                 onClick={handleTabClick}
                 className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
-                  isActive ? "text-amber-500" : "text-zinc-500 hover:text-zinc-300"
+                  isActive ? "text-[#c5a572]" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
@@ -47,7 +47,7 @@ export const BottomNav = () => {
           <button
             onClick={() => { if(navigator.vibrate) navigator.vibrate(10); setShowMore(!showMore); }}
             className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
-              showMore ? "text-amber-500" : "text-zinc-500 hover:text-zinc-300"
+              showMore ? "text-[#c5a572]" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
             <Menu className="w-5 h-5" />
@@ -77,14 +77,14 @@ export const BottomNav = () => {
           
           {/* BOTÓN DE HISTORIAL AGREGADO AQUÍ */}
           <Link to="/historial" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Archive className="w-5 h-5 text-amber-500"/></span> Historial
+            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Archive className="w-5 h-5 text-[#c5a572]"/></span> Historial
           </Link>
 
           <Link to="/equipo" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
             <span className="bg-zinc-800 p-3 rounded-full mb-1">👨‍💼</span> Equipo
           </Link>
           <Link to="/iphone" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Smartphone className="w-5 h-5 text-amber-500"/></span> Siri y App
+            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Smartphone className="w-5 h-5 text-[#c5a572]"/></span> Siri y App
           </Link>
           <button onClick={() => { handleTabClick(); logout(); }} className="flex flex-col items-center text-red-400 text-xs hover:text-red-300">
             <span className="bg-red-950/50 p-3 rounded-full mb-1"><LogOut className="w-5 h-5 text-red-500"/></span> Salir

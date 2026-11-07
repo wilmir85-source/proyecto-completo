@@ -33,7 +33,7 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
               <DialogTitle className="font-display text-xl pr-8">{order.cliente}</DialogTitle>
             </DialogHeader>
             
-            <div className="text-xs font-mono text-amber-500 mb-2 -mt-1">Folio: {order.folio || "S/N"}</div>
+            <div className="text-xs font-mono text-[#c5a572] mb-2 -mt-1">Folio: {order.folio || "S/N"}</div>
             
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2 items-center">

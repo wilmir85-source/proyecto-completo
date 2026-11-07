@@ -69,7 +69,7 @@ export default function Login() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 bg-amber-600 hover:bg-amber-500 text-black font-medium rounded-xl mt-2"
+              className="w-full h-11 bg-amber-600 hover:bg-[#c5a572] text-black font-medium rounded-xl mt-2"
               data-testid="login-submit"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Ingresar al taller"}
@@ -78,7 +78,7 @@ export default function Login() {
 
           <div className="mt-6 text-sm text-zinc-500 text-center">
             ¿Primera vez?{" "}
-            <Link to="/register" className="text-amber-500 hover:text-amber-400" data-testid="link-register">
+            <Link to="/register" className="text-[#c5a572] hover:text-amber-400" data-testid="link-register">
               Crear cuenta
             </Link>
           </div>

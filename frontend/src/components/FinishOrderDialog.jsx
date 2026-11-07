@@ -55,9 +55,9 @@ const ConsumeForm = ({ order, onDone }) => {
           {rows.length > 1 && <button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>}
         </div>
       ))}
-      <button onClick={() => setRows([...rows, newRow()])} className="text-xs text-amber-500 hover:text-amber-400 flex items-center gap-1" data-testid="consume-add-row"><Plus className="w-3 h-3" />Otro material</button>
+      <button onClick={() => setRows([...rows, newRow()])} className="text-xs text-[#c5a572] hover:text-amber-400 flex items-center gap-1" data-testid="consume-add-row"><Plus className="w-3 h-3" />Otro material</button>
       <div className="flex gap-2 pt-2">
-        <Button onClick={submit} disabled={saving} className="flex-1 bg-amber-600 hover:bg-amber-500 text-black" data-testid="consume-submit">Descontar del inventario</Button>
+        <Button onClick={submit} disabled={saving} className="flex-1 bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="consume-submit">Descontar del inventario</Button>
         <Button variant="outline" onClick={onDone} className="border-zinc-700" data-testid="consume-skip">Omitir</Button>
       </div>
     </div>

@@ -38,16 +38,16 @@ const Notes = ({ c, onChange }) => {
       <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-2"><StickyNote className="w-3.5 h-3.5" />Notas importantes</div>
       <div className="flex flex-wrap gap-2 mb-3">
         {c.notas_importantes.map((n) => (
-          <span key={n.id} className="group inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-200" data-testid="client-note-chip">
+          <span key={n.id} className="group inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-[#c5a572]/30 bg-[#c5a572]/10 text-amber-200" data-testid="client-note-chip">
             {n.texto}
-            <button onClick={() => del(n.id)} className="text-amber-500/60 hover:text-red-400" data-testid={`del-note-${n.id}`}><Trash2 className="w-3 h-3" /></button>
+            <button onClick={() => del(n.id)} className="text-[#c5a572]/60 hover:text-red-400" data-testid={`del-note-${n.id}`}><Trash2 className="w-3 h-3" /></button>
           </span>
         ))}
         {!c.notas_importantes.length && <span className="text-xs text-zinc-600">Sin notas. Ej: alergia al níquel, estilo minimalista, talla 7.</span>}
       </div>
       <form onSubmit={add} className="flex gap-2">
         <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Agregar nota importante" className="bg-zinc-900 border-zinc-800" data-testid="input-client-note" />
-        <Button type="submit" size="icon" className="bg-amber-600 hover:bg-amber-500 text-black shrink-0" data-testid="btn-add-client-note"><Send className="w-4 h-4" /></Button>
+        <Button type="submit" size="icon" className="bg-amber-600 hover:bg-[#c5a572] text-black shrink-0" data-testid="btn-add-client-note"><Send className="w-4 h-4" /></Button>
       </form>
     </div>
   );
@@ -92,7 +92,7 @@ export const ClientProfile = ({ clientId, onClose, onChanged }) => {
               <DialogTitle className="font-display text-2xl flex flex-wrap items-center gap-3">
                 {c.nombre}
                 <button onClick={() => patch("vip", !c.vip)} data-testid="client-vip-toggle"
-                  className={`text-xs font-sans px-2.5 py-1 rounded-full border flex items-center gap-1 transition-colors ${c.vip ? "bg-amber-500/20 border-amber-500/50 text-amber-300" : "border-zinc-700 text-zinc-500 hover:text-amber-300"}`}>
+                  className={`text-xs font-sans px-2.5 py-1 rounded-full border flex items-center gap-1 transition-colors ${c.vip ? "bg-[#c5a572]/20 border-[#c5a572]/50 text-amber-300" : "border-zinc-700 text-zinc-500 hover:text-amber-300"}`}>
                   <Crown className="w-3 h-3" />{c.vip ? "Cliente VIP" : "Marcar VIP"}
                 </button>
                 {c.dias_cumpleanos !== null && c.dias_cumpleanos <= 14 && (
