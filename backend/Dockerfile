@@ -8,15 +8,15 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar dependencias de Python
-COPY requirements.txt .
+# Copiar e instalar dependencias de Python (usando la ruta desde la raíz del repo)
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código
-COPY . .
+# Copiar el resto del código del backend
+COPY backend/ .
 
-# Exponer el puerto (Railway lo sobrescribe con $PORT)
+# Exponer el puerto
 EXPOSE 8000
 
-# Comando de inicio (usa $PORT que Railway inyecta)
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando de inicio usando la variable PORT de Railway
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}"]
