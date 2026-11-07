@@ -11,7 +11,7 @@ from tavily import TavilyClient
 import os
 import io
 import asyncio
-import perchancy # <-- LIBRERÍA PARA IMÁGENES
+import requests # <-- IMPORTANTE PARA REPLICATE
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -120,34 +120,41 @@ async def run_tool(name, args, user):
     try:
         if name == "generar_imagen":
             try:
-                client = perchancy.Client(headless=True)
+                api_token = os.getenv("REPLICATE_API_TOKEN")
+                if not api_token:
+                    return {"error": "Falta configurar la llave REPLICATE_API_TOKEN en Render."}
                 
-                # La respuesta de perchancy es un diccionario (dict)
-                result = client.images.generate(
-                    model="ai-text-to-image-generator",
-                    prompt=args["prompt"],
-                    num_images=1,
-                    image_format="png", 
-                    disable_safety_settings=True 
-                )
+                # Llamada a Replicate con FLUX.1-schnell
+                url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
+                headers = {
+                    "Authorization": f"Token {api_token}",
+                    "Content-Type": "application/json"
+                }
                 
-                # ACCESO CORREGIDO COMO DICCIONARIO
-                data_list = result.get("data", [])
-                if not data_list:
-                    return {"error": "No se generaron imágenes."}
+                payload = {
+                    "input": {
+                        "prompt": args["prompt"],
+                        "aspect_ratio": "1:1",
+                        "output_format": "webp",
+                        "output_quality": 90,
+                        "disable_safety_checker": True  # <--- FILTRO DESACTIVADO AQUÍ
+                    }
+                }
                 
-                image_data = data_list[0]
+                response = await asyncio.to_thread(requests.post, url, headers=headers, json=payload)
+                response.raise_for_status()
+                result = response.json()
                 
-                if "url" in image_data and image_data["url"]:
-                    image_url = image_data["url"]
-                elif "b64_json" in image_data and image_data["b64_json"]:
-                    image_url = f"data:image/png;base64,{image_data['b64_json']}"
+                # Replicate devuelve las URLs en el campo "output"
+                output_urls = result.get("output")
+                if output_urls and isinstance(output_urls, list) and len(output_urls) > 0:
+                    image_url = output_urls[0]
+                    return {"ok": True, "url": image_url}
                 else:
-                    return {"error": "Formato de respuesta desconocido."}
-                
-                return {"ok": True, "url": image_url}
+                    return {"error": "Replicate no devolvió ninguna URL válida."}
+                    
             except Exception as e:
-                logger.error(f"🚨 ERROR DE PERCHANCE: {str(e)}")
+                logger.error(f"🚨 ERROR DE REPLICATE: {str(e)}")
                 return {"error": f"Fallo la generación de imagen: {str(e)}"}
 
         if name == "buscar_en_internet":
