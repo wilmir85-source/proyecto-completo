@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut, Archive } from "lucide-react";
+import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut, Archive, Gem } from "lucide-react"; // <-- Agregamos Gem
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -7,7 +7,12 @@ export const BottomNav = () => {
   const location = useLocation();
   const path = location.pathname;
   const [showMore, setShowMore] = useState(false);
-  const { logout } = useAuth();
+  const { user, logout } = useAuth(); // <-- Agregamos 'user' para validar el permiso
+
+  // Lógica para mostrar Moldes solo a los autorizados
+  const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
+                      user?.departamento === "Ceras" || 
+                      user?.departamento === "Inyección";
 
   const handleTabClick = () => {
     if (navigator.vibrate) navigator.vibrate(10);
@@ -79,6 +84,15 @@ export const BottomNav = () => {
             <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">🏪</span> Mi Joyería
           </Link>
           
+          {/* BOTÓN DE MOLDES (Protegido) */}
+          {canSeeMolds && (
+            <Link to="/moldes" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+              <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm">
+                <Gem className="w-5 h-5 text-[#c5a572]"/>
+              </span> Moldes
+            </Link>
+          )}
+
           <Link to="/historial" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
             <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm">
               <Archive className="w-5 h-5 text-[#c5a572]"/>
