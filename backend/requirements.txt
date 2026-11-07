@@ -3,7 +3,6 @@ uvicorn
 pymongo
 motor
 python-dotenv
-google-genai
 PyJWT
 bcrypt
 python-multipart
@@ -16,4 +15,3 @@ cloudinary
 groq
 tavily-python
 pywebpush
-replicate
