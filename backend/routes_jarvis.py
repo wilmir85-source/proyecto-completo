@@ -11,7 +11,7 @@ from tavily import TavilyClient
 import os
 import io
 import asyncio
-import requests # Para Siray.ai
+import perchancy # <-- NUEVA LIBRERÍA PARA IMÁGENES SIN CENSURA
 
 from core import db, logger, STAGES, now_iso, new_id, enrich_order, is_staff, current_user, can_work_on
 from routes_orders import op_create_order, op_update_order, op_add_abono
@@ -65,7 +65,7 @@ TOOLS = [
         "name": "generar_imagen",
         "description": "Genera una imagen o diseño de joyería a partir de una descripción. Úsala SIEMPRE que el usuario pida generar, dibujar o crear un diseño visual de un anillo, collar, personaje o idea.",
         "parameters": {"type": "object", "properties": {
-            "prompt": {"type": "string", "description": "Descripción visual detallada de la joya o imagen. Si es un personaje, describe sus rasgos sin usar su nombre (ej. 'traje rojo y dorado con reactor en el pecho')."}},
+            "prompt": {"type": "string", "description": "Descripción visual detallada en INGLÉS de la joya o imagen. Si es un personaje, describe sus rasgos sin usar su nombre (ej. 'red and gold armor suit with a glowing chest reactor ring')."}},
             "required": ["prompt"]}}},
     {"type": "function", "function": {
         "name": "buscar_en_internet",
@@ -120,23 +120,22 @@ async def run_tool(name, args, user):
     try:
         if name == "generar_imagen":
             try:
-                api_key = os.getenv("SIRAY_API_KEY")
-                if not api_key:
-                    return {"error": "Falta configurar la llave SIRAY_API_KEY en Render."}
-                # URL CORREGIDA DE SIRAY.AI
-                url = "https://llm.siraya.ai/v1/images/generations"
-                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-                data = {"model": "z-image", "prompt": args["prompt"], "size": "1024x1024", "n": 1, "response_format": "url"}
-                response = await asyncio.to_thread(requests.post, url, headers=headers, json=data)
-                response.raise_for_status()
-                result = response.json()
-                image_url = result.get("data", [{}])[0].get("url")
-                if image_url:
-                    return {"ok": True, "url": image_url}
-                return {"error": "No se pudo obtener la URL de la imagen."}
+                # Usamos Perchance (Gratis, sin tarjeta, y sin censura)
+                client = perchancy.Client(headless=True, disable_safety_settings=True)
+                
+                response = client.images.generate(
+                    model="ai-text-to-image-generator",
+                    prompt=args["prompt"],
+                    resolution=(1024, 1024)
+                )
+                
+                # Perchance nos devuelve la imagen en base64. La convertimos a Data URL.
+                image_b64 = response.data[0].b64_json
+                image_url = f"data:image/png;base64,{image_b64}"
+                
+                return {"ok": True, "url": image_url}
             except Exception as e:
-                # 🚨 ESTA LÍNEA NOS DIRÁ EL ERROR REAL EN RENDER
-                logger.error(f"🚨 ERROR DE SIRAY.AI: {str(e)}") 
+                logger.error(f"🚨 ERROR DE PERCHANCE: {str(e)}")
                 return {"error": f"Fallo la generación de imagen: {str(e)}"}
 
         if name == "buscar_en_internet":
@@ -258,7 +257,7 @@ JARVIS_SYSTEM = """Eres JARVIS, el mayordomo digital de la joyería "Mundo de Jo
 PERSONALIDAD: Elegante, británico, con un humor seco y sarcástico. Llamas al usuario "señor" o "señora".
 TU MISIÓN: Que el taller funcione como un reloj suizo.
 - Si el usuario pide GENERAR, DIBUJAR o CREAR UNA IMAGEN de un anillo o diseño, DEBES usar la herramienta "generar_imagen". No crees un pedido a menos que el usuario diga explícitamente "crea un pedido" o "registra este pedido".
-- Si el usuario pide un personaje con copyright (ej. Iron Man, Goku), describe sus rasgos visuales (colores, formas) en el prompt de la imagen sin usar el nombre original, para evitar bloqueos.
+- Cuando uses la herramienta "generar_imagen", DEBES traducir la petición del usuario al INGLÉS y describir los rasgos visuales (colores, formas). Si es un personaje con copyright (ej. Iron Man, Goku), describe sus rasgos sin usar su nombre original.
 - Usa la herramienta "buscar_en_internet" para consultar precios del oro, plata, tendencias, etc.
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
 - EJECUTAS acciones usando tus herramientas cuando te lo piden.
