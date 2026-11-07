@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
 import { BottomNav } from "@/components/BottomNav";
-import { FloatingActionButton } from "@/components/FloatingActionButton"; // <-- 1. IMPORTAMOS EL BOTÓN
+import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { FinishOrderProvider } from "@/components/FinishOrderDialog";
 import { BrandMark } from "@/components/BrandMark";
 
@@ -30,9 +30,9 @@ export default function Layout() {
 
   return (
     <div className="h-[100dvh] flex overflow-hidden bg-[#09090b]">
-      {/* Menú Lateral (Solo para PC) */}
-      <aside className="w-64 border-r border-white/5 bg-zinc-950/70 backdrop-blur-xl fixed left-0 top-0 h-screen hidden md:flex flex-col p-5 z-20 overflow-y-auto">
-        <button onClick={() => nav("/")} className="mb-10 group" data-testid="brand-home">
+      {/* Menú Lateral (Solo para PC) - Efecto Cristal Lujo */}
+      <aside className="w-64 border-r border-[#c5a572]/20 bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen hidden md:flex flex-col p-5 z-20 overflow-y-auto shadow-[4px_0_24px_rgba(0,0,0,0.6)]">
+        <button onClick={() => nav("/")} className="mb-10 group transition-transform hover:scale-105" data-testid="brand-home">
           <BrandMark />
         </button>
 
@@ -44,10 +44,10 @@ export default function Layout() {
               end={it.end}
               data-testid={it.testid}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-300 ${
                   isActive
-                    ? "bg-amber-600/15 text-amber-400 border border-[#c5a572]/20"
-                    : "text-zinc-400 hover:text-zinc-100 hover:bg-white/5 border border-transparent"
+                    ? "bg-[#c5a572]/15 text-[#c5a572] border border-[#c5a572]/40 shadow-[0_0_15px_rgba(197,165,114,0.15)] font-medium"
+                    : "text-zinc-400 hover:text-[#c5a572] hover:bg-[#c5a572]/5 border border-transparent"
                 }`
               }
             >
@@ -57,11 +57,14 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="border-t border-white/5 pt-4 mt-4">
-          <div className="text-sm text-zinc-200 mb-1 truncate" data-testid="current-user-name">{user?.name}</div>
+        {/* Info del Usuario - Estilo VIP */}
+        <div className="border-t border-[#c5a572]/20 pt-4 mt-4">
+          <div className="text-sm text-zinc-100 font-medium mb-1 truncate" data-testid="current-user-name">{user?.name}</div>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[#c5a572]/30 text-amber-400 bg-[#c5a572]/10" data-testid="current-user-role">{ROLE_LABELS[user?.role]}</span>
-            {user?.departamento && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400">{user.departamento}</span>}
+            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[#c5a572]/50 text-[#c5a572] bg-[#c5a572]/10 shadow-sm" data-testid="current-user-role">
+              {ROLE_LABELS[user?.role]}
+            </span>
+            {user?.departamento && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400 bg-white/5">{user.departamento}</span>}
           </div>
           <button onClick={logout} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-red-400 transition-colors" data-testid="btn-logout">
             <LogOut className="w-3.5 h-3.5" /> Cerrar sesión
@@ -69,7 +72,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Contenido Principal (ajustado para iPhone y Tablets) */}
+      {/* Contenido Principal */}
       <main className="flex-1 min-w-0 md:ml-64 h-full flex flex-col pb-16 md:pb-0 pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden">
         <div className="flex-1 overflow-y-auto md:overflow-visible">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
@@ -79,7 +82,7 @@ export default function Layout() {
       {/* Menú inferior (Solo celular) */}
       <BottomNav />
 
-      {/* 2. BOTÓN FLOTANTE (Solo para Admin y Ventas) */}
+      {/* Botón Flotante */}
       {["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
     </div>
   );

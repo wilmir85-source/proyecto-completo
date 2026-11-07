@@ -23,9 +23,9 @@ export const BottomNav = () => {
 
   return (
     <>
-      {/* Menú flotante fijo abajo */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-zinc-950/90 backdrop-blur-md border-t border-white/10 z-50 pb-safe">
-        <div className="flex justify-around items-center h-[60px]">
+      {/* Menú flotante fijo abajo - Efecto Cristal */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#09090b]/80 backdrop-blur-2xl border-t border-[#c5a572]/30 z-50 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.6)]">
+        <div className="flex justify-around items-center h-[65px]">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = tab.path === "/" ? path === "/" : path.startsWith(tab.path);
@@ -34,23 +34,27 @@ export const BottomNav = () => {
                 key={tab.name}
                 to={tab.path}
                 onClick={handleTabClick}
-                className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+                className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all ${
                   isActive ? "text-[#c5a572]" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
-                <span className="text-[10px] font-medium">{tab.name}</span>
+                <div className={`p-1.5 rounded-full transition-all ${isActive ? "bg-[#c5a572]/15 shadow-[0_0_10px_rgba(197,165,114,0.2)]" : ""}`}>
+                  <Icon className={`w-5 h-5 ${isActive ? "scale-110 drop-shadow-md" : ""} transition-transform`} />
+                </div>
+                <span className={`text-[10px] font-medium ${isActive ? "font-semibold" : ""}`}>{tab.name}</span>
               </Link>
             );
           })}
           
           <button
             onClick={() => { if(navigator.vibrate) navigator.vibrate(10); setShowMore(!showMore); }}
-            className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
+            className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all ${
               showMore ? "text-[#c5a572]" : "text-zinc-500 hover:text-zinc-300"
             }`}
           >
-            <Menu className="w-5 h-5" />
+            <div className={`p-1.5 rounded-full transition-all ${showMore ? "bg-[#c5a572]/15 shadow-[0_0_10px_rgba(197,165,114,0.2)]" : ""}`}>
+               <Menu className="w-5 h-5" />
+            </div>
             <span className="text-[10px] font-medium">Más</span>
           </button>
         </div>
@@ -58,36 +62,41 @@ export const BottomNav = () => {
 
       {/* Panel desplegable de "Más" */}
       {showMore && (
-        <div className="md:hidden fixed bottom-[60px] left-0 right-0 bg-zinc-900/95 backdrop-blur-xl border-t border-white/10 z-40 p-4 grid grid-cols-3 gap-4 pb-8">
-          <Link to="/clientes" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">👥</span> Clientes
+        <div className="md:hidden fixed bottom-[65px] left-0 right-0 bg-zinc-950/95 backdrop-blur-2xl border-t border-[#c5a572]/30 z-40 p-5 grid grid-cols-3 gap-y-6 gap-x-2 pb-10 shadow-2xl">
+          <Link to="/clientes" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">👥</span> Clientes
           </Link>
-          <Link to="/inventario" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">📦</span> Inventario
+          <Link to="/inventario" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">📦</span> Inventario
           </Link>
-          <Link to="/tareas" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">📝</span> Tareas
+          <Link to="/tareas" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">📝</span> Tareas
           </Link>
-          <Link to="/ventas" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">💰</span> Ventas
+          <Link to="/ventas" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">💰</span> Ventas
           </Link>
-          <Link to="/mi-joyeria" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">🏪</span> Mi Joyería
+          <Link to="/mi-joyeria" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">🏪</span> Mi Joyería
           </Link>
           
-          {/* BOTÓN DE HISTORIAL AGREGADO AQUÍ */}
-          <Link to="/historial" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Archive className="w-5 h-5 text-[#c5a572]"/></span> Historial
+          <Link to="/historial" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm">
+              <Archive className="w-5 h-5 text-[#c5a572]"/>
+            </span> Historial
           </Link>
 
-          <Link to="/equipo" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1">👨‍💼</span> Equipo
+          <Link to="/equipo" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">👨‍💼</span> Equipo
           </Link>
-          <Link to="/iphone" className="flex flex-col items-center text-zinc-400 text-xs hover:text-white" onClick={handleTabClick}>
-            <span className="bg-zinc-800 p-3 rounded-full mb-1"><Smartphone className="w-5 h-5 text-[#c5a572]"/></span> Siri y App
+          <Link to="/iphone" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
+            <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm">
+              <Smartphone className="w-5 h-5 text-[#c5a572]"/>
+            </span> Siri y App
           </Link>
-          <button onClick={() => { handleTabClick(); logout(); }} className="flex flex-col items-center text-red-400 text-xs hover:text-red-300">
-            <span className="bg-red-950/50 p-3 rounded-full mb-1"><LogOut className="w-5 h-5 text-red-500"/></span> Salir
+          <button onClick={() => { handleTabClick(); logout(); }} className="flex flex-col items-center text-red-400 text-[11px] hover:text-red-300">
+            <span className="bg-red-950/50 border border-red-500/20 p-3 rounded-full mb-1.5 shadow-sm">
+              <LogOut className="w-5 h-5 text-red-500"/>
+            </span> Salir
           </button>
         </div>
       )}
