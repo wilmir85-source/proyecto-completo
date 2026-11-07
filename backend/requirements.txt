@@ -15,4 +15,5 @@ cloudinary
 groq
 tavily-python
 pywebpush
+google-genai
 Pillow
