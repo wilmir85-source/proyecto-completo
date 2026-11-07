@@ -134,6 +134,8 @@ async def run_tool(name, args, user):
                     return {"ok": True, "url": image_url}
                 return {"error": "No se pudo obtener la URL de la imagen."}
             except Exception as e:
+                # 🚨 ESTA LÍNEA NOS DIRÁ EL ERROR REAL EN RENDER
+                logger.error(f"🚨 ERROR DE SIRAY.AI: {str(e)}") 
                 return {"error": f"Fallo la generación de imagen: {str(e)}"}
 
         if name == "buscar_en_internet":
@@ -322,7 +324,6 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
                         function_args = json.loads(tool_call.function.arguments)
                         function_response = await run_tool(function_name, function_args, user)
                         
-                        # Si la herramienta generó una imagen, la guardamos para enviarla al frontend
                         if function_name == "generar_imagen" and function_response.get("url"):
                             image_url = function_response["url"]
                         
@@ -344,7 +345,6 @@ async def jarvis_stream(user, message, session_id, tz_name, extra=""):
         if not full_text and not image_url:
             raise ultimo_error or Exception("Ningún modelo de Groq respondió.")
         
-        # Si hubo imagen, enviamos el evento especial para el frontend
         if image_url:
             yield f"data: {json.dumps({'type': 'image', 'url': image_url})}\n\n"
             
