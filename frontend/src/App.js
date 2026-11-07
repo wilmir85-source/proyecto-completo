@@ -19,6 +19,7 @@ import Inventario from "@/pages/Inventario";
 import MiJoyeria from "@/pages/MiJoyeria";
 import Seguimiento from "@/pages/Seguimiento";
 import Historial from "@/pages/Historial";
+import Moldes from "@/pages/Moldes"; // <-- NUEVA IMPORTACIÓN
 import { Loader2 } from "lucide-react";
 
 const ADMIN_VENTAS = ["admin", "ventas"];
@@ -36,6 +37,17 @@ function RoleGate({ roles, children }) {
   return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
 }
 
+// <-- NUEVO CANDADO EXCLUSIVO PARA MOLDES -->
+function MoldesGate({ children }) {
+  const { user } = useAuth();
+  // Damos acceso a Admin, Ventas (tu esposa), o si el usuario pertenece a Ceras o Inyección (tu hija)
+  const tieneAcceso = ["admin", "ventas"].includes(user?.role) || 
+                      user?.departamento === "Ceras" || 
+                      user?.departamento === "Inyección";
+                      
+  return tieneAcceso ? children : <Navigate to="/" replace />;
+}
+
 function PublicOnly({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -47,15 +59,14 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        {/* CAMBIO AQUÍ: Posición abajo, centrado, y con margen extra para no chocar con el menú */}
         <Toaster 
           theme="dark" 
           position="bottom-center" 
           richColors 
           toastOptions={{ 
             style: { 
-              bottom: '80px', // Sube el mensaje 80px para que no lo tape el menú inferior
-              marginBottom: 'env(safe-area-inset-bottom)' // Respeta la barra de gestos del iPhone
+              bottom: '80px', 
+              marginBottom: 'env(safe-area-inset-bottom)' 
             } 
           }} 
         />
@@ -79,6 +90,9 @@ export default function App() {
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
             <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} />
+            
+            {/* NUEVA RUTA DE MOLDES PROTEGIDA */}
+            <Route path="/moldes" element={<MoldesGate><Moldes /></MoldesGate>} />
           </Route>
           
           <Route path="*" element={<Navigate to="/" replace />} />
