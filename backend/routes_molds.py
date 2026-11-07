@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 import asyncio
+import time
 from google import genai
+from google.genai import errors as genai_errors # <-- Importante para capturar el 503
 from PIL import Image
 import io
 from core import db, current_user, now_iso, new_id, put_object, logger
@@ -18,7 +20,13 @@ class MoldeIn(BaseModel):
     texto: str
     foto_url: str
 
-# --- 1. RUTA PARA LEER LA FOTO (OCR) ---
+# --- LISTA DE MODELOS VÁLIDOS (Se eliminó 1.5 porque ya no existe) ---
+MODELOS_OCR = [
+    "gemini-3.8-flash",
+    "gemini-3.6-flash", # Versión estable
+    "gemini-2.5-flash",
+]
+
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
@@ -40,24 +48,52 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         3. Devuelve solo el texto limpio y organizado, sin explicaciones adicionales.
         """
         
-        # --- TRY INTERNO PARA ATRAPAR LA SATURACIÓN DE GOOGLE ---
-        try:
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model='gemini-3.8-flash',
-                contents=[prompt, imagen]
-            )
-            texto_extraido = response.text
+        texto_extraido = None
+        ultimo_error = None
+
+        # --- CASCADA DE MODELOS CON REINTENTOS Y ESPERA ---
+        for modelo in MODELOS_OCR:
+            logger.info(f"Intentando leer la foto con el modelo: {modelo}")
             
-        except Exception as e:
-            # Si Google está saturado, lanzamos un error 503 amigable
-            if "503" in str(e) or "UNAVAILABLE" in str(e) or "high demand" in str(e):
-                logger.warning(f"Gemini saturado: {e}")
-                raise HTTPException(503, "La IA de Google está muy ocupada en este momento. Por favor, intenta de nuevo en un minuto.")
+            # Intentamos hasta 3 veces por modelo (con espera exponencial)
+            for intento in range(3):
+                try:
+                    response = await asyncio.to_thread(
+                        client.models.generate_content,
+                        model=modelo,
+                        contents=[prompt, imagen]
+                    )
+                    if response.text:
+                        texto_extraido = response.text
+                        logger.info(f"✅ Éxito con el modelo: {modelo} (Intento {intento + 1})")
+                        break # Si funciona, salimos del bucle de reintentos
+                        
+                except genai_errors.ServerError as e:
+                    # Si es un error 503 (Servidor ocupado), esperamos y reintentamos
+                    if "503" in str(e) or "UNAVAILABLE" in str(e):
+                        ultimo_error = e
+                        espera = 2 ** intento # Espera 1s, luego 2s, luego 4s
+                        logger.warning(f"El modelo {modelo} está saturado. Reintentando en {espera} segundos...")
+                        await asyncio.sleep(espera)
+                    else:
+                        # Si es otro tipo de error de servidor, pasamos al siguiente modelo
+                        ultimo_error = e
+                        break 
+                        
+                except Exception as e:
+                    # Si es un error 404 (modelo no encontrado) u otro, pasamos al siguiente modelo
+                    ultimo_error = e
+                    logger.warning(f"El modelo {modelo} falló: {e}. Probando el siguiente...")
+                    break
             
-            # Si es otro error distinto, lo mostramos
-            logger.error(f"Error en Gemini: {e}")
-            raise HTTPException(500, f"Error al leer la imagen: {str(e)}")
+            # Si ya obtuvimos texto, no seguimos probando modelos
+            if texto_extraido:
+                break
+
+        # Si ningún modelo funcionó, lanzamos el error amigable
+        if not texto_extraido:
+            logger.error(f"Todos los modelos de OCR fallaron. Último error: {ultimo_error}")
+            raise HTTPException(503, "La IA de Google está muy ocupada en este momento. Por favor, intenta de nuevo en un minuto.")
 
         # Subir la foto original a Cloudinary
         path = f"jarvis-joyeria/molds/{new_id()}.jpg"
@@ -71,7 +107,6 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         }
 
     except HTTPException:
-        # Esto es importante para que los errores HTTP pasen directo a la pantalla
         raise
     except Exception as e:
         logger.error(f"Error general en OCR: {e}")
