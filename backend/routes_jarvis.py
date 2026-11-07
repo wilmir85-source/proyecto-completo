@@ -123,7 +123,8 @@ async def run_tool(name, args, user):
                 api_key = os.getenv("SIRAY_API_KEY")
                 if not api_key:
                     return {"error": "Falta configurar la llave SIRAY_API_KEY en Render."}
-                url = "https://api.siray.ai/v1/images/generations"
+                # URL CORREGIDA DE SIRAY.AI
+                url = "https://llm.siraya.ai/v1/images/generations"
                 headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
                 data = {"model": "z-image", "prompt": args["prompt"], "size": "1024x1024", "n": 1, "response_format": "url"}
                 response = await asyncio.to_thread(requests.post, url, headers=headers, json=data)
