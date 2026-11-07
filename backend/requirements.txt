@@ -15,3 +15,5 @@ cloudinary
 groq
 tavily-python
 pywebpush
+perchancy
+Pillow
