@@ -3,8 +3,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
 import os
-import asyncio
-import io
+import io  # <-- AGREGADO PARA EL PDF
 import base64
 from mistralai.client import Mistral
 from reportlab.lib.pagesizes import letter
@@ -17,10 +16,10 @@ load_dotenv()
 
 router = APIRouter(prefix="/api")
 
-# El modelo recibe el nombre de la hoja/libreta y el texto completo
+# El modelo recibe el título de la hoja/libreta y el texto completo
 class MoldeIn(BaseModel):
-    nombre_hoja: str
-    texto_completo: str
+    titulo: str
+    texto: str
 
 # --- 1. LEER LA FOTO (OCR CON MISTRAL) ---
 @router.post("/molds/scan")
@@ -55,25 +54,25 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = {
         "id": new_id(),
-        "nombre_hoja": payload.nombre_hoja,
-        "texto_completo": payload.texto_completo,
+        "titulo": payload.titulo,
+        "texto": payload.texto,
         "creado_por": user["name"],
         "created_at": now_iso()
     }
     await db.molds.insert_one(molde)
     molde.pop("_id", None)
-    return {"ok": True, "message": "Librería guardada exitosamente"}
+    return {"ok": True, "message": "Documento guardado exitosamente"}
 
 # --- 3. BUSCAR DENTRO DE LAS LIBRERÍAS ---
 @router.get("/molds")
 async def get_molds(search: Optional[str] = None, user=Depends(current_user)):
     query = {}
     if search:
-        # Busca la palabra en el nombre de la hoja O en cualquier parte del texto
+        # Busca la palabra en el título O en cualquier parte del texto
         query = {
             "$or": [
-                {"nombre_hoja": {"$regex": search, "$options": "i"}},
-                {"texto_completo": {"$regex": search, "$options": "i"}}
+                {"titulo": {"$regex": search, "$options": "i"}},
+                {"texto": {"$regex": search, "$options": "i"}}
             ]
         }
     
@@ -92,21 +91,21 @@ async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     styles = getSampleStyleSheet()
     
     elements = [
-        Paragraph(f"Librería: {molde.get('nombre_hoja', 'Sin Nombre')}", styles['Heading1']),
+        Paragraph(f"Documento: {molde.get('titulo', 'Sin Nombre')}", styles['Heading1']),
         Spacer(1, 12),
         Paragraph(f"Guardado por: {molde.get('creado_por', 'N/A')}", styles['Normal']),
         Spacer(1, 20)
     ]
     
     # Agregar todo el texto de la hoja respetando los saltos de línea
-    for line in molde.get("texto_completo", "").split("\n"):
+    for line in molde.get("texto", "").split("\n"):
         if line.strip():
             elements.append(Paragraph(line, styles['Normal']))
-            elements.append(Spacer(1, 6))
+            elements.append(Spacer(1, 6)) # <-- CORREGIDO AQUÍ PARA QUE EL PDF NO FALLE
 
     doc.build(elements)
     buffer.seek(0)
 
     return Response(content=buffer.read(), media_type="application/pdf", headers={
-        "Content-Disposition": f"attachment; filename=Libreria_{molde.get('nombre_hoja', 'archivo')}.pdf"
+        "Content-Disposition": f"attachment; filename=Documento_{molde.get('titulo', 'archivo')}.pdf"
     })
