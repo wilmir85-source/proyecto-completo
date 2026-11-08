@@ -27,7 +27,12 @@ class MoldeIn(BaseModel):
     texto: str
 
 
-# 1. ESCANEAR FOTO CON GEMINI
+class MoldeUpdate(BaseModel):
+    numero: Optional[str] = None
+    texto: Optional[str] = None
+
+
+# 1. ESCANEAR FOTO CON GEMINI (OCR)
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
@@ -39,7 +44,6 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         data = await file.read()
 
         with Image.open(io.BytesIO(data)) as imagen:
-            # Convertir a RGB por si la foto viene en otro modo (RGBA, P, etc.)
             if imagen.mode != "RGB":
                 imagen = imagen.convert("RGB")
 
@@ -64,7 +68,7 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         raise HTTPException(502, "Error al leer la imagen. Intenta de nuevo.")
 
 
-# 2. CREAR UNA CARPETA (LIBRERÍA)
+# 2. CREAR CARPETA (LIBRERÍA)
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib = {
@@ -84,7 +88,7 @@ async def get_libraries(user=Depends(current_user)):
     return await db.libraries.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 
-# 4. GUARDAR UN MOLDE EN UNA CARPETA
+# 4. GUARDAR UN MOLDE
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = {
@@ -100,7 +104,29 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     return molde
 
 
-# 5. VER LOS MOLDES DE UNA CARPETA ESPECÍFICA
+# 5. EDITAR UN MOLDE (necesario para el modal)
+@router.put("/molds/{molde_id}")
+async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
+    existing = await db.molds.find_one({"id": molde_id})
+    if not existing:
+        raise HTTPException(404, "Molde no encontrado")
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if updates:
+        await db.molds.update_one({"id": molde_id}, {"$set": updates})
+    molde = await db.molds.find_one({"id": molde_id}, {"_id": 0})
+    return molde
+
+
+# 6. BORRAR UN MOLDE (necesario para el botón Borrar)
+@router.delete("/molds/{molde_id}")
+async def delete_mold(molde_id: str, user=Depends(current_user)):
+    result = await db.molds.delete_one({"id": molde_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Molde no encontrado")
+    return {"ok": True}
+
+
+# 7. VER LOS MOLDES DE UNA CARPETA
 @router.get("/libraries/{libreria_id}/molds")
 async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
     return await db.molds.find(
@@ -108,7 +134,7 @@ async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
     ).sort("numero", 1).to_list(1000)
 
 
-# 6. EL BUSCADOR GLOBAL (Busca en todas las carpetas)
+# 8. BUSCADOR GLOBAL
 @router.get("/molds/search")
 async def search_molds(q: str, user=Depends(current_user)):
     if not q:
@@ -126,7 +152,7 @@ async def search_molds(q: str, user=Depends(current_user)):
     return resultados
 
 
-# 7. GENERAR PDF DE UN MOLDE
+# 9. PDF DE UN MOLDE
 @router.get("/molds/{molde_id}/pdf")
 async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     molde = await db.molds.find_one({"id": molde_id})
