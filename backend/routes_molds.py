@@ -20,7 +20,7 @@ class MoldeIn(BaseModel):
     titulo: str
     texto: str
 
-# --- 1. LEER LA FOTO (OCR CON Z.AI GRATIS) ---
+# --- 1. LEER LA FOTO (OCR CON Z.AI) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
@@ -32,7 +32,7 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         data = await file.read()
         image_b64 = base64.b64encode(data).decode("utf-8")
         
-        # Endpoint oficial de Z.ai (compatible con OpenAI)
+        # Endpoint oficial de Z.ai
         url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
         
         headers = {
@@ -40,8 +40,11 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
             "Content-Type": "application/json"
         }
         
+        # Le agregamos el prefijo data:image/jpeg;base64, que es el formato estricto que pide Z.ai
+        image_url = f"data:image/jpeg;base64,{image_b64}"
+
         payload = {
-            "model": "glm-4v-flash", # Modelo de visión gratuito
+            "model": "glm-4.6v-flash", # Modelo gratuito y con soporte para Base64
             "messages": [
                 {
                     "role": "user",
@@ -53,7 +56,7 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_b64}"
+                                "url": image_url
                             }
                         }
                     ]
@@ -62,7 +65,12 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         }
 
         response = requests.post(url, json=payload, headers=headers, timeout=60)
-        response.raise_for_status()
+        
+        # --- CHIVATO PARA VER EL ERROR REAL EN LOS LOGS ---
+        if response.status_code != 200:
+            logger.error(f"Error de Z.ai (Código {response.status_code}): {response.text}")
+            raise Exception(f"Z.ai respondió: {response.text}")
+
         result = response.json()
 
         # Extraer el texto de la respuesta
