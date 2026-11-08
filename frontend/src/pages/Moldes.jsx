@@ -1,53 +1,28 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { Upload, Search, Loader2, Save, X, Copy, FolderPlus, Folder, ArrowLeft } from "lucide-react";
+import { Upload, Search, Loader2, Save, X, Copy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function Moldes() {
-  // Estados para Librerías (Colecciones)
-  const [libraries, setLibraries] = useState([]);
-  const [currentLibrary, setCurrentLibrary] = useState(null); // Si es null, vemos las carpetas. Si tiene datos, vemos los moldes.
-  const [newLibraryName, setNewLibraryName] = useState("");
-  const [showNewLibrary, setShowNewLibrary] = useState(false);
-
-  // Estados para Moldes
-  const [moldes, setMoldes] = useState([]);
-  const [busqueda, setBusqueda] = useState("");
-  const [loading, setLoading] = useState(true);
-  
-  // Estados del Escáner
   const [file, setFile] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [hasScanned, setHasScanned] = useState(false); // <-- NUEVO ESTADO PARA EL EDITOR
   const [nombreMolde, setNombreMolde] = useState("");
   const [textoExtraido, setTextoExtraido] = useState("");
   const [fotoUrl, setFotoUrl] = useState("");
   
-  // Visor de fotos
+  const [moldes, setMoldes] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  
+  // Estado para la foto ampliada (Lightbox)
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
 
-  // --- CARGAR DATOS ---
-  const loadLibraries = async () => {
-    setLoading(true);
+  // Cargar los moldes al entrar
+  const loadMoldes = async (searchQuery = "") => {
     try {
-      const { data } = await api.get("/libraries");
-      setLibraries(data);
-    } catch (error) {
-      toast.error("Error al cargar las colecciones");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMoldes = async (searchQuery = "", libId = null) => {
-    setLoading(true);
-    try {
-      let url = "/molds?";
-      if (searchQuery) url += `search=${searchQuery}&`;
-      if (libId) url += `library_id=${libId}`;
-      
+      const url = searchQuery ? `/molds?search=${searchQuery}` : "/molds";
       const { data } = await api.get(url);
       setMoldes(data);
     } catch (error) {
@@ -58,28 +33,10 @@ export default function Moldes() {
   };
 
   useEffect(() => {
-    if (currentLibrary) {
-      loadMoldes("", currentLibrary.id);
-    } else {
-      loadLibraries();
-    }
-  }, [currentLibrary]);
+    loadMoldes();
+  }, []);
 
-  // --- CREAR LIBRERÍA ---
-  const handleCreateLibrary = async () => {
-    if (!newLibraryName.trim()) return;
-    try {
-      await api.post("/libraries", { nombre: newLibraryName });
-      toast.success("Colección creada");
-      setNewLibraryName("");
-      setShowNewLibrary(false);
-      loadLibraries();
-    } catch (error) {
-      toast.error("Error al crear colección");
-    }
-  };
-
-  // --- ESCANEAR FOTO ---
+  // Función para escanear la foto
   const handleScan = async (e) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) return;
@@ -94,19 +51,22 @@ export default function Moldes() {
       const { data } = await api.post("/molds/scan", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      // Aseguramos que si el texto viene vacío, se muestre igual
-      setTextoExtraido(data.texto || "");
-      setFotoUrl(data.foto_url || "");
-      setHasScanned(true); // <-- ACTIVA EL EDITOR SIEMPRE
-      toast.success("¡Imagen procesada! Revisa el texto.");
+      
+      setTextoExtraido(data.texto);
+      setFotoUrl(data.foto_url);
+      toast.success("¡Texto leído con éxito! Revisa y guarda.");
     } catch (error) {
-      toast.error("No se pudo procesar la imagen.");
+      if (error.response?.status === 503) {
+        toast.error(error.response.data.detail);
+      } else {
+        toast.error("No se pudo leer la imagen. Intenta de nuevo.");
+      }
     } finally {
       setIsScanning(false);
     }
   };
 
-  // --- GUARDAR MOLDE ---
+  // Función para guardar el molde
   const handleSave = async () => {
     if (!nombreMolde.trim() || !textoExtraido.trim()) {
       toast.error("Ponle un nombre y asegúrate de que haya texto.");
@@ -117,171 +77,164 @@ export default function Moldes() {
       await api.post("/molds", {
         nombre: nombreMolde,
         texto: textoExtraido,
-        foto_url: fotoUrl,
-        library_id: currentLibrary?.id || null // Se guarda en la carpeta actual
+        foto_url: fotoUrl
       });
-      toast.success("Molde guardado");
-      // Limpiamos el formulario
+      toast.success("Molde guardado en la base de datos");
+      
       setNombreMolde("");
       setTextoExtraido("");
       setFotoUrl("");
       setFile(null);
-      setHasScanned(false); // <-- OCULTAMOS EL EDITOR AL GUARDAR
-      loadMoldes("", currentLibrary.id);
+      loadMoldes();
     } catch (error) {
       toast.error("Error al guardar el molde");
     }
   };
 
-  const copiarTexto = (texto) => {
-    navigator.clipboard.writeText(texto);
-    toast.success("Texto copiado");
+  const handleSearch = (e) => {
+    const val = e.target.value;
+    setBusqueda(val);
+    loadMoldes(val);
   };
 
-  // --- RENDERIZADO PRINCIPAL ---
+  // Función para copiar el texto al portapapeles
+  const copiarTexto = (texto) => {
+    navigator.clipboard.writeText(texto);
+    toast.success("Texto copiado al portapapeles");
+  };
+
   return (
     <div className="p-5 md:p-12 max-w-6xl mx-auto pb-32">
-      
-      {/* VISTA 1: TODAS LAS LIBRERÍAS (Como el inicio de Spotify) */}
-      {!currentLibrary ? (
-        <>
-          <header className="mb-8 flex justify-between items-end">
-            <div>
-              <div className="text-xs uppercase tracking-[0.3em] text-[#c5a572] mb-3">Archivo de Diseños</div>
-              <h1 className="font-display text-4xl font-light text-white">Tus Colecciones</h1>
-              <p className="text-sm text-zinc-400 mt-2">Agrupa tus moldes por categorías (Graduación, Dijes, etc).</p>
-            </div>
-            <Button onClick={() => setShowNewLibrary(true)} className="bg-[#c5a572] text-black hover:bg-[#b08d5b]">
-              <FolderPlus className="w-4 h-4 mr-2" /> Nueva Colección
-            </Button>
-          </header>
+      <header className="mb-8">
+        <div className="text-xs uppercase tracking-[0.3em] text-[#c5a572] mb-3">Archivo de Diseños</div>
+        <h1 className="font-display text-4xl font-light text-white">Base de Datos de Moldes</h1>
+        <p className="text-sm text-zinc-400 mt-2">Escanea notas escritas a mano o busca diseños existentes.</p>
+      </header>
 
-          {showNewLibrary && (
-            <div className="mb-6 p-4 bg-zinc-900 border border-zinc-800 rounded-xl flex gap-2">
-              <Input 
-                placeholder="Ej. Anillos de Graduación" 
-                value={newLibraryName} 
-                onChange={(e) => setNewLibraryName(e.target.value)}
-                className="bg-zinc-950 border-zinc-800"
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* LADO IZQUIERDO: Escáner */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="card-glass rounded-2xl p-6 border border-[#c5a572]/20">
+            <h2 className="font-display text-xl text-white mb-4">Escanear Nueva Nota</h2>
+            
+            <div className="border-2 border-dashed border-zinc-700 rounded-xl p-6 text-center hover:bg-zinc-900 transition-colors relative">
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleScan} 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                disabled={isScanning}
               />
-              <Button onClick={handleCreateLibrary} className="bg-[#c5a572] text-black">Crear</Button>
-              <Button variant="ghost" onClick={() => setShowNewLibrary(false)}>Cancelar</Button>
+              {isScanning ? (
+                <Loader2 className="w-8 h-8 text-[#c5a572] animate-spin mx-auto mb-2" />
+              ) : (
+                <Upload className="w-8 h-8 text-zinc-400 mx-auto mb-2" />
+              )}
+              <p className="text-sm text-zinc-300 font-medium">
+                {isScanning ? "Leyendo letra..." : "Tomar foto o subir imagen"}
+              </p>
             </div>
-          )}
+
+            {(textoExtraido || fotoUrl) && (
+              <div className="mt-6 space-y-4">
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">Nombre del Molde</label>
+                  <Input 
+                    placeholder="Ej. Top 8x6 Bachillerato" 
+                    value={nombreMolde} 
+                    onChange={(e) => setNombreMolde(e.target.value)}
+                    className="bg-zinc-950 border-zinc-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-400 mb-1 block">Texto Extraído (Editable)</label>
+                  <textarea 
+                    value={textoExtraido} 
+                    onChange={(e) => setTextoExtraido(e.target.value)}
+                    className="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 focus:outline-none focus:border-[#c5a572]"
+                  />
+                </div>
+                <Button onClick={handleSave} className="w-full bg-[#c5a572] hover:bg-[#b08d5b] text-black font-medium">
+                  <Save className="w-4 h-4 mr-2" /> Guardar Molde
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* LADO DERECHO: Buscador y Resultados */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <Input 
+              placeholder="Buscar por nombre o medida (ej. 8x6, zafiro...)" 
+              value={busqueda}
+              onChange={handleSearch}
+              className="pl-10 bg-zinc-900 border-zinc-800 h-12"
+            />
+          </div>
 
           {loading ? (
-            <div className="text-center py-10 text-zinc-500">Cargando colecciones...</div>
+            <div className="text-center py-10 text-zinc-500">Cargando moldes...</div>
+          ) : moldes.length === 0 ? (
+            <div className="text-center py-10 text-zinc-500 card-glass rounded-2xl border border-white/5">
+              No hay moldes guardados aún.
+            </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {libraries.map((lib) => (
-                <div 
-                  key={lib.id} 
-                  onClick={() => setCurrentLibrary(lib)}
-                  className="card-glass p-6 rounded-2xl cursor-pointer hover:bg-zinc-800/80 transition-all border border-white/5 group"
-                >
-                  <Folder className="w-12 h-12 text-[#c5a572] mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="font-display text-xl text-white truncate">{lib.nombre}</h3>
-                  <p className="text-xs text-zinc-400 mt-1">{lib.total_moldes} moldes</p>
-                </div>
-              ))}
-              {libraries.length === 0 && (
-                <div className="col-span-full text-center py-10 text-zinc-500">
-                  Aún no tienes colecciones. ¡Crea la primera!
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      ) : (
-        
-        /* VISTA 2: DENTRO DE UNA LIBRERÍA (Como el interior de una playlist) */
-        <>
-          <header className="mb-8 flex items-center gap-4">
-            <Button variant="ghost" onClick={() => setCurrentLibrary(null)} className="text-zinc-400 hover:text-white">
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-            <div>
-              <div className="text-xs uppercase tracking-[0.3em] text-[#c5a572] mb-1">Colección</div>
-              <h1 className="font-display text-4xl font-light text-white">{currentLibrary.nombre}</h1>
-            </div>
-          </header>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Columna Izquierda: Escáner */}
-            <div className="lg:col-span-1 space-y-4">
-              <div className="card-glass rounded-2xl p-6 border border-[#c5a572]/20">
-                <h2 className="font-display text-xl text-white mb-4">Escanear para esta colección</h2>
-                
-                <div className="border-2 border-dashed border-zinc-700 rounded-xl p-6 text-center hover:bg-zinc-900 transition-colors relative">
-                  <input type="file" accept="image/*" onChange={handleScan} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={isScanning} />
-                  {isScanning ? <Loader2 className="w-8 h-8 text-[#c5a572] animate-spin mx-auto mb-2" /> : <Upload className="w-8 h-8 text-zinc-400 mx-auto mb-2" />}
-                  <p className="text-sm text-zinc-300 font-medium">{isScanning ? "Leyendo letra..." : "Tomar foto o subir imagen"}</p>
-                </div>
-
-                {/* AQUÍ ESTÁ EL CAMBIO: Usamos 'hasScanned' para que siempre se muestre */}
-                {hasScanned && (
-                  <div className="mt-6 space-y-4">
-                    <div>
-                      <label className="text-xs text-zinc-400 mb-1 block">Nombre del Molde</label>
-                      <Input placeholder="Ej. Top 8x6" value={nombreMolde} onChange={(e) => setNombreMolde(e.target.value)} className="bg-zinc-950 border-zinc-800" />
-                    </div>
-                    <div>
-                      <label className="text-xs text-zinc-400 mb-1 block">Texto (Editable)</label>
-                      <textarea value={textoExtraido} onChange={(e) => setTextoExtraido(e.target.value)} className="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 focus:outline-none" placeholder="Escribe el texto aquí si la IA no lo pudo leer..." />
-                    </div>
-                    <Button onClick={handleSave} className="w-full bg-[#c5a572] text-black font-medium">
-                      <Save className="w-4 h-4 mr-2" /> Guardar en {currentLibrary.nombre}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Columna Derecha: Lista de Moldes */}
-            <div className="lg:col-span-2 space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <Input placeholder="Buscar en esta colección..." value={busqueda} onChange={(e) => { setBusqueda(e.target.value); loadMoldes(e.target.value, currentLibrary.id); }} className="pl-10 bg-zinc-900 border-zinc-800 h-12" />
-              </div>
-
-              {loading ? (
-                <div className="text-center py-10 text-zinc-500">Cargando...</div>
-              ) : moldes.length === 0 ? (
-                <div className="text-center py-10 text-zinc-500 card-glass rounded-2xl border border-white/5">No hay moldes en esta colección.</div>
-              ) : (
-                <div className="grid gap-4">
-                  {moldes.map((molde) => (
-                    <div key={molde.id} className="card-glass rounded-2xl p-4 border border-white/5 flex gap-4">
-                      {molde.foto_url && (
-                        <div className="w-24 h-24 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-zinc-800" onClick={() => setFotoAmpliada(molde.foto_url)}>
-                          <img src={molde.foto_url} alt={molde.nombre} className="w-full h-full object-cover hover:scale-110 transition-transform" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0 flex flex-col">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-display text-lg text-[#c5a572] truncate">{molde.nombre}</h3>
-                          <Button variant="ghost" size="icon" onClick={() => copiarTexto(molde.texto)} className="h-6 w-6 text-zinc-500 hover:text-white shrink-0">
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-zinc-300 whitespace-pre-wrap flex-1 overflow-y-auto max-h-20 mt-1">{molde.texto}</p>
+            <div className="grid gap-4">
+              {moldes.map((molde) => (
+                <div key={molde.id} className="card-glass rounded-2xl p-4 md:p-5 border border-white/5 flex flex-col md:flex-row gap-4">
+                  
+                  {/* FOTO (Ahora clickeable) */}
+                  {molde.foto_url && (
+                    <div 
+                      className="w-full md:w-32 h-48 md:h-32 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-zinc-800 relative group"
+                      onClick={() => setFotoAmpliada(molde.foto_url)}
+                    >
+                      <img src={molde.foto_url} alt={molde.nombre} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <span className="text-white text-xs font-medium border border-white/30 px-3 py-1 rounded-full backdrop-blur-sm">Ampliar</span>
                       </div>
                     </div>
-                  ))}
+                  )}
+                  
+                  {/* INFO Y TEXTO */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-display text-xl text-[#c5a572] truncate">{molde.nombre}</h3>
+                      <Button variant="ghost" size="icon" onClick={() => copiarTexto(molde.texto)} title="Copiar texto" className="h-8 w-8 text-zinc-500 hover:text-white shrink-0">
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <p className="text-sm text-zinc-300 whitespace-pre-wrap flex-1 overflow-y-auto max-h-32">{molde.texto}</p>
+                    <div className="text-[10px] text-zinc-600 mt-2">Guardado por {molde.creado_por}</div>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
 
-      {/* VISOR DE FOTO A PANTALLA COMPLETA */}
+      {/* VISOR DE FOTO A PANTALLA COMPLETA (LIGHTBOX) */}
       {fotoAmpliada && (
-        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4" onClick={() => setFotoAmpliada(null)}>
-          <button className="absolute top-6 right-6 p-2 bg-zinc-800 rounded-full text-white" onClick={(e) => { e.stopPropagation(); setFotoAmpliada(null); }}>
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/95 flex items-center justify-center p-4 backdrop-blur-md"
+          onClick={() => setFotoAmpliada(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 p-2 bg-zinc-800 rounded-full text-white hover:bg-zinc-700 transition-colors"
+            onClick={(e) => { e.stopPropagation(); setFotoAmpliada(null); }}
+          >
             <X className="w-6 h-6" />
           </button>
-          <img src={fotoAmpliada} alt="Ampliación" className="max-w-full max-h-[90vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+          <img 
+            src={fotoAmpliada} 
+            alt="Molde ampliado" 
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()} // Evita que se cierre al tocar la foto
+          />
         </div>
       )}
     </div>
