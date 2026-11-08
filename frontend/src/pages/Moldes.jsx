@@ -20,6 +20,7 @@ export default function Moldes() {
   // Estados del Escáner
   const [file, setFile] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false); // <-- NUEVO ESTADO PARA EL EDITOR
   const [nombreMolde, setNombreMolde] = useState("");
   const [textoExtraido, setTextoExtraido] = useState("");
   const [fotoUrl, setFotoUrl] = useState("");
@@ -93,11 +94,13 @@ export default function Moldes() {
       const { data } = await api.post("/molds/scan", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setTextoExtraido(data.texto);
-      setFotoUrl(data.foto_url);
-      toast.success("¡Texto leído con éxito!");
+      // Aseguramos que si el texto viene vacío, se muestre igual
+      setTextoExtraido(data.texto || "");
+      setFotoUrl(data.foto_url || "");
+      setHasScanned(true); // <-- ACTIVA EL EDITOR SIEMPRE
+      toast.success("¡Imagen procesada! Revisa el texto.");
     } catch (error) {
-      toast.error("No se pudo leer la imagen.");
+      toast.error("No se pudo procesar la imagen.");
     } finally {
       setIsScanning(false);
     }
@@ -118,10 +121,12 @@ export default function Moldes() {
         library_id: currentLibrary?.id || null // Se guarda en la carpeta actual
       });
       toast.success("Molde guardado");
+      // Limpiamos el formulario
       setNombreMolde("");
       setTextoExtraido("");
       setFotoUrl("");
       setFile(null);
+      setHasScanned(false); // <-- OCULTAMOS EL EDITOR AL GUARDAR
       loadMoldes("", currentLibrary.id);
     } catch (error) {
       toast.error("Error al guardar el molde");
@@ -213,7 +218,8 @@ export default function Moldes() {
                   <p className="text-sm text-zinc-300 font-medium">{isScanning ? "Leyendo letra..." : "Tomar foto o subir imagen"}</p>
                 </div>
 
-                {(textoExtraido || fotoUrl) && (
+                {/* AQUÍ ESTÁ EL CAMBIO: Usamos 'hasScanned' para que siempre se muestre */}
+                {hasScanned && (
                   <div className="mt-6 space-y-4">
                     <div>
                       <label className="text-xs text-zinc-400 mb-1 block">Nombre del Molde</label>
@@ -221,7 +227,7 @@ export default function Moldes() {
                     </div>
                     <div>
                       <label className="text-xs text-zinc-400 mb-1 block">Texto (Editable)</label>
-                      <textarea value={textoExtraido} onChange={(e) => setTextoExtraido(e.target.value)} className="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 focus:outline-none" />
+                      <textarea value={textoExtraido} onChange={(e) => setTextoExtraido(e.target.value)} className="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 focus:outline-none" placeholder="Escribe el texto aquí si la IA no lo pudo leer..." />
                     </div>
                     <Button onClick={handleSave} className="w-full bg-[#c5a572] text-black font-medium">
                       <Save className="w-4 h-4 mr-2" /> Guardar en {currentLibrary.nombre}
