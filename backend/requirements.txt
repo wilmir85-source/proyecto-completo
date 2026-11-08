@@ -17,3 +17,4 @@ tavily-python
 pywebpush
 google-genai
 Pillow
+mistralai
