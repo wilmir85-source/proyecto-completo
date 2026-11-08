@@ -18,3 +18,4 @@ pywebpush
 google-genai
 Pillow
 openai
+mistralai
