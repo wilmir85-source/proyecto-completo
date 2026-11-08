@@ -104,7 +104,7 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     return molde
 
 
-# 5. EDITAR UN MOLDE (necesario para el modal)
+# 5. EDITAR UN MOLDE (¡El que faltaba para tu modal!)
 @router.put("/molds/{molde_id}")
 async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
     existing = await db.molds.find_one({"id": molde_id})
@@ -117,7 +117,7 @@ async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_
     return molde
 
 
-# 6. BORRAR UN MOLDE (necesario para el botón Borrar)
+# 6. BORRAR UN MOLDE (¡El otro que faltaba!)
 @router.delete("/molds/{molde_id}")
 async def delete_mold(molde_id: str, user=Depends(current_user)):
     result = await db.molds.delete_one({"id": molde_id})
