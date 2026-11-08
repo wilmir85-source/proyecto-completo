@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 import io
-import base64
 import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -20,66 +19,43 @@ class MoldeIn(BaseModel):
     titulo: str
     texto: str
 
-# --- 1. LEER LA FOTO (OCR CON Z.AI) ---
+# --- 1. LEER LA FOTO (OCR CON OCR.SPACE) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
-        API_KEY = os.getenv("ZAI_API_KEY")
+        API_KEY = os.getenv("OCR_SPACE_API_KEY")
         if not API_KEY:
-            raise HTTPException(500, "Falta la ZAI_API_KEY en las variables de entorno")
+            raise HTTPException(500, "Falta la OCR_SPACE_API_KEY en las variables de entorno")
 
-        # Leer imagen y convertir a base64
         data = await file.read()
-        image_b64 = base64.b64encode(data).decode("utf-8")
         
-        # Endpoint oficial de Z.ai
-        url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        # Endpoint de OCR.space
+        url = "https://api.ocr.space/parse/image"
         
-        headers = {
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        # Le agregamos el prefijo data:image/jpeg;base64, que es el formato estricto que pide Z.ai
-        image_url = f"data:image/jpeg;base64,{image_b64}"
-
+        files = {"file": (file.filename, data, file.content_type)}
         payload = {
-            "model": "glm-4.6v-flash", # Modelo gratuito y con soporte para Base64
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text", 
-                            "text": "Por favor, extrae todo el texto de esta imagen escrita a mano. Respeta el formato de lista y presta atención a los números."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_url
-                            }
-                        }
-                    ]
-                }
-            ]
+            "apikey": API_KEY,
+            "language": "spa", # Español
+            "isOverlayRequired": False,
+            "filetype": "Image",
+            "OCREngine": 2 # Motor 2 es mejor para letra a mano
         }
 
-        response = requests.post(url, json=payload, headers=headers, timeout=60)
-        
-        # --- CHIVATO PARA VER EL ERROR REAL EN LOS LOGS ---
-        if response.status_code != 200:
-            logger.error(f"Error de Z.ai (Código {response.status_code}): {response.text}")
-            raise Exception(f"Z.ai respondió: {response.text}")
-
+        response = requests.post(url, files=files, data=payload, timeout=60)
         result = response.json()
 
-        # Extraer el texto de la respuesta
-        texto_extraido = result["choices"][0]["message"]["content"]
+        if result.get("IsErroredOnProcessing"):
+            error_msg = result.get("ErrorMessage", ["Error desconocido"])[0]
+            raise Exception(f"OCR.space error: {error_msg}")
+
+        texto_extraido = ""
+        for parsed_result in result.get("ParsedResults", []):
+            texto_extraido += parsed_result.get("ParsedText", "")
 
         return {"ok": True, "texto": texto_extraido}
 
     except Exception as e:
-        logger.error(f"Error en Z.ai OCR: {e}")
+        logger.error(f"Error en OCR.space: {e}")
         raise HTTPException(500, f"Error al leer la imagen: {str(e)}")
 
 # --- 2. GUARDAR EL DOCUMENTO ---
