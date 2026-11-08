@@ -3,9 +3,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional
 import os
-import io  # <-- AGREGADO PARA EL PDF
+import io
 import base64
-from mistralai.client import Mistral
+import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
@@ -16,40 +16,65 @@ load_dotenv()
 
 router = APIRouter(prefix="/api")
 
-# El modelo recibe el título de la hoja/libreta y el texto completo
 class MoldeIn(BaseModel):
     titulo: str
     texto: str
 
-# --- 1. LEER LA FOTO (OCR CON MISTRAL) ---
+# --- 1. LEER LA FOTO (OCR CON Z.AI GRATIS) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
-        API_KEY = os.getenv("MISTRAL_API_KEY")
+        API_KEY = os.getenv("ZAI_API_KEY")
         if not API_KEY:
-            raise HTTPException(500, "Falta la MISTRAL_API_KEY en las variables de entorno")
+            raise HTTPException(500, "Falta la ZAI_API_KEY en las variables de entorno")
 
+        # Leer imagen y convertir a base64
         data = await file.read()
         image_b64 = base64.b64encode(data).decode("utf-8")
-        image_url = f"data:image/jpeg;base64,{image_b64}"
+        
+        # Endpoint oficial de Z.ai (compatible con OpenAI)
+        url = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": "glm-4v-flash", # Modelo de visión gratuito
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text", 
+                            "text": "Por favor, extrae todo el texto de esta imagen escrita a mano. Respeta el formato de lista y presta atención a los números."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_b64}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
 
-        client = Mistral(api_key=API_KEY)
-        response = client.ocr.process(
-            model="mistral-ocr-latest",
-            document={"type": "document_url", "document_url": image_url}
-        )
+        response = requests.post(url, json=payload, headers=headers, timeout=60)
+        response.raise_for_status()
+        result = response.json()
 
-        texto_extraido = ""
-        for page in response.pages:
-            texto_extraido += page.markdown + "\n"
+        # Extraer el texto de la respuesta
+        texto_extraido = result["choices"][0]["message"]["content"]
 
         return {"ok": True, "texto": texto_extraido}
 
     except Exception as e:
-        logger.error(f"Error en OCR: {e}")
+        logger.error(f"Error en Z.ai OCR: {e}")
         raise HTTPException(500, f"Error al leer la imagen: {str(e)}")
 
-# --- 2. GUARDAR LA LIBRERÍA COMPLETA ---
+# --- 2. GUARDAR EL DOCUMENTO ---
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = {
@@ -63,28 +88,26 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde.pop("_id", None)
     return {"ok": True, "message": "Documento guardado exitosamente"}
 
-# --- 3. BUSCAR DENTRO DE LAS LIBRERÍAS ---
+# --- 3. BUSCAR EN LOS DOCUMENTOS ---
 @router.get("/molds")
 async def get_molds(search: Optional[str] = None, user=Depends(current_user)):
     query = {}
     if search:
-        # Busca la palabra en el título O en cualquier parte del texto
         query = {
             "$or": [
                 {"titulo": {"$regex": search, "$options": "i"}},
                 {"texto": {"$regex": search, "$options": "i"}}
             ]
         }
-    
     moldes = await db.molds.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return moldes
 
-# --- 4. GENERAR PDF DE LA LIBRERÍA COMPLETA ---
+# --- 4. GENERAR PDF ---
 @router.get("/molds/{molde_id}/pdf")
 async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     molde = await db.molds.find_one({"id": molde_id})
     if not molde:
-        raise HTTPException(404, "Librería no encontrada")
+        raise HTTPException(404, "Documento no encontrado")
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
@@ -97,11 +120,10 @@ async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
         Spacer(1, 20)
     ]
     
-    # Agregar todo el texto de la hoja respetando los saltos de línea
     for line in molde.get("texto", "").split("\n"):
         if line.strip():
             elements.append(Paragraph(line, styles['Normal']))
-            elements.append(Spacer(1, 6)) # <-- CORREGIDO AQUÍ PARA QUE EL PDF NO FALLE
+            elements.append(Spacer(1, 6))
 
     doc.build(elements)
     buffer.seek(0)
