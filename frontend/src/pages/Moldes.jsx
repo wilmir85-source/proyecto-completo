@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 
-// Ajusta esto si tu API está en otra dirección
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const api = axios.create({ baseURL: API });
 
@@ -13,23 +12,22 @@ api.interceptors.request.use((config) => {
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
-  const [selectedLib, setSelectedLib] = useState(null);
+  const [selectedLib, setSelectedLib] = useState(null); // null = viendo carpetas
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
   
-  // Para crear carpeta
+  // Estados para crear carpeta
   const [newLibName, setNewLibName] = useState("");
+  const [showNewLib, setShowNewLib] = useState(false);
   
-  // Para el formulario de molde
+  // Estados para el Modal de Molde (Crear/Editar)
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null); // null = creando uno nuevo
   const [numero, setNumero] = useState("");
   const [texto, setTexto] = useState("");
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
-
-  // Para el modal de editar
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
 
   const [toast, setToast] = useState(null);
 
@@ -38,24 +36,17 @@ export default function Moldes() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 1. Cargar carpetas al iniciar
   const loadLibraries = async () => {
     try {
       const r = await api.get("/api/libraries");
       setLibraries(r.data);
-      if (r.data.length > 0 && !selectedLib) {
-        setSelectedLib(r.data[0]); // Selecciona la primera por defecto
-      }
     } catch (error) {
       showToast("Error al cargar carpetas", "error");
     }
   };
 
-  useEffect(() => {
-    loadLibraries();
-  }, []);
+  useEffect(() => { loadLibraries(); }, []);
 
-  // 2. Cargar moldes cuando cambia la carpeta seleccionada
   const loadMolds = async () => {
     if (!selectedLib) return;
     try {
@@ -66,25 +57,45 @@ export default function Moldes() {
     }
   };
 
-  useEffect(() => {
-    loadMolds();
-  }, [selectedLib]);
+  useEffect(() => { loadMolds(); }, [selectedLib]);
 
-  // 3. Crear una nueva carpeta
+  // --- CREAR CARPETA ---
   const handleCreateLibrary = async () => {
     if (!newLibName.trim()) return;
     try {
-      const r = await api.post("/api/libraries", { nombre: newLibName });
+      await api.post("/api/libraries", { nombre: newLibName });
       setNewLibName("");
+      setShowNewLib(false);
       await loadLibraries();
-      setSelectedLib(r.data); // Entra a la carpeta recién creada
       showToast("Carpeta creada", "success");
     } catch (error) {
       showToast("Error al crear carpeta", "error");
     }
   };
 
-  // 4. Escanear foto con Gemini
+  // --- CREAR O EDITAR MOLDE ---
+  const openNewMoldModal = () => {
+    setEditing(null);
+    setNumero("");
+    setTexto("");
+    setModalOpen(true);
+  };
+
+  const openEditMoldModal = (molde) => {
+    setEditing(molde);
+    setNumero(molde.numero || "");
+    setTexto(molde.texto || "");
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (saving || scanning) return;
+    setModalOpen(false);
+    setNumero("");
+    setTexto("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -92,9 +103,7 @@ export default function Moldes() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const r = await api.post("/api/molds/scan", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const r = await api.post("/api/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
       if (r.data?.texto) {
         setTexto(r.data.texto);
         showToast("Texto extraído", "success");
@@ -106,22 +115,21 @@ export default function Moldes() {
     }
   };
 
-  // 5. Guardar molde (Nuevo)
-  const handleSaveNew = async () => {
-    if (!numero.trim()) return showToast("Falta el número", "error");
-    if (!selectedLib) return showToast("Selecciona una carpeta", "error");
+  const handleSave = async () => {
+    if (!numero.trim()) return showToast("Escribe un número o nombre", "error");
     
     setSaving(true);
     try {
-      await api.post("/api/molds", {
-        libreria_id: selectedLib.id,
-        numero,
-        texto,
-      });
-      setNumero("");
-      setTexto("");
+      if (editing) {
+        await api.put(`/api/molds/${editing.id}`, { numero, texto });
+        showToast("Molde actualizado", "success");
+      } else {
+        if (!selectedLib) throw new Error("No hay carpeta seleccionada");
+        await api.post("/api/molds", { libreria_id: selectedLib.id, numero, texto });
+        showToast("Molde guardado", "success");
+      }
       await loadMolds();
-      showToast("Molde guardado", "success");
+      closeModal();
     } catch (error) {
       showToast("Error al guardar", "error");
     } finally {
@@ -129,23 +137,6 @@ export default function Moldes() {
     }
   };
 
-  // 6. Actualizar molde (Editar)
-  const handleUpdate = async () => {
-    if (!editing) return;
-    setSaving(true);
-    try {
-      await api.put(`/api/molds/${editing.id}`, { numero, texto });
-      await loadMolds();
-      setModalOpen(false);
-      showToast("Molde actualizado", "success");
-    } catch (error) {
-      showToast("Error al actualizar", "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 7. Borrar molde
   const handleDelete = async (id) => {
     if (!window.confirm("¿Seguro que quieres borrar este molde?")) return;
     try {
@@ -157,152 +148,189 @@ export default function Moldes() {
     }
   };
 
-  const openEditModal = (molde) => {
-    setEditing(molde);
-    setNumero(molde.numero || "");
-    setTexto(molde.texto || "");
-    setModalOpen(true);
-  };
-
-  // Filtro de búsqueda
+  // --- BÚSQUEDA GLOBAL ---
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
+    if (!q) return molds;
     return molds.filter(
       (m) => (m.numero || "").toLowerCase().includes(q) || (m.texto || "").toLowerCase().includes(q)
     );
   }, [molds, search]);
 
+  const filteredLibs = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return libraries;
+    return libraries.filter((l) => (l.nombre || "").toLowerCase().includes(q));
+  }, [libraries, search]);
 
-  // ====== ESTILOS BÁSICOS (Manteniendo tu tema oscuro) ======
+  // ====== ESTILOS ======
   const s = {
-    page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "80px" },
-    title: { fontSize: "32px", fontFamily: "serif", color: "#fff", marginBottom: "5px" },
-    subtitle: { color: "#888", fontSize: "14px", marginBottom: "20px" },
-    inputSearch: { width: "100%", padding: "12px 15px", borderRadius: "10px", border: "1px solid #333", background: "#111", color: "#fff", marginBottom: "20px", boxSizing: "border-box" },
-    box: { background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "15px", marginBottom: "15px" },
-    boxTitle: { fontSize: "12px", color: "#d4af37", fontWeight: "bold", marginBottom: "10px", letterSpacing: "1px" },
-    row: { display: "flex", gap: "10px" },
-    input: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff" },
-    btnGold: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" },
-    folderBtn: (active) => ({ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "15px", borderRadius: "10px", marginBottom: "10px", background: active ? "#222" : "#111", border: active ? "1px solid #d4af37" : "1px solid #222", color: active ? "#d4af37" : "#fff", cursor: "pointer", textAlign: "left" }),
-    uploadBox: { border: "2px dashed #444", borderRadius: "10px", padding: "30px", textAlign: "center", cursor: "pointer", marginBottom: "15px" },
-    card: { background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "15px", marginBottom: "10px" },
-    cardNum: { color: "#d4af37", fontWeight: "bold", fontSize: "18px", marginBottom: "5px" },
-    cardText: { color: "#aaa", fontSize: "14px", whiteSpace: "pre-wrap", marginBottom: "15px" },
-    cardActions: { display: "flex", gap: "10px" },
-    btnSmall: { padding: "8px 12px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: "12px", background: "#333", color: "#fff" },
-    btnDanger: { padding: "8px 12px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: "12px", background: "#3a1a1a", color: "#f0b0b0" },
-    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 },
-    modal: { background: "#111", padding: "20px", borderRadius: "15px", width: "90%", maxWidth: "400px", border: "1px solid #333" },
-    toast: { position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "#000", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", zIndex: 200 }
+    page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
+    header: { marginBottom: "20px" },
+    title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
+    subtitle: { color: "#888", fontSize: "14px", margin: 0 },
+    
+    searchBar: { width: "100%", padding: "12px 15px", borderRadius: "10px", border: "1px solid #333", background: "#151515", color: "#fff", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
+    
+    // Botón Nueva Carpeta
+    btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "12px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold" },
+    inputNewLib: { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box" },
+
+    // Grid de Carpetas y Moldes
+    grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "15px" },
+    folderCard: { background: "linear-gradient(145deg, #1a1a1a, #111)", border: "1px solid #333", borderRadius: "12px", padding: "20px 15px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", transition: "0.2s" },
+    folderIcon: { fontSize: "30px", marginBottom: "10px" },
+    
+    // Grid de Moldes
+    moldCard: { background: "#151515", border: "1px solid #222", borderRadius: "12px", padding: "15px", display: "flex", flexDirection: "column" },
+    moldNum: { color: "#d4af37", fontWeight: "bold", fontSize: "18px", fontFamily: "serif", marginBottom: "8px" },
+    moldText: { color: "#aaa", fontSize: "12px", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", marginBottom: "15px" },
+    moldActions: { display: "flex", gap: "8px", marginTop: "auto" },
+    
+    // Botones
+    btnIcon: { background: "#222", border: "none", color: "#fff", padding: "6px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "12px" },
+    btnDanger: { background: "#3a1a1a", border: "none", color: "#f0b0b0", padding: "6px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "12px" },
+    
+    // Botón flotante
+    fab: { position: "fixed", bottom: "80px", right: "20px", width: "60px", height: "60px", borderRadius: "30px", background: "#d4af37", color: "#000", fontSize: "30px", border: "none", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)", cursor: "pointer", zIndex: 90 },
+    
+    // Modal
+    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 },
+    modal: { background: "#151515", padding: "20px", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", borderTop: "1px solid #333" },
+    label: { fontSize: "12px", color: "#888", marginBottom: "5px", display: "block", marginTop: "15px" },
+    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box" },
+    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "120px", boxSizing: "border-box", fontFamily: "inherit" },
+    btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "2px dashed #d4af37", background: "rgba(212,175,55,0.1)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", marginTop: "15px", textAlign: "center" },
+    btnSave: { width: "100%", padding: "15px", borderRadius: "8px", background: "#d4af37", color: "#000", fontWeight: "bold", border: "none", marginTop: "20px", cursor: "pointer" },
+    btnCancel: { width: "100%", padding: "15px", borderRadius: "8px", background: "transparent", color: "#888", border: "none", marginTop: "10px", cursor: "pointer" },
+    
+    toast: { position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "#000", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", zIndex: 200, boxShadow: "0 4px 10px rgba(0,0,0,0.5)" }
   };
 
   return (
     <div style={s.page}>
-      <h1 style={s.title}>Archivo de Moldes</h1>
-      <p style={s.subtitle}>Organiza tu inventario por carpetas.</p>
+      
+      {/* HEADER */}
+      <div style={s.header}>
+        <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
+        <p style={s.subtitle}>{selectedLib ? "Toca un molde para verlo o editarlo" : "Organiza tus moldes por carpetas"}</p>
+      </div>
 
+      {/* BUSCADOR GLOBAL */}
       <input 
-        style={s.inputSearch} 
-        placeholder="Buscar en las carpetas..." 
+        style={s.searchBar} 
+        placeholder={selectedLib ? "Buscar en esta colección..." : "Buscar carpeta..."} 
         value={search} 
         onChange={(e) => setSearch(e.target.value)} 
       />
 
-      {/* CREAR NUEVA CARPETA */}
-      <div style={s.box}>
-        <div style={s.boxTitle}>NUEVA CARPETA</div>
-        <div style={s.row}>
-          <input 
-            style={s.input} 
-            placeholder="Ej. Peritos, Dijes..." 
-            value={newLibName} 
-            onChange={(e) => setNewLibName(e.target.value)} 
-          />
-          <button style={s.btnGold} onClick={handleCreateLibrary}>+</button>
-        </div>
-      </div>
-
-      {/* LISTA DE CARPETAS */}
-      {libraries.map((lib) => (
+      {/* BOTÓN VOLVER (Si estamos dentro de una carpeta) */}
+      {selectedLib && (
         <button 
-          key={lib.id} 
-          style={s.folderBtn(selectedLib?.id === lib.id)}
-          onClick={() => setSelectedLib(lib)}
+          onClick={() => { setSelectedLib(null); setSearch(""); }} 
+          style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}
         >
-          📁 {lib.nombre}
+          ← Volver a Colecciones
         </button>
-      ))}
+      )}
 
-      {/* CONTENIDO DE LA CARPETA SELECCIONADA */}
-      {selectedLib ? (
-        <div style={{ marginTop: "30px" }}>
-          <h2 style={{ color: "#d4af37", fontFamily: "serif", marginBottom: "20px" }}>
-            📁 {selectedLib.nombre}
-          </h2>
-
-          {/* FORMULARIO PARA AGREGAR MOLDE */}
-          <div style={s.box}>
-            <div style={s.uploadBox} onClick={() => fileInputRef.current?.click()}>
-              {scanning ? "⏳ Extrayendo texto..." : "📷 Subir Foto (Escanear)"}
+      {/* VISTA 1: CARPETAS */}
+      {!selectedLib && (
+        <>
+          {!showNewLib ? (
+            <button style={s.btnAddLib} onClick={() => setShowNewLib(true)}>+ Nueva Colección</button>
+          ) : (
+            <div style={{ marginBottom: "20px" }}>
+              <input 
+                autoFocus
+                style={s.inputNewLib} 
+                placeholder="Ej. Anillos, Dijes..." 
+                value={newLibName} 
+                onChange={(e) => setNewLibName(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateLibrary()}
+              />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button style={{ ...s.btnIcon, background: "#d4af37", color: "#000", padding: "10px" }} onClick={handleCreateLibrary}>Guardar</button>
+                <button style={{ ...s.btnIcon, padding: "10px" }} onClick={() => setShowNewLib(false)}>Cancelar</button>
+              </div>
             </div>
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+          )}
 
-            <div style={s.boxTitle}>NÚMERO O NOMBRE DEL MOLDE</div>
-            <input style={{ ...s.input, width: "100%", marginBottom: "15px" }} placeholder="Ej. 45, Perito 8x6..." value={numero} onChange={(e) => setNumero(e.target.value)} />
+          <div style={s.grid}>
+            {filteredLibs.map((lib) => (
+              <div 
+                key={lib.id} 
+                style={s.folderCard}
+                onClick={() => setSelectedLib(lib)}
+              >
+                <div style={s.folderIcon}>📁</div>
+                <div style={{ fontWeight: "bold", color: "#eee" }}>{lib.nombre}</div>
+              </div>
+            ))}
+          </div>
+          {filteredLibs.length === 0 && <p style={{ color: "#666", textAlign: "center", marginTop: "30px" }}>No hay colecciones aquí.</p>}
+        </>
+      )}
 
-            <div style={s.boxTitle}>TEXTO EXTRAÍDO (EDITABLE)</div>
+      {/* VISTA 2: MOLDES DENTRO DE LA CARPETA */}
+      {selectedLib && (
+        <>
+          <div style={s.grid}>
+            {filteredMolds.map((molde) => (
+              <div key={molde.id} style={s.moldCard}>
+                <div style={s.moldNum}>{molde.numero}</div>
+                <div style={s.moldText}>{molde.texto || "Sin texto"}</div>
+                <div style={s.moldActions}>
+                  <button style={s.btnIcon} onClick={() => openEditMoldModal(molde)}>✏️ Editar</button>
+                  <button style={s.btnDanger} onClick={() => handleDelete(molde.id)}>🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {filteredMolds.length === 0 && <p style={{ color: "#666", textAlign: "center", marginTop: "30px" }}>No hay moldes guardados aquí todavía.</p>}
+        </>
+      )}
+
+      {/* BOTÓN FLOTANTE (Solo aparece si estás dentro de una carpeta) */}
+      {selectedLib && (
+        <button style={s.fab} onClick={openNewMoldModal}>+</button>
+      )}
+
+      {/* MODAL PARA ESCANEAR / EDITAR */}
+      {modalOpen && (
+        <div style={s.modalBg} onClick={closeModal}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ color: "#d4af37", margin: "0 0 15px 0", fontFamily: "serif" }}>
+              {editing ? "Editar Molde" : "Nuevo Molde"}
+            </h2>
+
+            {!editing && (
+              <div style={s.btnScan} onClick={() => fileInputRef.current?.click()}>
+                {scanning ? "⏳ Extrayendo texto..." : "📷 Tomar Foto o Subir Imagen"}
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+              </div>
+            )}
+
+            <label style={s.label}>NÚMERO O NOMBRE</label>
+            <input 
+              style={s.input} 
+              placeholder="Ej. 45, Perito 8x6..." 
+              value={numero} 
+              onChange={(e) => setNumero(e.target.value)} 
+            />
+
+            <label style={s.label}>TEXTO EXTRAÍDO (EDITABLE)</label>
             <textarea 
-              style={{ ...s.input, width: "100%", minHeight: "100px", marginBottom: "15px" }} 
+              style={s.textarea} 
               placeholder="El texto de la foto aparecerá aquí..." 
               value={texto} 
               onChange={(e) => setTexto(e.target.value)} 
             />
 
-            <button style={{ ...s.btnGold, width: "100%" }} onClick={handleSaveNew} disabled={saving}>
-              {saving ? "Guardando..." : "💾 Guardar Molde en esta Carpeta"}
+            <button style={s.btnSave} onClick={handleSave} disabled={saving || scanning}>
+              {saving ? "Guardando..." : "💾 Guardar Molde"}
             </button>
-          </div>
-
-          {/* LISTA DE MOLDES */}
-          <h3 style={{ color: "#888", marginTop: "20px" }}>Moldes guardados:</h3>
-          {filteredMolds.length === 0 ? (
-            <p style={{ color: "#555" }}>No hay moldes aquí todavía.</p>
-          ) : (
-            filteredMolds.map((molde) => (
-              <div key={molde.id} style={s.card}>
-                <div style={s.cardNum}>{molde.numero}</div>
-                <div style={s.cardText}>{molde.texto}</div>
-                <div style={s.cardActions}>
-                  <button style={s.btnSmall} onClick={() => openEditModal(molde)}>✏️ Editar</button>
-                  <button style={s.btnDanger} onClick={() => handleDelete(molde.id)}>🗑️ Borrar</button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      ) : (
-        <p style={{ color: "#888", textAlign: "center", marginTop: "30px" }}>Crea o selecciona una carpeta arriba.</p>
-      )}
-
-      {/* MODAL DE EDICIÓN */}
-      {modalOpen && (
-        <div style={s.modalBg} onClick={() => setModalOpen(false)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ color: "#d4af37", marginBottom: "15px" }}>Editar Molde</h2>
-            
-            <div style={s.boxTitle}>NÚMERO</div>
-            <input style={{ ...s.input, width: "100%", marginBottom: "15px" }} value={numero} onChange={(e) => setNumero(e.target.value)} />
-            
-            <div style={s.boxTitle}>TEXTO</div>
-            <textarea style={{ ...s.input, width: "100%", minHeight: "120px", marginBottom: "15px" }} value={texto} onChange={(e) => setTexto(e.target.value)} />
-            
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button style={{ ...s.btnSmall, flex: 1 }} onClick={() => setModalOpen(false)}>Cancelar</button>
-              <button style={{ ...s.btnGold, flex: 1 }} onClick={handleUpdate} disabled={saving}>
-                {saving ? "..." : "Guardar"}
-              </button>
-            </div>
+            <button style={s.btnCancel} onClick={closeModal}>Cancelar</button>
           </div>
         </div>
       )}
