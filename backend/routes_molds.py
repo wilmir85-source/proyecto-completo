@@ -16,59 +16,43 @@ from dotenv import load_dotenv
 load_dotenv()
 router = APIRouter(prefix="/api")
 
-
 class LibreriaIn(BaseModel):
     nombre: str
-
 
 class MoldeIn(BaseModel):
     libreria_id: str
     numero: str
     texto: str
 
-
 class MoldeUpdate(BaseModel):
     numero: Optional[str] = None
     texto: Optional[str] = None
 
-
-# 1. ESCANEAR FOTO CON GEMINI (OCR)
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
         API_KEY = os.getenv("GEMINI_API_KEY")
         if not API_KEY:
             raise HTTPException(500, "GEMINI_API_KEY no está configurada en el servidor.")
-
         client = genai.Client(api_key=API_KEY)
         data = await file.read()
-
         with Image.open(io.BytesIO(data)) as imagen:
             if imagen.mode != "RGB":
                 imagen = imagen.convert("RGB")
-
-            prompt = (
-                "Extrae todo el texto de esta imagen escrita a mano. "
-                "Respeta el formato de lista y números."
-            )
-
+            prompt = "Extrae todo el texto de esta imagen escrita a mano. Respeta el formato de lista y números."
             response = await asyncio.to_thread(
                 client.models.generate_content,
                 model="gemini-3.8-flash",
                 contents=[prompt, imagen],
             )
-
         texto = (response.text or "").strip()
         return {"ok": True, "texto": texto}
-
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error OCR: {e}")
         raise HTTPException(502, "Error al leer la imagen. Intenta de nuevo.")
 
-
-# 2. CREAR CARPETA (LIBRERÍA)
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib = {
@@ -81,14 +65,10 @@ async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib.pop("_id", None)
     return lib
 
-
-# 3. VER TODAS LAS CARPETAS
 @router.get("/libraries")
 async def get_libraries(user=Depends(current_user)):
     return await db.libraries.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
-
-# 4. GUARDAR UN MOLDE
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = {
@@ -103,8 +83,6 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde.pop("_id", None)
     return molde
 
-
-# 5. EDITAR UN MOLDE (¡El que faltaba para tu modal!)
 @router.put("/molds/{molde_id}")
 async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
     existing = await db.molds.find_one({"id": molde_id})
@@ -116,8 +94,6 @@ async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_
     molde = await db.molds.find_one({"id": molde_id}, {"_id": 0})
     return molde
 
-
-# 6. BORRAR UN MOLDE (¡El otro que faltaba!)
 @router.delete("/molds/{molde_id}")
 async def delete_mold(molde_id: str, user=Depends(current_user)):
     result = await db.molds.delete_one({"id": molde_id})
@@ -125,16 +101,10 @@ async def delete_mold(molde_id: str, user=Depends(current_user)):
         raise HTTPException(404, "Molde no encontrado")
     return {"ok": True}
 
-
-# 7. VER LOS MOLDES DE UNA CARPETA
 @router.get("/libraries/{libreria_id}/molds")
 async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
-    return await db.molds.find(
-        {"libreria_id": libreria_id}, {"_id": 0}
-    ).sort("numero", 1).to_list(1000)
+    return await db.molds.find({"libreria_id": libreria_id}, {"_id": 0}).sort("numero", 1).to_list(1000)
 
-
-# 8. BUSCADOR GLOBAL
 @router.get("/molds/search")
 async def search_molds(q: str, user=Depends(current_user)):
     if not q:
@@ -151,14 +121,11 @@ async def search_molds(q: str, user=Depends(current_user)):
         r["nombre_libreria"] = lib["nombre"] if lib else "Sin Carpeta"
     return resultados
 
-
-# 9. PDF DE UN MOLDE
 @router.get("/molds/{molde_id}/pdf")
 async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     molde = await db.molds.find_one({"id": molde_id})
     if not molde:
         raise HTTPException(404, "Molde no encontrado")
-
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -177,7 +144,5 @@ async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     return Response(
         content=buffer.read(),
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f"attachment; filename=Molde_{molde.get('numero')}.pdf"
-        },
+        headers={"Content-Disposition": f"attachment; filename=Molde_{molde.get('numero')}.pdf"},
     )
