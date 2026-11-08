@@ -1,270 +1,417 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
-import { toast } from "sonner";
-import { 
-  Folder, Plus, Search, Save, Upload, Loader2, BookOpen, Camera, Trash2, X 
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useMemo, useRef } from "react";
+import axios from "axios";
+
+const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+const api = axios.create({ baseURL: API });
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+const norm = (s) =>
+  (s || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 export default function Moldes() {
-  // --- ESTADOS ---
-  const [librerias, setLibrerias] = useState([]);
+  const [libraries, setLibraries] = useState([]);
   const [selectedLib, setSelectedLib] = useState(null);
-  const [moldes, setMoldes] = useState([]);
-  
-  // Estados para crear carpeta
-  const [nuevaLib, setNuevaLib] = useState("");
-  
-  // Estados para crear molde
+  const [molds, setMolds] = useState([]);
+  const [search, setSearch] = useState("");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [numero, setNumero] = useState("");
   const [texto, setTexto] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [fotoPreview, setFotoPreview] = useState(null);
 
-  // Búsqueda global
-  const [busqueda, setBusqueda] = useState("");
-  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const fileInputRef = useRef(null);
 
-  // --- CARGA DE DATOS ---
-  const loadLibrerias = async () => {
-    const { data } = await api.get("/libraries");
-    setLibrerias(data);
+  const showToast = (msg, type = "info") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3200);
   };
 
-  const loadMoldes = async (libId) => {
-    const { data } = await api.get(`/libraries/${libId}/molds`);
-    setMoldes(data);
+  useEffect(() => {
+    api.get("/api/libraries")
+      .then((r) => {
+        setLibraries(r.data);
+        if (r.data.length && !selectedLib) setSelectedLib(r.data[0]);
+      })
+      .catch(() => showToast("No se pudieron cargar las carpetas", "error"));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedLib) return;
+    api.get(`/api/libraries/${selectedLib.id}/molds`)
+      .then((r) => setMolds(r.data))
+      .catch(() => showToast("No se pudieron cargar los moldes", "error"));
+  }, [selectedLib]);
+
+  const filteredMolds = useMemo(() => {
+    const q = norm(search).trim();
+    if (!q) return molds;
+    return molds.filter(
+      (m) => norm(m.numero).includes(q) || norm(m.texto).includes(q)
+    );
+  }, [molds, search]);
+
+  const reloadMolds = async () => {
+    if (!selectedLib) return;
+    const r = await api.get(`/api/libraries/${selectedLib.id}/molds`);
+    setMolds(r.data);
   };
 
-  useEffect(() => { loadLibrerias(); }, []);
-
-  // --- CREAR CARPETA ---
-  const crearLibreria = async () => {
-    if (!nuevaLib.trim()) return;
-    await api.post("/libraries", { nombre: nuevaLib });
-    setNuevaLib("");
-    loadLibrerias();
-    toast.success("Carpeta creada");
-  };
-
-  const seleccionarLibreria = (lib) => {
-    setSelectedLib(lib);
-    loadMoldes(lib.id);
+  const openNewModal = () => {
+    setEditing(null);
     setNumero("");
     setTexto("");
-    setFotoPreview(null);
+    setModalOpen(true);
   };
 
-  // --- ESCANEAR FOTO ---
-  const handleScan = async (e) => {
-    const file = e.target.files[0];
+  const openEditModal = (molde) => {
+    setEditing(molde);
+    setNumero(molde.numero || "");
+    setTexto(molde.texto || "");
+    setModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (saving || scanning) return;
+    setModalOpen(false);
+    setEditing(null);
+    setNumero("");
+    setTexto("");
+  };
+
+  const handleScanClick = () => fileInputRef.current?.click();
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    
-    setFotoPreview(URL.createObjectURL(file));
-    setIsScanning(true);
-    
-    const formData = new FormData();
-    formData.append("file", file);
-    
+    setScanning(true);
     try {
-      const { data } = await api.post("/molds/scan", formData, { 
-        headers: { "Content-Type": "multipart/form-data" }
+      const formData = new FormData();
+      formData.append("file", file);
+      const r = await api.post("/api/molds/scan", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setTexto(data.texto);
-      toast.success("¡Texto leído! Revisa y guárdalo.");
-    } catch (error) {
-      toast.error("Error al leer la foto. Intenta de nuevo.");
+      if (r.data?.texto) {
+        setEditing(null);
+        setNumero("");
+        setTexto(r.data.texto);
+        setModalOpen(true);
+        showToast("Texto extraído. Revísalo y guarda.", "success");
+      } else {
+        showToast("No se detectó texto en la imagen", "error");
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Error al escanear la imagen";
+      showToast(msg, "error");
     } finally {
-      setIsScanning(false);
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // --- GUARDAR MOLDE ---
-  const guardarMolde = async () => {
-    if (!numero.trim() || !texto.trim()) {
-      toast.error("Ponle un número/nombre y asegúrate de que haya texto.");
+  const handleSave = async () => {
+    if (!numero.trim()) {
+      showToast("Falta el número del molde", "error");
       return;
     }
-    await api.post("/molds", { libreria_id: selectedLib.id, numero, texto });
-    setNumero("");
-    setTexto("");
-    setFotoPreview(null);
-    loadMoldes(selectedLib.id);
-    toast.success("Molde guardado en esta carpeta");
+    if (!selectedLib) {
+      showToast("Selecciona una carpeta primero", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editing) {
+        await api.put(`/api/molds/${editing.id}`, { numero, texto });
+        showToast("Molde actualizado", "success");
+      } else {
+        await api.post("/api/molds", {
+          libreria_id: selectedLib.id,
+          numero,
+          texto,
+        });
+        showToast("Molde guardado", "success");
+      }
+      await reloadMolds();
+      closeModal();
+    } catch (err) {
+      const msg = err?.response?.data?.detail || "Error al guardar";
+      showToast(msg, "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // --- BUSCADOR GLOBAL ---
-  const buscar = async (e) => {
-    const q = e.target.value;
-    setBusqueda(q);
-    if (!q) { setResultadosBusqueda([]); return; }
-    const { data } = await api.get(`/molds/search?q=${q}`);
-    setResultadosBusqueda(data);
+  const handleDelete = async (molde) => {
+    if (!confirm(`¿Borrar el molde "${molde.numero}"?`)) return;
+    try {
+      await api.delete(`/api/molds/${molde.id}`);
+      await reloadMolds();
+      showToast("Molde borrado", "success");
+    } catch {
+      showToast("Error al borrar", "error");
+    }
+  };
+
+  const handlePdf = (molde) => {
+    const token = localStorage.getItem("token");
+    const url = `${API}/api/molds/${molde.id}/pdf${token ? `?token=${token}` : ""}`;
+    window.open(url, "_blank");
+  };
+
+  const styles = {
+    page: {
+      minHeight: "100vh",
+      background: "radial-gradient(1200px 600px at 20% 0%, #1a1712 0%, #0b0b0d 60%, #08080a 100%)",
+      color: "#e9e6df",
+      fontFamily: "'Inter', system-ui, sans-serif",
+      padding: "32px 24px 64px",
+    },
+    header: {
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      flexWrap: "wrap", gap: 16, marginBottom: 24,
+    },
+    title: {
+      fontFamily: "'Cormorant Garamond', serif",
+      fontSize: 34, letterSpacing: 1, margin: 0,
+      background: "linear-gradient(90deg,#e5c88a,#c9a961)",
+      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+    },
+    btnGold: {
+      background: "linear-gradient(135deg,#d4af37,#b8912b)",
+      color: "#1a1408", border: "none", padding: "12px 20px",
+      borderRadius: 10, fontWeight: 700, cursor: "pointer",
+      boxShadow: "0 6px 20px rgba(212,175,55,0.25)",
+    },
+    btnGhost: {
+      background: "transparent", color: "#d4af37",
+      border: "1px solid rgba(212,175,55,0.5)", padding: "12px 20px",
+      borderRadius: 10, fontWeight: 600, cursor: "pointer",
+    },
+    search: {
+      width: "100%", maxWidth: 480, padding: "12px 16px",
+      background: "#151515", border: "1px solid #262626",
+      borderRadius: 10, color: "#e9e6df", outline: "none",
+    },
+    libBar: {
+      display: "flex", gap: 8, flexWrap: "wrap", margin: "18px 0",
+    },
+    libChip: (active) => ({
+      padding: "8px 14px", borderRadius: 999, cursor: "pointer",
+      fontSize: 13, fontWeight: 600,
+      background: active ? "rgba(212,175,55,0.15)" : "#141414",
+      color: active ? "#e5c88a" : "#8a8a8a",
+      border: active ? "1px solid rgba(212,175,55,0.6)" : "1px solid #222",
+    }),
+    grid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+      gap: 16, marginTop: 20,
+    },
+    card: {
+      background: "linear-gradient(180deg,#131313,#0e0e10)",
+      border: "1px solid #232323", borderRadius: 14,
+      padding: 18, cursor: "pointer",
+      transition: "all .18s ease",
+      display: "flex", flexDirection: "column", gap: 10,
+    },
+    cardNum: {
+      fontSize: 20, fontWeight: 700, color: "#e5c88a",
+      fontFamily: "'Cormorant Garamond', serif",
+    },
+    cardText: {
+      fontSize: 13, color: "#9a9488", whiteSpace: "pre-wrap",
+      maxHeight: 120, overflow: "hidden",
+    },
+    cardActions: {
+      display: "flex", gap: 8, marginTop: "auto", paddingTop: 8,
+    },
+    iconBtn: {
+      background: "#1a1a1a", border: "1px solid #2a2a2a",
+      color: "#c9a961", padding: "6px 10px",
+      borderRadius: 8, cursor: "pointer", fontSize: 12,
+    },
+    iconBtnDanger: {
+      background: "#1a1a1a", border: "1px solid #3a1f1f",
+      color: "#e08b8b", padding: "6px 10px",
+      borderRadius: 8, cursor: "pointer", fontSize: 12,
+    },
+    modalBackdrop: {
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)",
+      backdropFilter: "blur(4px)", display: "flex",
+      alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16,
+    },
+    modal: {
+      background: "linear-gradient(180deg,#161616,#0f0f11)",
+      border: "1px solid #2a2a2a", borderRadius: 16,
+      padding: 24, width: "100%", maxWidth: 560,
+      boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+    },
+    label: { fontSize: 12, color: "#8a8a8a", marginBottom: 6, display: "block" },
+    input: {
+      width: "100%", padding: "10px 12px", background: "#0e0e0e",
+      border: "1px solid #262626", borderRadius: 8,
+      color: "#e9e6df", outline: "none", fontSize: 14,
+      boxSizing: "border-box",
+    },
+    textarea: {
+      width: "100%", minHeight: 160, padding: "10px 12px",
+      background: "#0e0e0e", border: "1px solid #262626",
+      borderRadius: 8, color: "#e9e6df", outline: "none",
+      fontSize: 14, resize: "vertical", fontFamily: "inherit",
+      boxSizing: "border-box",
+    },
+    modalActions: {
+      display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18,
+    },
+    toast: (type) => ({
+      position: "fixed", bottom: 24, right: 24,
+      background: type === "error" ? "#3a1a1a" : type === "success" ? "#1a3a24" : "#1a1a1a",
+      color: type === "error" ? "#f0b0b0" : type === "success" ? "#a8f0c0" : "#e9e6df",
+      border: "1px solid " + (type === "error" ? "#5a2a2a" : type === "success" ? "#2a5a3a" : "#333"),
+      padding: "12px 18px", borderRadius: 10, fontSize: 14,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.5)", zIndex: 200,
+    }),
+    empty: {
+      textAlign: "center", color: "#6a6a6a", padding: "60px 20px", fontSize: 14,
+    },
   };
 
   return (
-    <div className="p-5 md:p-12 max-w-7xl mx-auto pb-32">
-      {/* HEADER */}
-      <header className="mb-8">
-        <h1 className="font-display text-4xl font-light text-white">Archivo de Moldes</h1>
-        <p className="text-sm text-zinc-400 mt-2">Organiza tu inventario por carpetas. Escanea o digita los moldes.</p>
-      </header>
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Gestión de Moldes</h1>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button style={styles.btnGhost} onClick={handleScanClick} disabled={scanning}>
+            {scanning ? "Escaneando..." : "📷 Escanear foto"}
+          </button>
+          <button style={styles.btnGold} onClick={openNewModal}>
+            + Nuevo molde
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+        </div>
+      </div>
 
-      {/* BUSCADOR GLOBAL */}
-      <div className="relative mb-8 z-50">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500" />
-        <Input 
-          placeholder="Buscar en TODAS las carpetas (Ej. Perito, 45, Zafiro...)" 
-          value={busqueda} onChange={buscar} 
-          className="pl-12 bg-zinc-900 border-[#c5a572]/30 h-14 text-lg rounded-xl shadow-lg" 
-        />
-        {busqueda && resultadosBusqueda.length > 0 && (
-          <div className="absolute top-16 left-0 right-0 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-h-96 overflow-y-auto">
-            {resultadosBusqueda.map(r => (
-              <div key={r.id} className="p-4 border-b border-zinc-800 hover:bg-zinc-800 flex justify-between items-center">
-                <div>
-                  <span className="text-[#c5a572] font-bold text-lg block">Molde: {r.numero}</span>
-                  <p className="text-sm text-zinc-400 line-clamp-1">{r.texto}</p>
-                </div>
-                <span className="text-xs bg-zinc-800 px-3 py-1 rounded-full text-zinc-300 border border-zinc-700">
-                  {r.nombre_libreria}
-                </span>
-              </div>
-            ))}
+      <input
+        style={styles.search}
+        placeholder="Buscar por número o texto..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      <div style={styles.libBar}>
+        {libraries.map((lib) => (
+          <div
+            key={lib.id}
+            style={styles.libChip(selectedLib?.id === lib.id)}
+            onClick={() => setSelectedLib(lib)}
+          >
+            {lib.nombre}
           </div>
+        ))}
+        {!libraries.length && (
+          <span style={{ color: "#6a6a6a", fontSize: 13 }}>
+            No hay carpetas todavía.
+          </span>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* COLUMNA IZQUIERDA: CARPETAS */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="card-glass p-5 rounded-2xl border border-white/10 shadow-lg">
-            <h2 className="text-xs uppercase tracking-widest text-[#c5a572] mb-3 font-bold">Nueva Carpeta</h2>
-            <div className="flex gap-2">
-              <Input 
-                placeholder="Ej. Peritos" 
-                value={nuevaLib} 
-                onChange={(e) => setNuevaLib(e.target.value)} 
-                className="bg-zinc-950 border-zinc-800 rounded-lg" 
-              />
-              <Button onClick={crearLibreria} className="bg-[#c5a572] hover:bg-[#b08d5b] text-black rounded-lg">
-                <Plus className="w-5 h-5" />
-              </Button>
+      {filteredMolds.length === 0 ? (
+        <div style={styles.empty}>
+          {search
+            ? "Ningún molde coincide con tu búsqueda."
+            : "Esta carpeta está vacía. Escanea una foto o crea un molde."}
+        </div>
+      ) : (
+        <div style={styles.grid}>
+          {filteredMolds.map((molde) => (
+            <div
+              key={molde.id}
+              style={styles.card}
+              onClick={() => openEditModal(molde)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(212,175,55,0.5)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#232323";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <div style={styles.cardNum}>{molde.numero}</div>
+              <div style={styles.cardText}>{molde.texto || "(sin texto)"}</div>
+              <div style={styles.cardActions}>
+                <button
+                  style={styles.iconBtn}
+                  onClick={(e) => { e.stopPropagation(); handlePdf(molde); }}
+                >
+                  PDF
+                </button>
+                <button
+                  style={styles.iconBtnDanger}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(molde); }}
+                >
+                  Borrar
+                </button>
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
+      )}
 
-          <div className="space-y-2">
-            {librerias.map(lib => (
-              <button 
-                key={lib.id} 
-                onClick={() => seleccionarLibreria(lib)}
-                className={`w-full text-left p-4 rounded-xl flex items-center gap-3 transition-all ${
-                  selectedLib?.id === lib.id 
-                  ? "bg-[#c5a572]/15 border border-[#c5a572]/50 shadow-md" 
-                  : "bg-zinc-900/50 border border-white/5 hover:bg-zinc-800"
-                }`}
-              >
-                <Folder className={`w-5 h-5 ${selectedLib?.id === lib.id ? "text-[#c5a572]" : "text-zinc-500"}`} />
-                <span className="text-sm font-medium text-white">{lib.nombre}</span>
+      {modalOpen && (
+        <div style={styles.modalBackdrop} onClick={closeModal}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ ...styles.title, fontSize: 24, marginBottom: 18 }}>
+              {editing ? "Editar molde" : "Nuevo molde"}
+            </h2>
+
+            <label style={styles.label}>Número</label>
+            <input
+              style={styles.input}
+              value={numero}
+              onChange={(e) => setNumero(e.target.value)}
+              placeholder="Ej. 042"
+            />
+
+            <label style={{ ...styles.label, marginTop: 14 }}>Texto</label>
+            <textarea
+              style={styles.textarea}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Contenido del molde..."
+            />
+
+            <div style={styles.modalActions}>
+              <button style={styles.btnGhost} onClick={closeModal} disabled={saving}>
+                Cancelar
               </button>
-            ))}
+              <button style={styles.btnGold} onClick={handleSave} disabled={saving}>
+                {saving ? "Guardando..." : editing ? "Actualizar" : "Guardar"}
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* COLUMNA DERECHA: CONTENIDO DE LA CARPETA */}
-        <div className="lg:col-span-3 space-y-6">
-          {selectedLib ? (
-            <>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-[#c5a572]/10 rounded-lg border border-[#c5a572]/20">
-                  <Folder className="w-6 h-6 text-[#c5a572]" />
-                </div>
-                <h2 className="text-3xl text-white font-display">{selectedLib.nombre}</h2>
-              </div>
-
-              {/* FORMULARIO DE NUEVO MOLDE */}
-              <div className="card-glass p-6 rounded-2xl border border-white/10 shadow-lg space-y-5">
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Botón de subir foto */}
-                  <div className="md:col-span-1">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer hover:bg-zinc-900 transition-colors relative overflow-hidden">
-                      {fotoPreview && (
-                        <img src={fotoPreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-                      )}
-                      <div className="relative z-10 flex flex-col items-center">
-                        {isScanning ? (
-                          <Loader2 className="w-8 h-8 text-[#c5a572] animate-spin mb-2" />
-                        ) : (
-                          <Camera className="w-8 h-8 text-[#c5a572] mb-2" />
-                        )}
-                        <span className="text-sm font-medium text-white text-center px-2">
-                          {isScanning ? "Leyendo..." : "Subir Foto"}
-                        </span>
-                      </div>
-                      <input type="file" accept="image/*" onChange={handleScan} className="hidden" disabled={isScanning} />
-                    </label>
-                  </div>
-
-                  {/* Número del molde */}
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-zinc-400 mb-2 block font-medium">Número o Nombre del Molde</label>
-                    <Input 
-                      placeholder="Ej. 45, 102, Perito 8x6..." 
-                      value={numero} 
-                      onChange={(e) => setNumero(e.target.value)} 
-                      className="bg-zinc-950 border-zinc-800 h-12 text-lg rounded-lg" 
-                    />
-                  </div>
-                </div>
-
-                {/* Texto editable */}
-                <div>
-                  <label className="text-xs text-zinc-400 mb-2 block font-medium">Texto Extraído (Editable)</label>
-                  <textarea 
-                    placeholder="El texto de la foto aparecerá aquí. Si no subes foto, puedes escribir directamente..."
-                    value={texto} 
-                    onChange={(e) => setTexto(e.target.value)}
-                    className="w-full h-32 bg-zinc-950 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 focus:border-[#c5a572] font-mono resize-none"
-                  />
-                </div>
-
-                <Button onClick={guardarMolde} className="w-full bg-[#c5a572] hover:bg-[#b08d5b] text-black font-bold h-12 rounded-lg shadow-md">
-                  <Save className="w-5 h-5 mr-2" /> Guardar Molde en esta Carpeta
-                </Button>
-              </div>
-
-              {/* LISTA DE MOLDES GUARDADOS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {moldes.map(m => (
-                  <div key={m.id} className="card-glass p-4 rounded-2xl border border-white/5 flex flex-col gap-3 shadow-sm hover:border-[#c5a572]/30 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <span className="bg-[#c5a572]/10 text-[#c5a572] font-bold text-lg px-3 py-1 rounded-lg border border-[#c5a572]/20">
-                        {m.numero}
-                      </span>
-                    </div>
-                    <p className="text-sm text-zinc-300 whitespace-pre-wrap line-clamp-4 font-mono">
-                      {m.texto}
-                    </p>
-                  </div>
-                ))}
-                {moldes.length === 0 && (
-                  <div className="col-span-full text-zinc-500 text-center py-12 bg-zinc-900/30 rounded-2xl border border-dashed border-zinc-800">
-                    Esta carpeta está vacía. ¡Sube una foto o escribe un molde arriba!
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-zinc-500 card-glass rounded-3xl border border-white/10">
-              <BookOpen className="w-16 h-16 mb-4 opacity-20" />
-              <p className="text-lg">Selecciona una carpeta de la izquierda o crea una nueva para empezar.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {toast && <div style={styles.toast(toast.type)}>{toast.msg}</div>}
     </div>
   );
 }
