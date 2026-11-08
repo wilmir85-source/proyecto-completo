@@ -19,3 +19,4 @@ google-genai
 Pillow
 openai
 mistralai
+reportlab
