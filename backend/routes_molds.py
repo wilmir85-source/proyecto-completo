@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional
 import os
-from openai import OpenAI # <-- Usamos OpenAI, no Mistral
+from openai import OpenAI
 from core import db, current_user, now_iso, new_id, put_object, logger
 from dotenv import load_dotenv
 
@@ -34,15 +34,15 @@ async def get_libraries(user=Depends(current_user)):
         lib["total_moldes"] = await db.molds.count_documents({"library_id": lib["id"]})
     return librerias
 
-# --- RUTA DE MOLDES (OCR CON ZHIPU) ---
+# --- RUTA DE MOLDES (OCR CON ZHIPU AI) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
         API_KEY = os.getenv("ZAI_API_KEY")
         if not API_KEY:
-            raise HTTPException(500, "No se encontró la ZAI_API_KEY")
+            raise HTTPException(500, "No se encontró la ZAI_API_KEY en las variables de entorno")
 
-        # 1. Subir la foto a Cloudinary PRIMERO para obtener la URL
+        # 1. Subir la foto a Cloudinary PRIMERO para obtener la URL pública
         data = await file.read()
         path = f"jarvis-joyeria/molds/{new_id()}.jpg"
         result = put_object(path, data, "image/jpeg")
@@ -63,9 +63,9 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         3. Devuelve solo el texto limpio y organizado, sin explicaciones adicionales.
         """
 
-        # 3. Llamar al modelo gratuito de visión
+        # 3. Llamar al modelo gratuito de visión (ACTUALIZADO A LA VERSIÓN MÁS RECIENTE)
         response = client.chat.completions.create(
-            model="glm-4v-flash", 
+            model="glm-4.6v-flash", 
             messages=[
                 {"role": "user", "content": [
                     {"type": "text", "text": prompt},
@@ -104,8 +104,12 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
 @router.get("/molds")
 async def get_molds(search: Optional[str] = None, library_id: Optional[str] = None, user=Depends(current_user)):
     query = {}
-    if library_id: query["library_id"] = library_id
+    if library_id: 
+        query["library_id"] = library_id
     if search:
-        query["$or"] = [{"nombre": {"$regex": search, "$options": "i"}}, {"texto": {"$regex": search, "$options": "i"}}]
+        query["$or"] = [
+            {"nombre": {"$regex": search, "$options": "i"}}, 
+            {"texto": {"$regex": search, "$options": "i"}}
+        ]
     moldes = await db.molds.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return moldes
