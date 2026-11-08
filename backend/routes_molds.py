@@ -6,7 +6,6 @@ import asyncio
 import base64
 import io
 from google import genai
-from google.genai import errors as genai_errors
 from PIL import Image
 from mistralai.client import Mistral
 from core import db, current_user, now_iso, new_id, put_object, logger
@@ -16,13 +15,42 @@ load_dotenv()
 
 router = APIRouter(prefix="/api")
 
+# Modelos de datos
+class LibraryIn(BaseModel):
+    nombre: str
+
 class MoldeIn(BaseModel):
     nombre: str
     texto: str
     foto_url: str
-    coleccion: Optional[str] = "General" # <-- NUEVO CAMPO PARA LAS CARPETAS
+    library_id: Optional[str] = None # <-- Para guardar en qué carpeta va
 
-# --- 1. RUTA PARA LEER LA FOTO (GEMINI -> FALLBACK MISTRAL) ---
+# --- 1. RUTAS DE COLECCIONES (CARPETAS) ---
+@router.get("/libraries")
+async def get_libraries(user=Depends(current_user)):
+    librerias = await db.libraries.find({}, {"_id": 0}).to_list(100)
+    
+    # Contamos cuántos moldes hay en cada librería
+    for lib in librerias:
+        count = await db.molds.count_documents({"library_id": lib["id"]})
+        lib["total_moldes"] = count
+        
+    return librerias
+
+@router.post("/libraries")
+async def create_library(payload: LibraryIn, user=Depends(current_user)):
+    lib = {
+        "id": new_id(),
+        "nombre": payload.nombre,
+        "creado_por": user["name"],
+        "created_at": now_iso()
+    }
+    await db.libraries.insert_one(lib)
+    lib.pop("_id", None)
+    lib["total_moldes"] = 0
+    return lib
+
+# --- 2. RUTA PARA LEER LA FOTO (GEMINI -> FALLBACK MISTRAL) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     data = await file.read()
@@ -55,26 +83,24 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
     except Exception as e:
         logger.warning(f"Gemini falló o está saturado: {e}. Intentando con Mistral...")
 
-    # --- INTENTO 2: MISTRAL (El respaldo a prueba de balas) ---
+    # --- INTENTO 2: MISTRAL (El respaldo) ---
     if not texto_extraido:
         try:
             API_KEY_MISTRAL = os.getenv("MISTRAL_API_KEY")
-            if not API_KEY_MISTRAL:
-                raise HTTPException(500, "Falta llave de Mistral y Gemini falló")
+            if API_KEY_MISTRAL:
+                client_mistral = Mistral(api_key=API_KEY_MISTRAL)
+                image_b64 = base64.b64encode(data).decode("utf-8")
+                image_url = f"data:image/jpeg;base64,{image_b64}"
                 
-            client_mistral = Mistral(api_key=API_KEY_MISTRAL)
-            image_b64 = base64.b64encode(data).decode("utf-8")
-            image_url = f"data:image/jpeg;base64,{image_b64}"
-            
-            response = client_mistral.ocr.process(
-                model="mistral-ocr-latest",
-                document={"type": "document_url", "document_url": image_url}
-            )
-            texto_extraido = "\n".join([page.markdown for page in response.pages])
-            logger.info("✅ Leído con Mistral (Respaldo)")
+                response = client_mistral.ocr.process(
+                    model="mistral-ocr-latest",
+                    document={"type": "document_url", "document_url": image_url}
+                )
+                texto_extraido = "\n".join([page.markdown for page in response.pages])
+                logger.info("✅ Leído con Mistral (Respaldo)")
         except Exception as e:
             logger.error(f"Error en ambos motores: {e}")
-            raise HTTPException(500, "No se pudo leer la imagen. Intenta de nuevo.")
+            raise HTTPException(500, "No se pudo leer la imagen.")
 
     # --- SUBIR FOTO A CLOUDINARY ---
     try:
@@ -91,7 +117,7 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         logger.error(f"Error subiendo foto: {e}")
         raise HTTPException(500, "Error al guardar la foto")
 
-# --- 2. RUTA PARA GUARDAR EL MOLDE ---
+# --- 3. RUTA PARA GUARDAR EL MOLDE (AHORA CON CARPETA) ---
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = {
@@ -99,7 +125,7 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
         "nombre": payload.nombre,
         "texto": payload.texto,
         "foto_url": payload.foto_url,
-        "coleccion": payload.coleccion, # <-- Guardamos la colección
+        "library_id": payload.library_id, # <-- Guardamos la carpeta
         "creado_por": user["name"],
         "created_at": now_iso()
     }
@@ -107,14 +133,13 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde.pop("_id", None)
     return {"ok": True, "molde": molde}
 
-# --- 3. RUTA PARA BUSCAR MOLDES ---
+# --- 4. RUTA PARA BUSCAR MOLDES EN UNA CARPETA ---
 @router.get("/molds")
-async def get_molds(search: Optional[str] = None, coleccion: Optional[str] = None, user=Depends(current_user)):
+async def get_molds(search: Optional[str] = None, library_id: Optional[str] = None, user=Depends(current_user)):
     query = {}
     
-    # Si la pantalla pide una colección específica, filtramos por ella
-    if coleccion:
-        query["coleccion"] = coleccion
+    if library_id:
+        query["library_id"] = library_id
         
     if search:
         query["$or"] = [
