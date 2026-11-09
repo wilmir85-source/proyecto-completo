@@ -20,48 +20,50 @@ router = APIRouter(prefix="/api")
 class LibreriaIn(BaseModel):
     nombre: str
 
+# --- NUEVO MODELO CON CAMPOS SEPARADOS ---
 class MoldeIn(BaseModel):
     libreria_id: str
     numero: str
-    texto: str
-    tipo_joya: Optional[str] = None
-    diseno_carrera: Optional[str] = None
-    medida: Optional[str] = None
-    numero_molde: Optional[str] = None
-    notas_adicionales: Optional[str] = None
+    tipo: Optional[str] = ""
+    carrera: Optional[str] = ""
+    medida: Optional[str] = ""
+    notas: Optional[str] = ""
+    texto: Optional[str] = "" # Se mantiene para compatibilidad con OCR
 
 class MoldeUpdate(BaseModel):
     numero: Optional[str] = None
-    texto: Optional[str] = None
-    tipo_joya: Optional[str] = None
-    diseno_carrera: Optional[str] = None
+    tipo: Optional[str] = None
+    carrera: Optional[str] = None
     medida: Optional[str] = None
-    numero_molde: Optional[str] = None
-    notas_adicionales: Optional[str] = None
+    notas: Optional[str] = None
+    texto: Optional[str] = None
 
 class DatosMolde(BaseModel):
-    tipo_joya: str
-    diseno_carrera: str
+    tipo: str
+    carrera: str
     medida: str
-    numero_molde: str
-    notas_adicionales: str
+    numero: str
+    notas: str
 
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
         API_KEY = os.getenv("GEMINI_API_KEY")
         if not API_KEY:
-            raise HTTPException(500, "GEMINI_API_KEY no está configurada.")
+            raise HTTPException(500, "GEMINI_API_KEY no configurada.")
+        
         client = genai.Client(api_key=API_KEY)
         data = await file.read()
+
         with Image.open(io.BytesIO(data)) as imagen:
             if imagen.mode != "RGB":
                 imagen = imagen.convert("RGB")
 
             prompt = (
                 "Analiza la imagen del molde de joyería. Extrae los datos de manera precisa. "
-                "Si algún campo no aparece en la imagen, asigna una cadena vacía."
+                "Si algún campo no aparece, asigna una cadena vacía."
             )
+
             response = await asyncio.to_thread(
                 client.models.generate_content,
                 model="gemini-3.8-flash",
@@ -89,21 +91,18 @@ async def get_libraries(user=Depends(current_user)):
 
 @router.put("/libraries/{libreria_id}")
 async def update_library(libreria_id: str, payload: LibreriaIn, user=Depends(current_user)):
-    existing = await db.libraries.find_one({"id": libreria_id})
-    if not existing: raise HTTPException(404, "Carpeta no encontrada")
     await db.libraries.update_one({"id": libreria_id}, {"$set": {"nombre": payload.nombre}})
     return await db.libraries.find_one({"id": libreria_id}, {"_id": 0})
 
 @router.delete("/libraries/{libreria_id}")
 async def delete_library(libreria_id: str, user=Depends(current_user)):
-    result = await db.libraries.delete_one({"id": libreria_id})
-    if result.deleted_count == 0: raise HTTPException(404, "Carpeta no encontrada")
+    await db.libraries.delete_one({"id": libreria_id})
     await db.molds.delete_many({"libreria_id": libreria_id})
     return {"ok": True}
 
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
-    molde = payload.model_dump(exclude_none=True)
+    molde = payload.model_dump()
     molde["id"] = new_id()
     molde["creado_por"] = user["name"]
     molde["created_at"] = now_iso()
@@ -113,8 +112,6 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
 
 @router.put("/molds/{molde_id}")
 async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
-    existing = await db.molds.find_one({"id": molde_id})
-    if not existing: raise HTTPException(404, "Molde no encontrado")
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     if updates:
         await db.molds.update_one({"id": molde_id}, {"$set": updates})
@@ -122,8 +119,7 @@ async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_
 
 @router.delete("/molds/{molde_id}")
 async def delete_mold(molde_id: str, user=Depends(current_user)):
-    result = await db.molds.delete_one({"id": molde_id})
-    if result.deleted_count == 0: raise HTTPException(404, "Molde no encontrado")
+    await db.molds.delete_one({"id": molde_id})
     return {"ok": True}
 
 @router.get("/libraries/{libreria_id}/molds")
@@ -132,12 +128,15 @@ async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
 
 @router.get("/molds/search")
 async def search_molds(q: str, user=Depends(current_user)):
-    if not q: return []
+    if not q:
+        return []
     query = {
         "$or": [
             {"numero": {"$regex": q, "$options": "i"}},
-            {"texto": {"$regex": q, "$options": "i"}},
-            {"diseno_carrera": {"$regex": q, "$options": "i"}},
+            {"tipo": {"$regex": q, "$options": "i"}},
+            {"carrera": {"$regex": q, "$options": "i"}},
+            {"medida": {"$regex": q, "$options": "i"}},
+            {"notas": {"$regex": q, "$options": "i"}},
         ]
     }
     resultados = await db.molds.find(query, {"_id": 0}).to_list(200)
@@ -145,3 +144,20 @@ async def search_molds(q: str, user=Depends(current_user)):
         lib = await db.libraries.find_one({"id": r["libreria_id"]})
         r["nombre_libreria"] = lib["nombre"] if lib else "Sin Carpeta"
     return resultados
+
+@router.get("/molds/{molde_id}/pdf")
+async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
+    molde = await db.molds.find_one({"id": molde_id})
+    if not molde:
+        raise HTTPException(404, "Molde no encontrado")
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = [Paragraph(f"Molde: {molde.get('numero')}", styles["Heading1"]), Spacer(1, 12)]
+    for key, val in molde.items():
+        if val and key not in ["_id", "id", "libreria_id", "creado_por", "created_at", "texto"]:
+            elements.append(Paragraph(f"<b>{key.capitalize()}:</b> {val}", styles["Normal"]))
+            elements.append(Spacer(1, 6))
+    doc.build(elements)
+    buffer.seek(0)
+    return Response(content=buffer.read(), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Molde_{molde.get('numero')}.pdf"})
