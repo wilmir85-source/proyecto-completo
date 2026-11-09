@@ -6,6 +6,7 @@ export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
   const [selectedLib, setSelectedLib] = useState(null); 
   const [molds, setMolds] = useState([]);
+  const [globalResults, setGlobalResults] = useState([]); // Para el buscador global
   const [search, setSearch] = useState("");
   
   const [newLibName, setNewLibName] = useState("");
@@ -41,7 +42,24 @@ export default function Moldes() {
     }
   }, [selectedLib]);
 
-  useEffect(() => { loadMolds(); }, [loadMolds]);
+  useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
+
+  // --- BUSCADOR GLOBAL ---
+  useEffect(() => {
+    if (!selectedLib && search.trim() !== "") {
+      const delay = setTimeout(async () => {
+        try {
+          const r = await api.get(`/molds/search?q=${search}`);
+          setGlobalResults(r.data);
+        } catch (error) {
+          console.error("Error búsqueda global");
+        }
+      }, 500);
+      return () => clearTimeout(delay);
+    } else {
+      setGlobalResults([]);
+    }
+  }, [search, selectedLib]);
 
   const handleSaveLibrary = async () => {
     if (!newLibName.trim()) return toast.error("Escribe un nombre");
@@ -62,7 +80,7 @@ export default function Moldes() {
 
   const handleDeleteLibrary = async (e, lib) => {
     e.stopPropagation();
-    if (!window.confirm(`¿Borrar la carpeta "${lib.nombre}"? Todos los moldes se perderán.`)) return;
+    if (!window.confirm(`¿Borrar la carpeta "${lib.nombre}" y todos sus moldes?`)) return;
     try {
       await api.delete(`/libraries/${lib.id}`);
       toast.success("Carpeta eliminada");
@@ -86,9 +104,9 @@ export default function Moldes() {
       formData.append("file", file);
       const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
       
+      // Soporta el backend nuevo (JSON) y el viejo (texto plano)
       if (r.data?.datos) {
         const d = r.data.datos;
-        // Aquí formateamos los datos de la IA en una lista limpia y fácil de leer
         const textoFormateado = [
           `• Tipo: ${d.tipo_joya || "-"}`,
           `• Carrera/Diseño: ${d.diseno_carrera || "-"}`,
@@ -96,11 +114,12 @@ export default function Moldes() {
           `• N° Molde: ${d.numero_molde || "-"}`,
           d.notas_adicionales ? `• Notas: ${d.notas_adicionales}` : null
         ].filter(Boolean).join("\n");
-
         setTexto(textoFormateado);
         if (d.numero_molde) setNumero(d.numero_molde);
-        toast.success("Datos extraídos. Puedes editarlos antes de guardar.");
+      } else if (r.data?.texto) {
+        setTexto(r.data.texto);
       }
+      toast.success("Datos extraídos. Revisa y edita si es necesario.");
     } catch (error) {
       toast.error("Error al escanear imagen");
     } finally {
@@ -114,12 +133,14 @@ export default function Moldes() {
     try {
       if (editing) {
         await api.put(`/molds/${editing.id}`, { numero, texto });
+        toast.success("Molde actualizado");
       } else {
+        if (!selectedLib) throw new Error("No hay carpeta seleccionada");
         await api.post("/molds", { libreria_id: selectedLib.id, numero, texto });
+        toast.success(`Molde guardado en ${selectedLib.nombre}`);
       }
       await loadMolds();
       setModalOpen(false);
-      toast.success("Molde guardado en la base de datos");
     } catch (error) {
       toast.error("Error al guardar");
     } finally {
@@ -127,17 +148,22 @@ export default function Moldes() {
     }
   };
 
-  const handleDeleteMold = async (id) => {
+  const handleDeleteMold = async (id, isGlobal = false) => {
     if (!window.confirm("¿Borrar este molde?")) return;
     try {
       await api.delete(`/molds/${id}`);
-      await loadMolds();
+      if (isGlobal) {
+        setGlobalResults(globalResults.filter(m => m.id !== id));
+      } else {
+        await loadMolds();
+      }
       toast.success("Molde borrado");
     } catch (error) {
       toast.error("Error al borrar");
     }
   };
 
+  // Filtros locales
   const filteredLibs = useMemo(() => {
     const q = search.toLowerCase();
     return libraries.filter((l) => (l.nombre || "").toLowerCase().includes(q));
@@ -183,12 +209,12 @@ export default function Moldes() {
     <div style={s.page}>
       <div style={s.header}>
         <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-        <p style={s.subtitle}>{selectedLib ? "Toca un molde para leerlo o editarlo" : "Organiza tus moldes por carpetas"}</p>
+        <p style={s.subtitle}>{selectedLib ? "Toca un molde para leerlo o editarlo" : "Organiza tus moldes por carpetas o busca en todo"}</p>
       </div>
 
       <input 
         style={s.searchBar} 
-        placeholder={selectedLib ? "Buscar por número o texto..." : "Buscar carpeta..."} 
+        placeholder={selectedLib ? "Buscar en esta colección..." : "Buscar molde en TODAS las carpetas..."} 
         value={search} 
         onChange={(e) => setSearch(e.target.value)} 
       />
@@ -202,45 +228,58 @@ export default function Moldes() {
         </button>
       )}
 
+      {/* VISTA 1: CARPETAS O BÚSQUEDA GLOBAL */}
       {!selectedLib && (
         <>
-          {!showNewLib ? (
-            <button style={s.btnAddLib} onClick={() => { setEditingLib(null); setNewLibName(""); setShowNewLib(true); }}>+ Nueva Colección</button>
-          ) : (
-            <div style={{ marginBottom: "20px" }}>
-              <input 
-                autoFocus
-                style={s.inputNewLib} 
-                placeholder="Ej. Anillos, Dijes..." 
-                value={newLibName} 
-                onChange={(e) => setNewLibName(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveLibrary()}
-              />
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button style={{ ...s.btnIcon, background: "#d4af37", color: "#000", padding: "12px" }} onClick={handleSaveLibrary}>
-                  {editingLib ? "Actualizar" : "Guardar"}
-                </button>
-                <button style={{ ...s.btnIcon, padding: "12px" }} onClick={() => { setShowNewLib(false); setEditingLib(null); setNewLibName(""); }}>Cancelar</button>
+          {search.trim() === "" ? (
+            // Mostrar carpetas
+            <>
+              {!showNewLib ? (
+                <button style={s.btnAddLib} onClick={() => { setEditingLib(null); setNewLibName(""); setShowNewLib(true); }}>+ Nueva Colección</button>
+              ) : (
+                <div style={{ marginBottom: "20px" }}>
+                  <input autoFocus style={s.inputNewLib} placeholder="Nombre de la carpeta..." value={newLibName} onChange={(e) => setNewLibName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSaveLibrary()} />
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button style={{ ...s.btnIcon, background: "#d4af37", color: "#000", padding: "12px" }} onClick={handleSaveLibrary}>{editingLib ? "Actualizar" : "Guardar"}</button>
+                    <button style={{ ...s.btnIcon, padding: "12px" }} onClick={() => { setShowNewLib(false); setEditingLib(null); setNewLibName(""); }}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              <div style={s.grid}>
+                {filteredLibs.map((lib) => (
+                  <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
+                    <div style={s.folderIcon}>📁</div>
+                    <div style={{ fontWeight: "bold", color: "#eee", fontSize: "15px" }}>{lib.nombre}</div>
+                    <div style={s.folderActions}>
+                      <button onClick={(e) => handleEditLibrary(e, lib)} style={{ background: "none", border: "none", color: "#d4af37", cursor: "pointer", fontSize: "14px" }}>✏️</button>
+                      <button onClick={(e) => handleDeleteLibrary(e, lib)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "14px" }}>🗑️</button>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </>
+          ) : (
+            // Mostrar resultados de búsqueda global
+            <div style={s.grid}>
+              {globalResults.map((molde) => (
+                <div key={molde.id} style={s.moldCard}>
+                  <div style={s.moldNum}>{molde.numero}</div>
+                  <div style={{ fontSize: "11px", color: "#d4af37", marginBottom: "5px" }}>📁 {molde.nombre_libreria}</div>
+                  <div style={s.moldText}>{molde.texto || "Sin texto"}</div>
+                  <div style={s.moldActions}>
+                    <button style={s.btnIcon} onClick={() => { setEditing(molde); setNumero(molde.numero || ""); setTexto(molde.texto || ""); setModalOpen(true); }}>✏️ Editar</button>
+                    <button style={s.btnDanger} onClick={() => handleDeleteMold(molde.id, true)}>🗑️</button>
+                  </div>
+                </div>
+              ))}
+              {globalResults.length === 0 && <p style={{ color: "#666" }}>No se encontraron moldes con esa búsqueda.</p>}
             </div>
           )}
-
-          <div style={s.grid}>
-            {filteredLibs.map((lib) => (
-              <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
-                <div style={s.folderIcon}>📁</div>
-                <div style={{ fontWeight: "bold", color: "#eee", fontSize: "15px" }}>{lib.nombre}</div>
-                <div style={s.folderActions}>
-                  <button onClick={(e) => handleEditLibrary(e, lib)} style={{ background: "none", border: "none", color: "#d4af37", cursor: "pointer", fontSize: "14px" }} title="Editar carpeta">✏️</button>
-                  <button onClick={(e) => handleDeleteLibrary(e, lib)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "14px" }} title="Eliminar carpeta">🗑️</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {filteredLibs.length === 0 && <p style={{ color: "#666", textAlign: "center", marginTop: "30px" }}>No hay colecciones aquí.</p>}
         </>
       )}
 
+      {/* VISTA 2: MOLDES DENTRO DE UNA CARPETA */}
       {selectedLib && (
         <>
           <div style={s.grid}>
@@ -263,6 +302,7 @@ export default function Moldes() {
         <button style={s.fab} onClick={() => { setEditing(null); setNumero(""); setTexto(""); setModalOpen(true); }}>+</button>
       )}
 
+      {/* MODAL DE MOLDE */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
@@ -281,13 +321,7 @@ export default function Moldes() {
             <input style={s.input} placeholder="Ej. 45, Perito 8x6..." value={numero} onChange={(e) => setNumero(e.target.value)} />
 
             <label style={s.label}>TEXTO (EDITABLE)</label>
-            {/* AQUI ESTA EL CUADRO DE TEXTO QUE TU PUEDES EDITAR ANTES DE GUARDAR */}
-            <textarea 
-              style={s.textarea} 
-              placeholder="El texto aparecerá aquí. Puedes corregirlo si es necesario..." 
-              value={texto} 
-              onChange={(e) => setTexto(e.target.value)} 
-            />
+            <textarea style={s.textarea} placeholder="El texto aparecerá aquí..." value={texto} onChange={(e) => setTexto(e.target.value)} />
 
             <button style={s.btnSave} onClick={handleSaveMold} disabled={saving || scanning}>
               {saving ? "Guardando..." : "💾 Guardar en Base de Datos"}
