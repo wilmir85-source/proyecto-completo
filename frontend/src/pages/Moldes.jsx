@@ -18,7 +18,6 @@ export default function Moldes() {
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
 
-  // --- CARGA DE DATOS ---
   const loadLibraries = useCallback(async () => {
     try {
       const r = await api.get("/libraries");
@@ -38,7 +37,6 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- MANEJO DEL MODAL ---
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
@@ -57,16 +55,13 @@ export default function Moldes() {
     setModalOpen(true);
   };
 
-  // --- SIMULACIÓN DE PROGRESO ---
+  // Barra de progreso simulada
   useEffect(() => {
     let interval;
     if (scanning) {
       setProgress(0);
       interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 95) return prev; // Se queda en 95% hasta que termine
-          return prev + Math.floor(Math.random() * 10) + 1;
-        });
+        setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 10) + 1));
       }, 300);
     } else {
       setProgress(100);
@@ -125,7 +120,17 @@ export default function Moldes() {
     } catch { toast.error("Error al borrar"); }
   };
 
-  // --- EXPORTAR A PDF ---
+  // Edición en línea: guarda el cambio de una celda al presionar Enter
+  const handleInlineEdit = async (id, field, value) => {
+    try {
+      await api.put(`/molds/${id}`, { [field]: value });
+      setMolds(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
+      toast.success("Cambio guardado", { duration: 1000 });
+    } catch {
+      toast.error("Error al guardar el cambio");
+    }
+  };
+
   const exportToPDF = () => {
     if (!selectedLib) return;
     const doc = new jsPDF();
@@ -135,13 +140,13 @@ export default function Moldes() {
       head: [['N° Molde', 'Tipo', 'Carrera / Diseño', 'Medida', 'Notas']],
       body: tableData,
       startY: 22,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles: { 2: { cellWidth: 60 } } // más ancho para la carrera
     });
     doc.save(`Moldes_${selectedLib.nombre}.pdf`);
     toast.success("PDF descargado");
   };
 
-  // --- FILTRO DE BÚSQUEDA ---
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
     return molds.filter(m => 
@@ -152,20 +157,22 @@ export default function Moldes() {
     );
   }, [molds, search]);
 
-  // --- ESTILOS ---
+  // --- ESTILOS MEJORADOS ---
   const s = {
     page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
     title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
     searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #333", background: "#151515", color: "#fff", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
     btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
     btnSecondary: { background: "#222", color: "#fff", border: "1px solid #444", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
+    
+    // Tabla más legible
     tableWrapper: { overflowX: "auto", background: "#111", borderRadius: "12px", border: "1px solid #333" },
-    table: { width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "600px" },
-    th: { padding: "15px", borderBottom: "1px solid #333", color: "#d4af37", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px" },
-    td: { padding: "15px", borderBottom: "1px solid #222", fontSize: "14px", color: "#ddd" },
-    badge: { background: "#333", padding: "4px 8px", borderRadius: "4px", fontSize: "13px", color: "#d4af37", fontWeight: "bold" },
-    actionBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "18px", marginRight: "10px" },
-    // MODAL RESPONSIVE (pantalla completa en móvil)
+    table: { width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "700px" },
+    th: { padding: "12px 10px", borderBottom: "1px solid #333", color: "#d4af37", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" },
+    td: { padding: "10px", borderBottom: "1px solid #222", fontSize: "14px", color: "#ddd", verticalAlign: "top" },
+    editableCell: { cursor: "pointer", padding: "8px", borderRadius: "4px", "&:hover": { background: "#222" } },
+    
+    // Modal tipo ficha técnica
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
     modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "700px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
     label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "15px", fontWeight: "bold" },
@@ -176,8 +183,11 @@ export default function Moldes() {
     btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: scanning ? "wait" : "pointer", marginBottom: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "10px", transition: "0.3s" },
     progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "10px", overflow: "hidden" },
     progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
-    // EDICIÓN EN LÍNEA
-    editableCell: { cursor: "pointer", padding: "8px", borderRadius: "4px", "&:hover": { background: "#222" } },
+    
+    // Ficha técnica (Description List)
+    dl: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 15px", margin: "10px 0", alignItems: "start" },
+    dt: { color: "#d4af37", fontWeight: "bold", fontSize: "13px", textAlign: "right", paddingTop: "12px" },
+    dd: { margin: 0, fontSize: "15px", color: "#fff" },
   };
 
   return (
@@ -192,7 +202,7 @@ export default function Moldes() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Listado de moldes (Toca una fila para editar)" : "Selecciona una carpeta"}</p>
+          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Listado de moldes (Toca una celda para editar)" : "Selecciona una carpeta"}</p>
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
@@ -234,7 +244,7 @@ export default function Moldes() {
           <table style={s.table}>
             <thead>
               <tr>
-                <th style={s.th}>N° Molde</th>
+                <th style={s.th}>N°</th>
                 <th style={s.th}>Tipo</th>
                 <th style={s.th}>Carrera / Diseño</th>
                 <th style={s.th}>Medida</th>
@@ -244,24 +254,36 @@ export default function Moldes() {
             </thead>
             <tbody>
               {filteredMolds.map((m) => (
-                <tr key={m.id} style={s.tr} onClick={() => openEditModal(m)}>
-                  <td style={s.td}><span style={s.badge}>{m.numero}</span></td>
-                  <td style={s.td}>{m.tipo || "-"}</td>
-                  <td style={s.td}>{m.carrera || "-"}</td>
-                  <td style={s.td}>{m.medida || "-"}</td>
-                  <td style={s.td}>{m.notas || "-"}</td>
+                <tr key={m.id} style={s.tr}>
+                  {/* Celdas editables */}
+                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'numero', e.target.innerText)}>
+                    <span style={{ background: "#333", padding: "4px 8px", borderRadius: "4px", fontSize: "13px", color: "#d4af37", fontWeight: "bold" }}>{m.numero}</span>
+                  </td>
+                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'tipo', e.target.innerText)}>
+                    {m.tipo || "-"}
+                  </td>
+                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'carrera', e.target.innerText)}>
+                    {m.carrera || "-"}
+                  </td>
+                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'medida', e.target.innerText)}>
+                    {m.medida || "-"}
+                  </td>
+                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'notas', e.target.innerText)}>
+                    {m.notas || "-"}
+                  </td>
                   <td style={s.td}>
-                    <button style={s.actionBtn} onClick={(e) => { e.stopPropagation(); openEditModal(m); }}>✏️</button>
-                    <button style={s.actionBtn} onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>🗑️</button>
+                    <button style={s.actionBtn} onClick={() => openEditModal(m)}>✏️</button>
+                    <button style={s.actionBtn} onClick={() => handleDelete(m.id)}>🗑️</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo con el botón de arriba.</p>}
+          {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo.</p>}
         </div>
       )}
 
+      {/* MODAL CON FICHA TÉCNICA (Description List) */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
@@ -270,12 +292,7 @@ export default function Moldes() {
             {!editing && (
               <div style={s.btnScan} onClick={() => !scanning && fileInputRef.current?.click()}>
                 {scanning ? (
-                  <>
-                    <span className="spinner">⏳</span> Procesando imagen...
-                    <div style={s.progressBar}>
-                      <div style={s.progressFill}></div>
-                    </div>
-                  </>
+                  <><span className="spinner">⏳</span> Procesando imagen...<div style={s.progressBar}><div style={s.progressFill}></div></div></>
                 ) : (
                   <>📷 Escanear Foto (Opcional)</>
                 )}
@@ -284,30 +301,33 @@ export default function Moldes() {
             )}
 
             <form onSubmit={handleSave}>
-              <div style={s.row}>
-                <div style={s.col}>
-                  <label style={s.label}>Número de Molde</label>
+              {/* Ficha técnica con Description List */}
+              <dl style={s.dl}>
+                <dt style={s.dt}>N° Molde</dt>
+                <dd style={s.dd}>
                   <input style={s.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
-                </div>
-                <div style={s.col}>
-                  <label style={s.label}>Tipo de Joya</label>
+                </dd>
+
+                <dt style={s.dt}>Tipo</dt>
+                <dd style={s.dd}>
                   <input style={s.input} placeholder="Ej. Anillo, Dije..." value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} />
-                </div>
-              </div>
+                </dd>
 
-              <label style={s.label}>Carrera / Diseño</label>
-              <textarea style={s.textarea} placeholder="Ej. Perito Contador Octagonal..." value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
+                <dt style={s.dt}>Carrera / Diseño</dt>
+                <dd style={s.dd}>
+                  <textarea style={s.textarea} placeholder="Ej. Perito Contador Octagonal..." value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
+                </dd>
 
-              <div style={s.row}>
-                <div style={s.col}>
-                  <label style={s.label}>Medida</label>
+                <dt style={s.dt}>Medida</dt>
+                <dd style={s.dd}>
                   <input style={s.input} placeholder="Ej. 10x8" value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} />
-                </div>
-                <div style={s.col}>
-                  <label style={s.label}>Notas Adicionales</label>
+                </dd>
+
+                <dt style={s.dt}>Notas</dt>
+                <dd style={s.dd}>
                   <input style={s.input} placeholder="Ej. Nombre del cliente..." value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
-                </div>
-              </div>
+                </dd>
+              </dl>
 
               <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
                 <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || scanning}>
