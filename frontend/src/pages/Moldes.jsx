@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 
-// Detecta si estás en tu compu o en Railway
+// Conecta con tu backend en Railway o en tu compu
 const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
   ? "http://localhost:8000" 
   : "https://proyecto-completo-production-71ce.up.railway.app";
@@ -39,18 +38,19 @@ export default function Moldes() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const loadLibraries = async () => {
+  const loadLibraries = useCallback(async () => {
     try {
       const r = await api.get("/api/libraries");
       setLibraries(r.data);
     } catch (error) {
       showToast("Error al cargar carpetas", "error");
+      console.error("Error de conexión:", error);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadLibraries(); }, []);
+  useEffect(() => { loadLibraries(); }, [loadLibraries]);
 
-  const loadMolds = async () => {
+  const loadMolds = useCallback(async () => {
     if (!selectedLib) return;
     try {
       const r = await api.get(`/api/libraries/${selectedLib.id}/molds`);
@@ -58,9 +58,9 @@ export default function Moldes() {
     } catch (error) {
       showToast("Error al cargar moldes", "error");
     }
-  };
+  }, [selectedLib]);
 
-  useEffect(() => { loadMolds(); }, [selectedLib]);
+  useEffect(() => { loadMolds(); }, [loadMolds]);
 
   const handleCreateLibrary = async () => {
     if (!newLibName.trim()) return;
