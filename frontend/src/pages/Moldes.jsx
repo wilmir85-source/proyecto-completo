@@ -1,26 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import axios from "axios";
-
-// Conecta con tu backend en Railway o en tu compu
-const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-  ? "http://localhost:8000" 
-  : "https://proyecto-completo-production-71ce.up.railway.app";
-
-const api = axios.create({ baseURL: API });
-
-// AQUÍ ESTÁ LA MAGIA: Busca el token en cualquier cajón donde tu app lo guarde
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token") || 
-                localStorage.getItem("access_token") || 
-                localStorage.getItem("authToken") || 
-                localStorage.getItem("jwt") ||
-                sessionStorage.getItem("token");
-                
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { api } from "@/lib/api"; // <--- ¡LA MAGIA ESTÁ AQUÍ!
+import { toast } from "sonner";
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
@@ -39,20 +19,14 @@ export default function Moldes() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
-  const [toast, setToast] = useState(null);
-
-  const showToast = (msg, type = "info") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
+  // Ya no usamos showToast, usamos el toast de "sonner" de tu app
   const loadLibraries = useCallback(async () => {
     try {
-      const r = await api.get("/api/libraries");
+      const r = await api.get("/libraries"); // Sin /api porque "@/lib/api" ya lo tiene
       setLibraries(r.data);
     } catch (error) {
-      showToast("Error al cargar carpetas", "error");
-      console.error("Error de conexión:", error);
+      toast.error("Error al cargar carpetas");
+      console.error(error);
     }
   }, []);
 
@@ -61,10 +35,10 @@ export default function Moldes() {
   const loadMolds = useCallback(async () => {
     if (!selectedLib) return;
     try {
-      const r = await api.get(`/api/libraries/${selectedLib.id}/molds`);
+      const r = await api.get(`/libraries/${selectedLib.id}/molds`);
       setMolds(r.data);
     } catch (error) {
-      showToast("Error al cargar moldes", "error");
+      toast.error("Error al cargar moldes");
     }
   }, [selectedLib]);
 
@@ -73,13 +47,13 @@ export default function Moldes() {
   const handleCreateLibrary = async () => {
     if (!newLibName.trim()) return;
     try {
-      await api.post("/api/libraries", { nombre: newLibName });
+      await api.post("/libraries", { nombre: newLibName });
       setNewLibName("");
       setShowNewLib(false);
       await loadLibraries();
-      showToast("Carpeta creada", "success");
+      toast.success("Carpeta creada");
     } catch (error) {
-      showToast("Error al crear carpeta", "error");
+      toast.error("Error al crear carpeta");
     }
   };
 
@@ -112,35 +86,35 @@ export default function Moldes() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const r = await api.post("/api/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
       if (r.data?.texto) {
         setTexto(r.data.texto);
-        showToast("Texto extraído", "success");
+        toast.success("Texto extraído con éxito");
       }
     } catch (error) {
-      showToast("Error al escanear imagen", "error");
+      toast.error("Error al escanear imagen");
     } finally {
       setScanning(false);
     }
   };
 
   const handleSave = async () => {
-    if (!numero.trim()) return showToast("Escribe un número o nombre", "error");
+    if (!numero.trim()) return toast.error("Escribe un número o nombre");
     
     setSaving(true);
     try {
       if (editing) {
-        await api.put(`/api/molds/${editing.id}`, { numero, texto });
-        showToast("Molde actualizado", "success");
+        await api.put(`/molds/${editing.id}`, { numero, texto });
+        toast.success("Molde actualizado");
       } else {
         if (!selectedLib) throw new Error("No hay carpeta seleccionada");
-        await api.post("/api/molds", { libreria_id: selectedLib.id, numero, texto });
-        showToast("Molde guardado", "success");
+        await api.post("/molds", { libreria_id: selectedLib.id, numero, texto });
+        toast.success("Molde guardado");
       }
       await loadMolds();
       closeModal();
     } catch (error) {
-      showToast("Error al guardar", "error");
+      toast.error("Error al guardar");
     } finally {
       setSaving(false);
     }
@@ -149,11 +123,11 @@ export default function Moldes() {
   const handleDelete = async (id) => {
     if (!window.confirm("¿Seguro que quieres borrar este molde?")) return;
     try {
-      await api.delete(`/api/molds/${id}`);
+      await api.delete(`/molds/${id}`);
       await loadMolds();
-      showToast("Molde borrado", "success");
+      toast.success("Molde borrado");
     } catch (error) {
-      showToast("Error al borrar", "error");
+      toast.error("Error al borrar");
     }
   };
 
@@ -196,8 +170,7 @@ export default function Moldes() {
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "120px", boxSizing: "border-box", fontFamily: "inherit" },
     btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "2px dashed #d4af37", background: "rgba(212,175,55,0.1)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", marginTop: "15px", textAlign: "center" },
     btnSave: { width: "100%", padding: "15px", borderRadius: "8px", background: "#d4af37", color: "#000", fontWeight: "bold", border: "none", marginTop: "20px", cursor: "pointer" },
-    btnCancel: { width: "100%", padding: "15px", borderRadius: "8px", background: "transparent", color: "#888", border: "none", marginTop: "10px", cursor: "pointer" },
-    toast: { position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#d4af37", color: "#000", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", zIndex: 200, boxShadow: "0 4px 10px rgba(0,0,0,0.5)" }
+    btnCancel: { width: "100%", padding: "15px", borderRadius: "8px", background: "transparent", color: "#888", border: "none", marginTop: "10px", cursor: "pointer" }
   };
 
   return (
@@ -305,8 +278,6 @@ export default function Moldes() {
           </div>
         </div>
       )}
-
-      {toast && <div style={s.toast}>{toast.msg}</div>}
     </div>
   );
 }
