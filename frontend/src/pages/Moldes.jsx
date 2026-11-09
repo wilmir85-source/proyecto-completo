@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { api } from "@/lib/api"; // <--- Conexión a tu base de datos
+import { api } from "@/lib/api";
 import { toast } from "sonner";
 
 export default function Moldes() {
@@ -10,6 +10,7 @@ export default function Moldes() {
   
   const [newLibName, setNewLibName] = useState("");
   const [showNewLib, setShowNewLib] = useState(false);
+  const [editingLib, setEditingLib] = useState(null); 
   
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null); 
@@ -25,7 +26,6 @@ export default function Moldes() {
       setLibraries(r.data);
     } catch (error) {
       toast.error("Error al cargar carpetas");
-      console.error(error);
     }
   }, []);
 
@@ -43,39 +43,42 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [loadMolds]);
 
-  const handleCreateLibrary = async () => {
-    if (!newLibName.trim()) return;
+  const handleSaveLibrary = async () => {
+    if (!newLibName.trim()) return toast.error("Escribe un nombre");
     try {
-      await api.post("/libraries", { nombre: newLibName });
+      if (editingLib) {
+        await api.put(`/libraries/${editingLib.id}`, { nombre: newLibName });
+        toast.success("Carpeta actualizada");
+      } else {
+        await api.post("/libraries", { nombre: newLibName });
+        toast.success("Carpeta creada");
+      }
       setNewLibName("");
       setShowNewLib(false);
+      setEditingLib(null);
       await loadLibraries();
-      toast.success("Colección creada");
     } catch (error) {
-      toast.error("Error al crear colección");
+      toast.error("Error al guardar carpeta");
     }
   };
 
-  const openNewMoldModal = () => {
-    setEditing(null);
-    setNumero("");
-    setTexto("");
-    setModalOpen(true);
+  const handleDeleteLibrary = async (e, lib) => {
+    e.stopPropagation();
+    if (!window.confirm(`¿Borrar la carpeta "${lib.nombre}"? Todos los moldes dentro se perderán.`)) return;
+    try {
+      await api.delete(`/libraries/${lib.id}`);
+      toast.success("Carpeta eliminada");
+      await loadLibraries();
+    } catch (error) {
+      toast.error("Error al eliminar carpeta");
+    }
   };
 
-  const openEditMoldModal = (molde) => {
-    setEditing(molde);
-    setNumero(molde.numero || "");
-    setTexto(molde.texto || "");
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    if (saving || scanning) return;
-    setModalOpen(false);
-    setNumero("");
-    setTexto("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+  const handleEditLibrary = (e, lib) => {
+    e.stopPropagation();
+    setEditingLib(lib);
+    setNewLibName(lib.nombre);
+    setShowNewLib(true);
   };
 
   const handleFileChange = async (e) => {
@@ -88,30 +91,27 @@ export default function Moldes() {
       const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
       if (r.data?.texto) {
         setTexto(r.data.texto);
-        toast.success("Texto extraído con éxito");
+        toast.success("Texto extraído");
       }
     } catch (error) {
-      toast.error("Error al escanear imagen");
+      toast.error("Error al escanear");
     } finally {
       setScanning(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!numero.trim()) return toast.error("Escribe un número o nombre para identificarlo");
-    
+  const handleSaveMold = async () => {
+    if (!numero.trim()) return toast.error("Escribe un número o nombre");
     setSaving(true);
     try {
       if (editing) {
         await api.put(`/molds/${editing.id}`, { numero, texto });
-        toast.success("Molde actualizado");
       } else {
-        if (!selectedLib) throw new Error("No hay colección seleccionada");
         await api.post("/molds", { libreria_id: selectedLib.id, numero, texto });
-        toast.success("Molde guardado en la base de datos");
       }
       await loadMolds();
-      closeModal();
+      setModalOpen(false);
+      toast.success("Molde guardado");
     } catch (error) {
       toast.error("Error al guardar");
     } finally {
@@ -119,8 +119,8 @@ export default function Moldes() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Seguro que quieres borrar este molde de la base de datos?")) return;
+  const handleDeleteMold = async (id) => {
+    if (!window.confirm("¿Borrar este molde?")) return;
     try {
       await api.delete(`/molds/${id}`);
       await loadMolds();
@@ -130,19 +130,17 @@ export default function Moldes() {
     }
   };
 
+  const filteredLibs = useMemo(() => {
+    const q = search.toLowerCase();
+    return libraries.filter((l) => (l.nombre || "").toLowerCase().includes(q));
+  }, [libraries, search]);
+
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return molds;
     return molds.filter(
       (m) => (m.numero || "").toLowerCase().includes(q) || (m.texto || "").toLowerCase().includes(q)
     );
   }, [molds, search]);
-
-  const filteredLibs = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return libraries;
-    return libraries.filter((l) => (l.nombre || "").toLowerCase().includes(q));
-  }, [libraries, search]);
 
   const s = {
     page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
@@ -153,12 +151,12 @@ export default function Moldes() {
     btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "12px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold" },
     inputNewLib: { width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box" },
     grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" },
-    folderCard: { background: "linear-gradient(145deg, #1a1a1a, #111)", border: "1px solid #333", borderRadius: "12px", padding: "20px 15px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", transition: "0.2s" },
+    folderCard: { background: "linear-gradient(145deg, #1a1a1a, #111)", border: "1px solid #333", borderRadius: "12px", padding: "20px 15px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", position: "relative", transition: "0.2s" },
     folderIcon: { fontSize: "30px", marginBottom: "10px" },
+    folderActions: { position: "absolute", top: "8px", right: "8px", display: "flex", gap: "5px", opacity: 0.7 },
     moldCard: { background: "#151515", border: "1px solid #222", borderRadius: "12px", padding: "15px", display: "flex", flexDirection: "column" },
     moldNum: { color: "#d4af37", fontWeight: "bold", fontSize: "20px", fontFamily: "serif", marginBottom: "8px" },
-    // AQUI ESTA LA LETRA MAS GRANDE:
-    moldText: { color: "#ddd", fontSize: "14px", lineHeight: "1.4", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", marginBottom: "15px" },
+    moldText: { color: "#ddd", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", marginBottom: "15px", fontFamily: "monospace" },
     moldActions: { display: "flex", gap: "8px", marginTop: "auto" },
     btnIcon: { background: "#222", border: "none", color: "#fff", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "13px" },
     btnDanger: { background: "#3a1a1a", border: "none", color: "#f0b0b0", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "13px" },
@@ -167,7 +165,7 @@ export default function Moldes() {
     modal: { background: "#151515", padding: "25px 20px", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", borderTop: "1px solid #333", maxHeight: "90vh", overflowY: "auto" },
     label: { fontSize: "13px", color: "#aaa", marginBottom: "8px", display: "block", marginTop: "15px", fontWeight: "bold" },
     input: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "16px" },
-    textarea: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "180px", boxSizing: "border-box", fontFamily: "inherit", fontSize: "16px", lineHeight: "1.5" },
+    textarea: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "180px", boxSizing: "border-box", fontFamily: "monospace", fontSize: "15px", lineHeight: "1.6" },
     btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "2px dashed #d4af37", background: "rgba(212,175,55,0.1)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", marginTop: "15px", textAlign: "center" },
     btnSave: { width: "100%", padding: "16px", borderRadius: "8px", background: "#d4af37", color: "#000", fontWeight: "bold", border: "none", marginTop: "25px", cursor: "pointer", fontSize: "16px" },
     btnCancel: { width: "100%", padding: "16px", borderRadius: "8px", background: "transparent", color: "#888", border: "none", marginTop: "10px", cursor: "pointer", fontSize: "16px" }
@@ -199,7 +197,7 @@ export default function Moldes() {
       {!selectedLib && (
         <>
           {!showNewLib ? (
-            <button style={s.btnAddLib} onClick={() => setShowNewLib(true)}>+ Nueva Colección</button>
+            <button style={s.btnAddLib} onClick={() => { setEditingLib(null); setNewLibName(""); setShowNewLib(true); }}>+ Nueva Colección</button>
           ) : (
             <div style={{ marginBottom: "20px" }}>
               <input 
@@ -208,11 +206,13 @@ export default function Moldes() {
                 placeholder="Ej. Anillos, Dijes..." 
                 value={newLibName} 
                 onChange={(e) => setNewLibName(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateLibrary()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveLibrary()}
               />
               <div style={{ display: "flex", gap: "10px" }}>
-                <button style={{ ...s.btnIcon, background: "#d4af37", color: "#000", padding: "12px" }} onClick={handleCreateLibrary}>Guardar</button>
-                <button style={{ ...s.btnIcon, padding: "12px" }} onClick={() => setShowNewLib(false)}>Cancelar</button>
+                <button style={{ ...s.btnIcon, background: "#d4af37", color: "#000", padding: "12px" }} onClick={handleSaveLibrary}>
+                  {editingLib ? "Actualizar" : "Guardar"}
+                </button>
+                <button style={{ ...s.btnIcon, padding: "12px" }} onClick={() => { setShowNewLib(false); setEditingLib(null); setNewLibName(""); }}>Cancelar</button>
               </div>
             </div>
           )}
@@ -222,6 +222,10 @@ export default function Moldes() {
               <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
                 <div style={s.folderIcon}>📁</div>
                 <div style={{ fontWeight: "bold", color: "#eee", fontSize: "15px" }}>{lib.nombre}</div>
+                <div style={s.folderActions}>
+                  <button onClick={(e) => handleEditLibrary(e, lib)} style={{ background: "none", border: "none", color: "#d4af37", cursor: "pointer", fontSize: "14px" }} title="Editar carpeta">✏️</button>
+                  <button onClick={(e) => handleDeleteLibrary(e, lib)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "14px" }} title="Eliminar carpeta">🗑️</button>
+                </div>
               </div>
             ))}
           </div>
@@ -237,8 +241,8 @@ export default function Moldes() {
                 <div style={s.moldNum}>{molde.numero}</div>
                 <div style={s.moldText}>{molde.texto || "Sin texto"}</div>
                 <div style={s.moldActions}>
-                  <button style={s.btnIcon} onClick={() => openEditMoldModal(molde)}>✏️ Leer / Editar</button>
-                  <button style={s.btnDanger} onClick={() => handleDelete(molde.id)}>🗑️</button>
+                  <button style={s.btnIcon} onClick={() => { setEditing(molde); setNumero(molde.numero || ""); setTexto(molde.texto || ""); setModalOpen(true); }}>✏️ Leer / Editar</button>
+                  <button style={s.btnDanger} onClick={() => handleDeleteMold(molde.id)}>🗑️</button>
                 </div>
               </div>
             ))}
@@ -248,11 +252,11 @@ export default function Moldes() {
       )}
 
       {selectedLib && (
-        <button style={s.fab} onClick={openNewMoldModal}>+</button>
+        <button style={s.fab} onClick={() => { setEditing(null); setNumero(""); setTexto(""); setModalOpen(true); }}>+</button>
       )}
 
       {modalOpen && (
-        <div style={s.modalBg} onClick={closeModal}>
+        <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ color: "#d4af37", margin: "0 0 15px 0", fontFamily: "serif", fontSize: "24px" }}>
               {editing ? "Detalles del Molde" : "Nuevo Molde"}
@@ -271,10 +275,10 @@ export default function Moldes() {
             <label style={s.label}>TEXTO (LECTURA CLARA)</label>
             <textarea style={s.textarea} placeholder="El texto de la foto aparecerá aquí..." value={texto} onChange={(e) => setTexto(e.target.value)} />
 
-            <button style={s.btnSave} onClick={handleSave} disabled={saving || scanning}>
+            <button style={s.btnSave} onClick={handleSaveMold} disabled={saving || scanning}>
               {saving ? "Guardando..." : "💾 Guardar en Base de Datos"}
             </button>
-            <button style={s.btnCancel} onClick={closeModal}>Cerrar</button>
+            <button style={s.btnCancel} onClick={() => setModalOpen(false)}>Cerrar</button>
           </div>
         </div>
       )}
