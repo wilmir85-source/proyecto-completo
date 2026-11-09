@@ -10,7 +10,7 @@ export default function Moldes() {
   
   const [newLibName, setNewLibName] = useState("");
   const [showNewLib, setShowNewLib] = useState(false);
-  const [editingLib, setEditingLib] = useState(null); 
+  const [editingLib, setEditingLib] = useState(null);
   
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null); 
@@ -53,9 +53,7 @@ export default function Moldes() {
         await api.post("/libraries", { nombre: newLibName });
         toast.success("Carpeta creada");
       }
-      setNewLibName("");
-      setShowNewLib(false);
-      setEditingLib(null);
+      setNewLibName(""); setShowNewLib(false); setEditingLib(null);
       await loadLibraries();
     } catch (error) {
       toast.error("Error al guardar carpeta");
@@ -64,7 +62,7 @@ export default function Moldes() {
 
   const handleDeleteLibrary = async (e, lib) => {
     e.stopPropagation();
-    if (!window.confirm(`¿Borrar la carpeta "${lib.nombre}"? Todos los moldes dentro se perderán.`)) return;
+    if (!window.confirm(`¿Borrar la carpeta "${lib.nombre}"? Todos los moldes se perderán.`)) return;
     try {
       await api.delete(`/libraries/${lib.id}`);
       toast.success("Carpeta eliminada");
@@ -76,9 +74,7 @@ export default function Moldes() {
 
   const handleEditLibrary = (e, lib) => {
     e.stopPropagation();
-    setEditingLib(lib);
-    setNewLibName(lib.nombre);
-    setShowNewLib(true);
+    setEditingLib(lib); setNewLibName(lib.nombre); setShowNewLib(true);
   };
 
   const handleFileChange = async (e) => {
@@ -89,12 +85,24 @@ export default function Moldes() {
       const formData = new FormData();
       formData.append("file", file);
       const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
-      if (r.data?.texto) {
-        setTexto(r.data.texto);
-        toast.success("Texto extraído");
+      
+      if (r.data?.datos) {
+        const d = r.data.datos;
+        // Aquí formateamos los datos de la IA en una lista limpia y fácil de leer
+        const textoFormateado = [
+          `• Tipo: ${d.tipo_joya || "-"}`,
+          `• Carrera/Diseño: ${d.diseno_carrera || "-"}`,
+          `• Medida: ${d.medida || "-"}`,
+          `• N° Molde: ${d.numero_molde || "-"}`,
+          d.notas_adicionales ? `• Notas: ${d.notas_adicionales}` : null
+        ].filter(Boolean).join("\n");
+
+        setTexto(textoFormateado);
+        if (d.numero_molde) setNumero(d.numero_molde);
+        toast.success("Datos extraídos. Puedes editarlos antes de guardar.");
       }
     } catch (error) {
-      toast.error("Error al escanear");
+      toast.error("Error al escanear imagen");
     } finally {
       setScanning(false);
     }
@@ -111,7 +119,7 @@ export default function Moldes() {
       }
       await loadMolds();
       setModalOpen(false);
-      toast.success("Molde guardado");
+      toast.success("Molde guardado en la base de datos");
     } catch (error) {
       toast.error("Error al guardar");
     } finally {
@@ -156,16 +164,16 @@ export default function Moldes() {
     folderActions: { position: "absolute", top: "8px", right: "8px", display: "flex", gap: "5px", opacity: 0.7 },
     moldCard: { background: "#151515", border: "1px solid #222", borderRadius: "12px", padding: "15px", display: "flex", flexDirection: "column" },
     moldNum: { color: "#d4af37", fontWeight: "bold", fontSize: "20px", fontFamily: "serif", marginBottom: "8px" },
-    moldText: { color: "#ddd", fontSize: "14px", lineHeight: "1.6", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", marginBottom: "15px", fontFamily: "monospace" },
+    moldText: { color: "#ddd", fontSize: "13px", lineHeight: "1.5", whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 5, WebkitBoxOrient: "vertical", marginBottom: "15px", fontFamily: "monospace" },
     moldActions: { display: "flex", gap: "8px", marginTop: "auto" },
-    btnIcon: { background: "#222", border: "none", color: "#fff", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "13px" },
-    btnDanger: { background: "#3a1a1a", border: "none", color: "#f0b0b0", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "13px" },
+    btnIcon: { background: "#222", border: "none", color: "#fff", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "12px" },
+    btnDanger: { background: "#3a1a1a", border: "none", color: "#f0b0b0", padding: "8px", borderRadius: "6px", cursor: "pointer", flex: 1, fontSize: "12px" },
     fab: { position: "fixed", bottom: "80px", right: "20px", width: "60px", height: "60px", borderRadius: "30px", background: "#d4af37", color: "#000", fontSize: "30px", border: "none", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(212, 175, 55, 0.4)", cursor: "pointer", zIndex: 90 },
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 },
     modal: { background: "#151515", padding: "25px 20px", borderTopLeftRadius: "20px", borderTopRightRadius: "20px", width: "100%", maxWidth: "500px", borderTop: "1px solid #333", maxHeight: "90vh", overflowY: "auto" },
     label: { fontSize: "13px", color: "#aaa", marginBottom: "8px", display: "block", marginTop: "15px", fontWeight: "bold" },
     input: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "16px" },
-    textarea: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "180px", boxSizing: "border-box", fontFamily: "monospace", fontSize: "15px", lineHeight: "1.6" },
+    textarea: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", minHeight: "200px", boxSizing: "border-box", fontFamily: "monospace", fontSize: "15px", lineHeight: "1.6" },
     btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "2px dashed #d4af37", background: "rgba(212,175,55,0.1)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", marginTop: "15px", textAlign: "center" },
     btnSave: { width: "100%", padding: "16px", borderRadius: "8px", background: "#d4af37", color: "#000", fontWeight: "bold", border: "none", marginTop: "25px", cursor: "pointer", fontSize: "16px" },
     btnCancel: { width: "100%", padding: "16px", borderRadius: "8px", background: "transparent", color: "#888", border: "none", marginTop: "10px", cursor: "pointer", fontSize: "16px" }
@@ -272,8 +280,14 @@ export default function Moldes() {
             <label style={s.label}>NÚMERO O NOMBRE DEL MOLDE</label>
             <input style={s.input} placeholder="Ej. 45, Perito 8x6..." value={numero} onChange={(e) => setNumero(e.target.value)} />
 
-            <label style={s.label}>TEXTO (LECTURA CLARA)</label>
-            <textarea style={s.textarea} placeholder="El texto de la foto aparecerá aquí..." value={texto} onChange={(e) => setTexto(e.target.value)} />
+            <label style={s.label}>TEXTO (EDITABLE)</label>
+            {/* AQUI ESTA EL CUADRO DE TEXTO QUE TU PUEDES EDITAR ANTES DE GUARDAR */}
+            <textarea 
+              style={s.textarea} 
+              placeholder="El texto aparecerá aquí. Puedes corregirlo si es necesario..." 
+              value={texto} 
+              onChange={(e) => setTexto(e.target.value)} 
+            />
 
             <button style={s.btnSave} onClick={handleSaveMold} disabled={saving || scanning}>
               {saving ? "Guardando..." : "💾 Guardar en Base de Datos"}
