@@ -8,9 +8,17 @@ const API = window.location.hostname === "localhost" || window.location.hostname
 
 const api = axios.create({ baseURL: API });
 
+// AQUÍ ESTÁ LA MAGIA: Busca el token en cualquier cajón donde tu app lo guarde
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = localStorage.getItem("token") || 
+                localStorage.getItem("access_token") || 
+                localStorage.getItem("authToken") || 
+                localStorage.getItem("jwt") ||
+                sessionStorage.getItem("token");
+                
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
