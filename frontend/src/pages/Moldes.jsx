@@ -8,7 +8,6 @@ export default function Moldes() {
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
   
-  // Estados para el modal de molde
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
@@ -35,7 +34,6 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- ACCIONES DE MOLDES ---
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
@@ -72,9 +70,9 @@ export default function Moldes() {
           medida: d.medida || "",
           notas: d.notas || "",
         });
-        toast.success("Datos extraídos. Puedes corregirlos antes de guardar.");
+        toast.success("Datos extraídos. Revisa y guarda.");
       }
-    } catch { toast.error("Error al escanear imagen"); } 
+    } catch { toast.error("Error al escanear. Intenta de nuevo."); } 
     finally { setScanning(false); }
   };
 
@@ -105,7 +103,6 @@ export default function Moldes() {
     } catch { toast.error("Error al borrar"); }
   };
 
-  // Filtro local
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
     return molds.filter(m => 
@@ -116,31 +113,42 @@ export default function Moldes() {
     );
   }, [molds, search]);
 
-  // --- ESTILOS DE TABLA ---
+  // --- ESTILOS ---
   const s = {
     page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
     title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
     searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #333", background: "#151515", color: "#fff", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
     btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
     btnSecondary: { background: "#222", color: "#fff", border: "1px solid #444", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
+    
+    // ESTILOS DE LA TABLA
     tableWrapper: { overflowX: "auto", background: "#111", borderRadius: "12px", border: "1px solid #333" },
-    table: { width: "100%", borderCollapse: "collapse", textAlign: "left" },
-    th: { padding: "15px", borderBottom: "1px solid #333", color: "#888", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px" },
+    table: { width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "600px" },
+    th: { padding: "15px", borderBottom: "1px solid #333", color: "#d4af37", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px" },
     td: { padding: "15px", borderBottom: "1px solid #222", fontSize: "14px", color: "#ddd" },
-    badge: { background: "#222", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", color: "#d4af37" },
-    actionBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", marginRight: "10px" },
+    badge: { background: "#333", padding: "4px 8px", borderRadius: "4px", fontSize: "13px", color: "#d4af37", fontWeight: "bold" },
+    actionBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "18px", marginRight: "10px" },
+    
+    // MODAL
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "20px" },
     modal: { background: "#151515", padding: "25px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "90vh", overflowY: "auto" },
     label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "15px", fontWeight: "bold" },
     input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
     row: { display: "flex", gap: "15px" },
     col: { flex: 1 },
-    btnScan: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", marginBottom: "20px", textAlign: "center" },
+    
+    // BOTÓN DE ESCANEO CON ANIMACIÓN
+    btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: scanning ? "wait" : "pointer", marginBottom: "20px", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", transition: "0.3s" },
   };
 
   return (
     <div style={s.page}>
-      {/* HEADER */}
+      {/* INYECTAMOS EL CSS PARA LA ANIMACIÓN DEL SPINNER */}
+      <style>{`
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; display: inline-block; }
+      `}</style>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
@@ -151,7 +159,6 @@ export default function Moldes() {
         )}
       </div>
 
-      {/* BUSCADOR */}
       <input 
         style={s.searchBar} 
         placeholder={selectedLib ? "Buscar por número, tipo, carrera..." : "Buscar carpeta..."} 
@@ -159,7 +166,6 @@ export default function Moldes() {
         onChange={(e) => setSearch(e.target.value)} 
       />
 
-      {/* VOLVER */}
       {selectedLib && (
         <button 
           onClick={() => { setSelectedLib(null); setSearch(""); }} 
@@ -181,7 +187,7 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* VISTA: TABLA DE MOLDES DENTRO DE LA CARPETA */}
+      {/* VISTA: TABLA DE MOLDES */}
       {selectedLib && (
         <div style={s.tableWrapper}>
           <table style={s.table}>
@@ -204,14 +210,14 @@ export default function Moldes() {
                   <td style={s.td}>{m.medida || "-"}</td>
                   <td style={s.td}>{m.notas || "-"}</td>
                   <td style={s.td}>
-                    <button style={s.actionBtn} onClick={() => openEditModal(m)}>✏️</button>
-                    <button style={s.actionBtn} onClick={() => handleDelete(m.id)}>🗑️</button>
+                    <button style={s.actionBtn} onClick={() => openEditModal(m)} title="Editar">✏️</button>
+                    <button style={s.actionBtn} onClick={() => handleDelete(m.id)} title="Borrar">🗑️</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo.</p>}
+          {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo con el botón de arriba.</p>}
         </div>
       )}
 
@@ -222,9 +228,15 @@ export default function Moldes() {
             <h2 style={{ color: "#d4af37", margin: "0 0 15px 0" }}>{editing ? "Editar Molde" : "Nuevo Molde"}</h2>
             
             {!editing && (
-              <div style={s.btnScan} onClick={() => fileInputRef.current?.click()}>
-                {scanning ? "⏳ Extrayendo..." : "📷 Escanear Foto (Opcional)"}
-                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} />
+              <div style={s.btnScan} onClick={() => !scanning && fileInputRef.current?.click()}>
+                {scanning ? (
+                  <>
+                    <span className="spinner">⏳</span> Procesando imagen con IA...
+                  </>
+                ) : (
+                  <>📷 Escanear Foto (Opcional)</>
+                )}
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} disabled={scanning} />
               </div>
             )}
 
@@ -232,7 +244,7 @@ export default function Moldes() {
               <div style={s.row}>
                 <div style={s.col}>
                   <label style={s.label}>Número de Molde</label>
-                  <input style={s.input} required placeholder="Ej. 45" value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
+                  <input style={s.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
                 </div>
                 <div style={s.col}>
                   <label style={s.label}>Tipo de Joya</label>
@@ -249,14 +261,16 @@ export default function Moldes() {
                   <input style={s.input} placeholder="Ej. 10x8" value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} />
                 </div>
                 <div style={s.col}>
-                  <label style={s.label}>Notas</label>
-                  <input style={s.input} placeholder="Ej. Aníbal González" value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
+                  <label style={s.label}>Notas Adicionales</label>
+                  <input style={s.input} placeholder="Ej. Nombre del cliente..." value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving}>{saving ? "Guardando..." : "💾 Guardar Molde"}</button>
-                <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cancelar</button>
+                <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || scanning}>
+                  {saving ? "Guardando..." : "💾 Guardar Ficha"}
+                </button>
+                <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cerrar</button>
               </div>
             </form>
           </div>
