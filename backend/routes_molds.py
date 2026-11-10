@@ -6,13 +6,13 @@ import io
 import json
 from core import db
 
-# Usamos el prefijo /api para que coincida exactamente con tus peticiones
+# Usamos el prefijo /api para que coincida con tus peticiones
 router = APIRouter(prefix="/api")
 
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Usamos el modelo oficial estable para lectura rápida de imágenes
+# Usamos únicamente el modelo flash oficial, rápido y ligero
 GEMINI_MODEL = "gemini-1.5-flash"
 
 @router.post("/molds/scan")
@@ -21,24 +21,25 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
+        # Redimensionar ligeramente la imagen si es muy pesada evita el error 504 de tiempo de espera
+        image.thumbnail((1600, 1600))
+        
         prompt = (
             "Analiza esta imagen de un cuaderno o nota manuscrita de joyería. "
-            "Extrae la información estructurada en un objeto JSON válido con exactamente estas llaves: "
-            "\"numero\" (el código o número del molde escrito a mano, ej. 45, MG05), "
-            "\"tipo\" (el tipo de joya, ej. Anillo, Dije, Plancha), "
-            "\"carrera\" (el texto de la carrera, diseño o motivo de graduación), "
-            "\"medida\" (las dimensiones escritas, ej. 10x8 mm), y "
-            "\"notas\" (cualquier detalle o acabado extra). "
+            "Extrae la información en un objeto JSON válido con exactamente estas llaves: "
+            "\"numero\" (el código del molde, ej. 45, MG05), "
+            "\"tipo\" (ej. Anillo, Dije, Plancha), "
+            "\"carrera\" (el texto de la carrera o diseño), "
+            "\"medida\" (las dimensiones, ej. 10x8 mm), y "
+            "\"notas\" (detalles extra). "
             "Si algún campo no está presente, déjalo como cadena vacía. "
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print(f"Iniciando escaneo OCR con el modelo oficial: {GEMINI_MODEL}")
-        model = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            generation_config={"response_mime_type": "application/json"}
-        )
+        print(f"Escaneando con {GEMINI_MODEL}...")
+        model = genai.GenerativeModel(model_name=GEMINI_MODEL)
         
+        # Generamos la respuesta de forma directa
         response = model.generate_content([prompt, image])
         response_text = response.text
 
@@ -56,7 +57,7 @@ async def scan_mold(file: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------
-# GESTIÓN DE CARPETAS / LIBRERÍAS (Tú las creas y organizas)
+# GESTIÓN DE CARPETAS / LIBRERÍAS
 # ---------------------------------------------------------
 
 @router.get("/libraries")
@@ -78,7 +79,7 @@ async def delete_library(library_id: str):
 
 
 # ---------------------------------------------------------
-# GESTIÓN DE MOLDES DENTRO DE TUS CARPETAS
+# GESTIÓN DE MOLDES
 # ---------------------------------------------------------
 
 @router.get("/libraries/{library_id}/molds")
@@ -89,7 +90,6 @@ async def get_molds_by_library(library_id: str):
 
 @router.post("/molds")
 async def create_mold(data: dict):
-    # Guarda el molde en la base de datos vinculado a su librería
     await db.molds.insert_one(data)
     return {"success": True, "message": "Molde guardado correctamente"}
 
