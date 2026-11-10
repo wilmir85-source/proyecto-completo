@@ -42,13 +42,12 @@ async def scan_mold(file: UploadFile = File(...)):
                 print(f"Intentando escaneo OCR con el modelo: {model_name}")
                 model = genai.GenerativeModel(
                     model_name=model_name,
-                    # Forzamos a que la IA devuelva JSON nativo y limpio
                     generation_config={"response_mime_type": "application/json"}
                 )
                 response = model.generate_content([prompt, image])
                 response_text = response.text
                 if response_text:
-                    break # Éxito, salimos del ciclo
+                    break 
             except Exception as model_err:
                 last_error = str(model_err)
                 print(f"Modelo {model_name} falló o está saturado: {last_error}")
@@ -60,7 +59,6 @@ async def scan_mold(file: UploadFile = File(...)):
                 detail=f"Los servidores de IA están saturados temporalmente. Detalle: {last_error}"
             )
 
-        # Limpieza de seguridad por si acaso
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         parsed_data = json.loads(clean_json)
 
@@ -69,7 +67,9 @@ async def scan_mold(file: UploadFile = File(...)):
     except Exception as e:
         print(f"Error crítico en /molds/scan: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
-    @router.get("/libraries")
+
+
+@router.get("/libraries")
 async def get_libraries():
     # Devuelve las carpetas para que la app cargue tus colecciones de moldes sin error
     return [
