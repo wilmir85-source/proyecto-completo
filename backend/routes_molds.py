@@ -11,11 +11,11 @@ router = APIRouter(prefix="/api")
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Modelos actualizados y compatibles con la API actual de Google
+# Modelos actuales y vigentes en la API de Google
 GEMINI_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-1.5-flash"
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash-lite"
 ]
 
 @router.post("/molds/scan")
@@ -38,7 +38,7 @@ async def scan_mold(file: UploadFile = File(...)):
         response_text = None
         last_error = None
 
-        # Bucle de respaldo automático entre modelos
+        # Bucle de respaldo automático entre los modelos actuales
         for model_name in GEMINI_MODELS:
             try:
                 print(f"Intentando escaneo OCR con el modelo: {model_name}")
@@ -73,7 +73,6 @@ async def scan_mold(file: UploadFile = File(...)):
 
 @router.get("/libraries")
 async def get_libraries():
-    # Devuelve las carpetas principales para tu catálogo
     return [
         {"id": "1", "nombre": "Anillos de Graduación"},
         {"id": "2", "nombre": "Ovales y Octagonales"},
@@ -83,7 +82,6 @@ async def get_libraries():
 
 @router.get("/libraries/{library_id}/molds")
 async def get_molds_by_library(library_id: str):
-    # Resuelve el error 404 devolviendo la lista de moldes para esa librería
     return [
         {
             "id": "mold_1",
