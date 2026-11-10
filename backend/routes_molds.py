@@ -69,3 +69,11 @@ async def scan_mold(file: UploadFile = File(...)):
     except Exception as e:
         print(f"Error crítico en /molds/scan: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
+    @router.get("/libraries")
+async def get_libraries():
+    # Devuelve las carpetas para que la app cargue tus colecciones de moldes sin error
+    return [
+        {"id": "1", "nombre": "Anillos de Graduación"},
+        {"id": "2", "nombre": "Ovales y Octagonales"},
+        {"id": "3", "nombre": "Dijes y Planchas"}
+    ]
