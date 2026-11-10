@@ -12,12 +12,6 @@ router = APIRouter(prefix="/api")
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Modelos oficiales estables y reales para el OCR de tus notas
-GEMINI_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro"
-]
-
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
     try:
@@ -39,10 +33,25 @@ async def scan_mold(file: UploadFile = File(...)):
         response_text = None
         last_error = None
 
-        # Bucle de respaldo automático usando solo modelos reales oficiales
-        for model_name in GEMINI_MODELS:
+        # Buscamos automáticamente un modelo compatible con generación de contenido en tu cuenta
+        available_models = []
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    if 'flash' in m.name or 'pro' in m.name:
+                        available_models.append(m.name)
+        except Exception as list_err:
+            print(f"No se pudo listar automáticamente: {list_err}")
+
+        # Lista de respaldo por si la auto-detección falla
+        if not available_models:
+            available_models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
+
+        # Probamos los modelos disponibles de forma automática
+        for model_path in available_models:
             try:
-                print(f"Intentando escaneo OCR con el modelo oficial: {model_name}")
+                model_name = model_path.replace("models/", "")
+                print(f"Probando modelo compatible: {model_name}")
                 model = genai.GenerativeModel(
                     model_name=model_name,
                     generation_config={"response_mime_type": "application/json"}
@@ -50,7 +59,7 @@ async def scan_mold(file: UploadFile = File(...)):
                 response = model.generate_content([prompt, image])
                 response_text = response.text
                 if response_text:
-                    break 
+                    break
             except Exception as model_err:
                 last_error = str(model_err)
                 print(f"Modelo {model_name} falló: {last_error}")
@@ -78,21 +87,18 @@ async def scan_mold(file: UploadFile = File(...)):
 
 @router.get("/libraries")
 async def get_libraries():
-    # Consulta las carpetas reales que tú vayas creando en tu base de datos
     libraries = await db.libraries.find({}, {"_id": 0}).to_list(100)
     return libraries
 
 
 @router.post("/libraries")
 async def create_library(data: dict):
-    # Permite crear una carpeta nueva de forma manual desde tu panel
     await db.libraries.insert_one(data)
     return {"success": True, "message": "Carpeta creada exitosamente"}
 
 
 @router.delete("/libraries/{library_id}")
 async def delete_library(library_id: str):
-    # Permite eliminar una carpeta que ya no necesites
     await db.libraries.delete_one({"id": library_id})
     return {"success": True, "message": "Carpeta eliminada"}
 
@@ -103,14 +109,12 @@ async def delete_library(library_id: str):
 
 @router.get("/libraries/{library_id}/molds")
 async def get_molds_by_library(library_id: str):
-    # Trae los moldes reales guardados en esta carpeta específica
     molds = await db.molds.find({"library_id": library_id}, {"_id": 0}).to_list(500)
     return molds
 
 
 @router.post("/libraries/{library_id}/molds")
 async def save_mold(library_id: str, data: dict):
-    # Guarda un nuevo molde escaneado o escrito por ti en su respectiva carpeta
     data["library_id"] = library_id
     await db.molds.insert_one(data)
     return {"success": True, "message": "Molde guardado correctamente"}
