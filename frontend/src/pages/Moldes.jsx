@@ -1,50 +1,53 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
   const [selectedLib, setSelectedLib] = useState(null);
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
-  
-  // Estados para el Modal
+  const [filterTag, setFilterTag] = useState("TODOS");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false); // Controla si estamos leyendo o editando
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
-  
+
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
 
+  // Carga de librerías
   const loadLibraries = useCallback(async () => {
     try {
       const r = await api.get("/libraries");
-      setLibraries(r.data);
-    } catch { toast.error("Error al cargar carpetas"); }
+      setLibraries(Array.isArray(r.data) ? r.data : []);
+    } catch {
+      toast.error("Error al cargar carpetas");
+    }
   }, []);
 
   useEffect(() => { loadLibraries(); }, [loadLibraries]);
 
+  // Carga de moldes de la librería seleccionada
   const loadMolds = useCallback(async () => {
     if (!selectedLib) return;
     try {
       const r = await api.get(`/libraries/${selectedLib.id}/molds`);
-      setMolds(r.data);
-    } catch { toast.error("Error al cargar moldes"); }
+      setMolds(Array.isArray(r.data) ? r.data : []);
+    } catch {
+      toast.error("Error al cargar moldes");
+    }
   }, [selectedLib]);
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- ABRIR MODAL ---
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
-    setIsEditMode(true); // En uno nuevo, abrimos directo en edición
+    setIsEditMode(true);
     setModalOpen(true);
   };
 
@@ -57,32 +60,33 @@ export default function Moldes() {
       medida: molde.medida || "",
       notas: molde.notas || "",
     });
-    setIsEditMode(false); // Abrimos en modo LECTURA
+    setIsEditMode(false);
     setModalOpen(true);
   };
 
-  // --- BARRA DE PROGRESO SIMULADA ---
+  // Simulación animada de escaneo Gemini OCR
   useEffect(() => {
     let interval;
     if (scanning) {
       setProgress(0);
       interval = setInterval(() => {
-        setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 10) + 1));
-      }, 300);
+        setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 12) + 2));
+      }, 250);
     } else {
       setProgress(100);
     }
     return () => clearInterval(interval);
   }, [scanning]);
 
+  // Manejo de lectura manuscrita con Gemini AI (OCR)
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setScanning(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await api.post("/molds/scan", fd, { headers: { "Content-Type": "multipart/form-data" } });
       
       if (r.data?.datos) {
         const d = r.data.datos;
@@ -93,10 +97,13 @@ export default function Moldes() {
           medida: d.medida || "",
           notas: d.notas || "",
         });
-        toast.success("Datos extraídos. Revisa y guarda.");
+        toast.success("✨ Manuscrito interpretado por Gemini");
       }
-    } catch { toast.error("Error al escanear. Intenta de nuevo."); } 
-    finally { setScanning(false); }
+    } catch {
+      toast.error("Error al escanear texto manuscrito");
+    } finally {
+      setScanning(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -108,262 +115,397 @@ export default function Moldes() {
         await api.put(`/molds/${editing.id}`, formData);
         toast.success("Molde actualizado");
       } else {
-        await api.post("/molds", { libreria_id: selectedLib.id, ...formData });
-        toast.success("Molde creado correctamente");
+        await api.post("/molds", { libreria_id: selectedLib?.id, ...formData });
+        toast.success("Molde guardado en biblioteca");
       }
       await loadMolds();
       setModalOpen(false);
-    } catch { toast.error("Error al guardar"); } 
-    finally { setSaving(false); }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Borrar este molde?")) return;
-    try {
-      await api.delete(`/molds/${id}`);
-      await loadMolds();
-      toast.success("Molde borrado");
-    } catch { toast.error("Error al borrar"); }
-  };
-
-  // --- EXPORTAR A PDF (CON MANEJO DE ERRORES) ---
-  const exportToPDF = () => {
-    try {
-      if (!selectedLib) return;
-      const doc = new jsPDF();
-      doc.text(`Listado de Moldes: ${selectedLib.nombre}`, 14, 16);
-      const tableData = filteredMolds.map(m => [m.numero, m.tipo, m.carrera, m.medida, m.notas]);
-      
-      if (typeof doc.autoTable === "function") {
-        doc.autoTable({
-          head: [['N° Molde', 'Tipo', 'Carrera / Diseño', 'Medida', 'Notas']],
-          body: tableData,
-          startY: 22,
-          styles: { fontSize: 8, cellPadding: 2 },
-          columnStyles: { 2: { cellWidth: 70 } }
-        });
-      } else {
-        toast.error("Error: Falta instalar jspdf-autotable");
-        return;
-      }
-      doc.save(`Moldes_${selectedLib.nombre}.pdf`);
-      toast.success("PDF descargado");
-    } catch (error) {
-      console.error(error);
-      toast.error("Error al generar PDF. Revisa la consola.");
+    } catch {
+      toast.error("Error al guardar en base de datos");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const filteredMolds = useMemo(() => {
-    const q = search.toLowerCase();
-    return molds.filter(m => 
-      (m.numero || "").toLowerCase().includes(q) ||
-      (m.tipo || "").toLowerCase().includes(q) ||
-      (m.carrera || "").toLowerCase().includes(q) ||
-      (m.medida || "").toLowerCase().includes(q)
-    );
-  }, [molds, search]);
-
-  // --- ESTILOS ---
-  const s = {
-    page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
-    title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
-    searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #333", background: "#151515", color: "#fff", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
-    btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
-    btnSecondary: { background: "#222", color: "#fff", border: "1px solid #444", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
-    
-    // LISTA TIPO SPOTIFY (Tarjetas verticales)
-    listContainer: { display: "flex", flexDirection: "column", gap: "10px" },
-    listCard: { background: "#151515", border: "1px solid #333", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer", transition: "0.2s" },
-    listBadge: { background: "#333", color: "#d4af37", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
-    listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
-    listTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
-    listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
-    listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
-
-    // MODAL DE LECTURA/EDICIÓN
-    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column" },
-    
-    // ESTILOS DE LECTURA
-    readContainer: { background: "#0a0a0a", border: "1px solid #222", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
-    readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "5px", display: "block" },
-    readValue: { fontSize: "16px", color: "#fff", lineHeight: "1.5", whiteSpace: "pre-wrap" },
-    
-    // ESTILOS DE EDICIÓN
-    label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "15px", fontWeight: "bold" },
-    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
-    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "100px", resize: "vertical", fontFamily: "inherit" },
-    row: { display: "flex", gap: "15px" },
-    col: { flex: 1 },
-    
-    btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: scanning ? "wait" : "pointer", marginBottom: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "10px", transition: "0.3s" },
-    progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "10px", overflow: "hidden" },
-    progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
+  const handleDelete = async (id) => {
+    if (!window.confirm("¿Estás seguro de eliminar este molde del listado?")) return;
+    try {
+      await api.delete(`/molds/${id}`);
+      await loadMolds();
+      toast.success("Molde eliminado");
+    } catch {
+      toast.error("Error al eliminar");
+    }
   };
 
+  const exportToPDF = () => {
+    window.print();
+  };
+
+  // Filtrado optimizado multi-campo
+  const filteredMolds = useMemo(() => {
+    const q = search.toLowerCase();
+    return molds.filter((m) => {
+      const matchesSearch =
+        (m.numero || "").toLowerCase().includes(q) ||
+        (m.tipo || "").toLowerCase().includes(q) ||
+        (m.carrera || "").toLowerCase().includes(q) ||
+        (m.medida || "").toLowerCase().includes(q);
+
+      if (filterTag === "TODOS") return matchesSearch;
+      return matchesSearch && (m.tipo || "").toUpperCase().includes(filterTag);
+    });
+  }, [molds, search, filterTag]);
+
   return (
-    <div style={s.page}>
+    <div style={styles.page}>
+      {/* ESTILOS GLOBALES DE ANIMACIÓN E IMPRESIÓN */}
       <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .spinner { animation: spin 1s linear infinite; display: inline-block; }
-        .list-card:hover { border-color: #d4af37; background-color: #1a1a1a; }
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 5px rgba(212,175,55,0.2); }
+          50% { box-shadow: 0 0 15px rgba(212,175,55,0.6); }
+          100% { box-shadow: 0 0 5px rgba(212,175,55,0.2); }
+        }
+        .spotify-card {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .spotify-card:hover {
+          background: #1e1e1e !important;
+          transform: translateY(-2px);
+          border-color: #d4af37 !important;
+        }
+        .tag-chip {
+          transition: all 0.2s ease;
+        }
+        .tag-chip:hover {
+          background: #d4af37 !important;
+          color: #000 !important;
+        }
+        @media print {
+          body * { visibility: hidden; }
+          #print-section, #print-section * { visibility: visible; }
+          #print-section { position: absolute; left: 0; top: 0; width: 100%; color: black; background: white; padding: 20px; }
+          .no-print { display: none !important; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th, td { border: 1px solid #333; padding: 10px; text-align: left; font-size: 12px; }
+          th { background-color: #f2f2f2; font-weight: bold; }
+        }
       `}</style>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      {/* HEADER SUPERIOR */}
+      <div className="no-print" style={styles.header}>
         <div>
-          <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Toca un molde para LEER o editar" : "Selecciona una carpeta"}</p>
+          <span style={styles.kicker}>Catálogo de Moldes CAD / Joyería</span>
+          <h1 style={styles.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
-            <button style={s.btnSecondary} onClick={exportToPDF}>📄 PDF</button>
-            <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo</button>
+            <button style={styles.btnSecondary} onClick={exportToPDF}>📄 Imprimir / PDF</button>
+            <button style={styles.btnPrimary} onClick={openNewModal}>+ Nuevo Molde</button>
           </div>
         )}
       </div>
 
-      <input 
-        style={s.searchBar} 
-        placeholder={selectedLib ? "Buscar por número, tipo, carrera..." : "Buscar carpeta..."} 
-        value={search} 
-        onChange={(e) => setSearch(e.target.value)} 
-      />
+      {/* BARRA DE BÚSQUEDA TIPO SPOTIFY */}
+      <div className="no-print" style={styles.searchSection}>
+        <div style={styles.searchWrapper}>
+          <span style={styles.searchIcon}>🔍</span>
+          <input
+            style={styles.searchInput}
+            placeholder={selectedLib ? "Buscar por número, tipo, carrera (ej. Perito, 13x13)..." : "Buscar en colecciones..."}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
 
+      {/* VOLVER A COLECCIONES Y CHIPS DE FILTRADO */}
       {selectedLib && (
-        <button 
-          onClick={() => { setSelectedLib(null); setSearch(""); }} 
-          style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}
-        >
-          ← Volver a Colecciones
-        </button>
+        <div className="no-print" style={styles.filterBar}>
+          <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={styles.btnBack}>
+            ← Volver a Colecciones
+          </button>
+          <div style={styles.chipGroup}>
+            {["TODOS", "ANILLO", "DIJE", "PLANCHA"].map((tag) => (
+              <button
+                key={tag}
+                className="tag-chip"
+                onClick={() => setFilterTag(tag)}
+                style={{
+                  ...styles.chip,
+                  background: filterTag === tag ? "#d4af37" : "#1a1a1a",
+                  color: filterTag === tag ? "#000" : "#888",
+                  borderColor: filterTag === tag ? "#d4af37" : "#333",
+                }}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
+      {/* VISTA 1: CARPETAS / COLECCIONES DE MOLDES */}
       {!selectedLib && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
+        <div className="no-print" style={styles.gridFolders}>
           {libraries.map((lib) => (
-            <div key={lib.id} style={{ background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center" }} onClick={() => setSelectedLib(lib)}>
-              <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
-              <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* LISTA TIPO SPOTIFY (En lugar de la tabla) */}
-      {selectedLib && (
-        <div style={s.listContainer}>
-          {filteredMolds.map((m) => (
-            <div key={m.id} style={s.listCard} className="list-card" onClick={() => openViewModal(m)}>
-              <div style={s.listBadge}>{m.numero}</div>
-              <div style={s.listContent}>
-                <div style={s.listTitle}>{m.tipo || "Sin tipo"}</div>
-                <div style={s.listSub}>{m.carrera || "Sin diseño"}</div>
+            <div key={lib.id} style={styles.folderCard} className="spotify-card" onClick={() => setSelectedLib(lib)}>
+              <div style={styles.folderCover}>
+                <span style={{ fontSize: "36px" }}>📁</span>
               </div>
-              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>🗑️</button>
+              <div style={styles.folderTitle}>{lib.nombre}</div>
+              <div style={styles.folderSub}>Toca para abrir catálogo</div>
             </div>
           ))}
-          {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo.</p>}
+          {libraries.length === 0 && (
+            <p style={{ color: "#666", gridColumn: "1/-1", textAlign: "center", padding: "40px" }}>
+              No tienes carpetas creadas. Crea una desde tu panel general.
+            </p>
+          )}
         </div>
       )}
 
-      {/* MODAL: LECTURA Y EDICIÓN */}
+      {/* VISTA 2: LISTADO DE MOLDES ESTILO SPOTIFY TRACKLIST */}
+      {selectedLib && (
+        <div className="no-print" style={styles.trackList}>
+          {filteredMolds.map((m) => (
+            <div key={m.id} style={styles.trackCard} className="spotify-card" onClick={() => openViewModal(m)}>
+              {/* Badge de Número de Molde (Tipo Portada de Álbum) */}
+              <div style={styles.albumBadge}>
+                <span style={styles.badgeNum}>#{m.numero}</span>
+              </div>
+
+              {/* Contenido Principal */}
+              <div style={styles.trackDetails}>
+                <div style={styles.trackTitle}>
+                  {m.tipo || "Molde General"} <span style={styles.trackMeasure}>{m.medida ? `(${m.medida})` : ""}</span>
+                </div>
+                <div style={styles.trackSub}>{m.carrera || "Sin especificación de carrera"}</div>
+                {m.notas && <div style={styles.trackNotes}>📝 {m.notas}</div>}
+              </div>
+
+              {/* Botón de Acción */}
+              <button
+                style={styles.btnDeleteTrack}
+                title="Eliminar molde"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(m.id);
+                }}
+              >
+                🗑️
+              </button>
+            </div>
+          ))}
+
+          {filteredMolds.length === 0 && (
+            <div style={styles.emptyState}>
+              <span style={{ fontSize: "40px", display: "block", marginBottom: "10px" }}>💍</span>
+              No se encontraron moldes registrados en esta lista.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VISTA OCULTA DE IMPRESIÓN (PDF) */}
+      {selectedLib && (
+        <div id="print-section" style={{ display: "none" }}>
+          <h2 style={{ borderBottom: "2px solid #000", paddingBottom: "10px" }}>LISTADO TÉCNICO DE MOLDES: {selectedLib.nombre}</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>N° MOLDE</th>
+                <th>TIPO</th>
+                <th>CARRERA / DISEÑO</th>
+                <th>MEDIDA</th>
+                <th>NOTAS ADICIONALES</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredMolds.map((m) => (
+                <tr key={m.id}>
+                  <td><strong>#{m.numero}</strong></td>
+                  <td>{m.tipo || "-"}</td>
+                  <td>{m.carrera || "-"}</td>
+                  <td>{m.medida || "-"}</td>
+                  <td>{m.notas || "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* MODAL FICHA DE MOLDE (LECTURA Y EDICIÓN CON LECTOR OCR) */}
       {modalOpen && (
-        <div style={s.modalBg} onClick={() => setModalOpen(false)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ color: "#d4af37", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
+        <div className="no-print" style={styles.modalOverlay} onClick={() => setModalOpen(false)}>
+          <div style={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={{ color: "#d4af37", margin: 0, fontSize: "20px" }}>
+                {editing ? (isEditMode ? "✏️ Editar Ficha de Molde" : "🔍 Ficha Técnica del Molde") : "✨ Agregar Nuevo Molde"}
+              </h2>
               {editing && !isEditMode && (
-                <button style={{ ...s.btnPrimary, padding: "8px 12px", fontSize: "12px" }} onClick={() => setIsEditMode(true)}>✏️ Editar</button>
+                <button style={styles.btnEditHeader} onClick={() => setIsEditMode(true)}>✏️ Editar</button>
               )}
             </div>
-            
-            {/* SI ESTAMOS CREANDO UNO NUEVO, MOSTRAMOS EL BOTÓN DE ESCANEAR */}
+
+            {/* BOTÓN DE ESCANEO OCR CON GEMINI */}
             {!editing && (
-              <div style={s.btnScan} onClick={() => !scanning && fileInputRef.current?.click()}>
+              <div style={styles.scanBox} onClick={() => !scanning && fileInputRef.current?.click()}>
                 {scanning ? (
-                  <><span className="spinner">⏳</span> Procesando imagen...<div style={s.progressBar}><div style={s.progressFill}></div></div></>
+                  <>
+                    <div style={{ color: "#d4af37", fontWeight: "bold" }}>🤖 Gemini leyendo manuscrito...</div>
+                    <div style={styles.progressTrack}>
+                      <div style={{ ...styles.progressBarFill, width: `${progress}%` }} />
+                    </div>
+                  </>
                 ) : (
-                  <>📷 Escanear Foto (Opcional)</>
+                  <>
+                    <span style={{ fontSize: "22px" }}>📷</span>
+                    <span style={{ color: "#d4af37", fontWeight: "bold" }}>Escanear cuaderno / nota manuscrita</span>
+                    <span style={{ color: "#666", fontSize: "12px" }}>Gemini extraerá el número, carrera y medida automáticamente</span>
+                  </>
                 )}
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} disabled={scanning} />
               </div>
             )}
 
-            {/* MODO LECTURA (Ficha técnica bonita) */}
+            {/* MODO LECTURA SOLO VER */}
             {!isEditMode && editing ? (
               <div>
-                <div style={s.readContainer}>
-                  <span style={s.readLabel}>Número de Molde</span>
-                  <div style={{ ...s.readValue, fontSize: "24px", color: "#d4af37", fontWeight: "bold" }}>{formData.numero}</div>
+                <div style={styles.readCardLarge}>
+                  <span style={styles.readLabel}>NÚMERO DE MOLDE DE FÁBRICA</span>
+                  <div style={styles.readValBig}>#{formData.numero}</div>
                 </div>
-                <div style={s.readContainer}>
-                  <span style={s.readLabel}>Tipo de Joya</span>
-                  <div style={s.readValue}>{formData.tipo || "-"}</div>
-                </div>
-                <div style={s.readContainer}>
-                  <span style={s.readLabel}>Carrera / Diseño</span>
-                  <div style={s.readValue}>{formData.carrera || "-"}</div>
-                </div>
-                <div style={s.row}>
-                  <div style={{...s.readContainer, flex: 1}}>
-                    <span style={s.readLabel}>Medida</span>
-                    <div style={s.readValue}>{formData.medida || "-"}</div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <div style={styles.readCard}>
+                    <span style={styles.readLabel}>TIPO DE JOYA</span>
+                    <div style={styles.readVal}>{formData.tipo || "No especificado"}</div>
                   </div>
-                  <div style={{...s.readContainer, flex: 1}}>
-                    <span style={s.readLabel}>Notas</span>
-                    <div style={s.readValue}>{formData.notas || "-"}</div>
+                  <div style={styles.readCard}>
+                    <span style={styles.readLabel}>MEDIDA DE PLANCHA / PIEZA</span>
+                    <div style={styles.readVal}>{formData.medida || "Sin medida"}</div>
                   </div>
                 </div>
-                <button style={{ ...s.btnSecondary, width: "100%", marginTop: "20px" }} onClick={() => setModalOpen(false)}>Cerrar</button>
+
+                <div style={styles.readCard}>
+                  <span style={styles.readLabel}>CARRERA / MOTIVO DE GRADUACIÓN</span>
+                  <div style={styles.readVal}>{formData.carrera || "No especificada"}</div>
+                </div>
+
+                {formData.notas && (
+                  <div style={styles.readCard}>
+                    <span style={styles.readLabel}>NOTAS ADICIONALES DE TALLER</span>
+                    <div style={styles.readVal}>{formData.notas}</div>
+                  </div>
+                )}
+
+                <button style={{ ...styles.btnSecondary, width: "100%", marginTop: "15px" }} onClick={() => setModalOpen(false)}>
+                  Cerrar
+                </button>
               </div>
             ) : (
-              
-              /* MODO EDICIÓN */
+              /* MODO FORMULARIO / EDICIÓN */
               <form onSubmit={handleSave}>
-                <div style={s.row}>
-                  <div style={s.col}>
-                    <label style={s.label}>Número de Molde</label>
-                    <input style={s.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
+                <div style={styles.formRow}>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>N° Molde *</label>
+                    <input style={styles.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({ ...formData, numero: e.target.value })} />
                   </div>
-                  <div style={s.col}>
-                    <label style={s.label}>Tipo de Joya</label>
-                    <input style={s.input} placeholder="Ej. Anillo, Dije..." value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} />
-                  </div>
-                </div>
-
-                <label style={s.label}>Carrera / Diseño</label>
-                <textarea style={s.textarea} placeholder="Ej. Perito Contador Octagonal..." value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
-
-                <div style={s.row}>
-                  <div style={s.col}>
-                    <label style={s.label}>Medida</label>
-                    <input style={s.input} placeholder="Ej. 10x8" value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} />
-                  </div>
-                  <div style={s.col}>
-                    <label style={s.label}>Notas Adicionales</label>
-                    <input style={s.input} placeholder="Ej. Nombre del cliente..." value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>Tipo de Joya</label>
+                    <input style={styles.input} placeholder="Ej. Anillo, Dije, Plancha..." value={formData.tipo} onChange={(e) => setFormData({ ...formData, tipo: e.target.value })} />
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || scanning}>
-                    {saving ? "Guardando..." : "💾 Guardar Ficha"}
+                <label style={styles.label}>Carrera / Motivo de Graduación</label>
+                <textarea style={styles.textarea} placeholder="Ej. Perito en Administración de Empresas..." value={formData.carrera} onChange={(e) => setFormData({ ...formData, carrera: e.target.value })} />
+
+                <div style={styles.formRow}>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>Medida</label>
+                    <input style={styles.input} placeholder="Ej. 13x13 mm, 10x8..." value={formData.medida} onChange={(e) => setFormData({ ...formData, medida: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.label}>Notas adicionales</label>
+                    <input style={styles.input} placeholder="Ej. Cliente especial, bisel pulido..." value={formData.notas} onChange={(e) => setFormData({ ...formData, notas: e.target.value })} />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                  <button type="submit" style={{ ...styles.btnPrimary, flex: 1 }} disabled={saving || scanning}>
+                    {saving ? "Guardando..." : "💾 Guardar Molde"}
                   </button>
-                  {editing && (
-                    <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setIsEditMode(false)}>Cancelar Edición</button>
-                  )}
-                  {!editing && (
-                    <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cerrar</button>
-                  )}
+                  <button type="button" style={{ ...styles.btnSecondary, flex: 1 }} onClick={() => (editing ? setIsEditMode(false) : setModalOpen(false))}>
+                    Cancelar
+                  </button>
                 </div>
               </form>
             )}
-
           </div>
         </div>
       )}
     </div>
   );
 }
+
+// OBJETO DE ESTILOS UNIFICADO (DARK SPOTIFY STYLE)
+const styles = {
+  page: { minHeight: "100vh", background: "#0c0c0e", color: "#f0f0f0", padding: "20px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", paddingBottom: "80px" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" },
+  kicker: { color: "#d4af37", fontSize: "11px", fontWeight: "bold", letterSpacing: "1.5px", textTransform: "uppercase" },
+  title: { fontSize: "28px", fontWeight: "800", margin: "4px 0 0 0", color: "#ffffff" },
+  
+  btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "700", cursor: "pointer", fontSize: "14px" },
+  btnSecondary: { background: "#1a1a1e", color: "#ccc", border: "1px solid #333", padding: "12px 18px", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
+
+  searchSection: { marginBottom: "15px" },
+  searchWrapper: { position: "relative", display: "flex", alignItems: "center" },
+  searchIcon: { position: "absolute", left: "15px", color: "#666", fontSize: "16px" },
+  searchInput: { width: "100%", padding: "14px 14px 14px 45px", borderRadius: "10px", border: "1px solid #222", background: "#141417", color: "#fff", fontSize: "15px", boxSizing: "border-box", outline: "none" },
+
+  filterBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "10px", flexWrap: "wrap" },
+  btnBack: { background: "none", border: "none", color: "#d4af37", fontSize: "14px", fontWeight: "bold", cursor: "pointer", padding: 0 },
+  chipGroup: { display: "flex", gap: "8px" },
+  chip: { padding: "6px 14px", borderRadius: "20px", border: "1px solid #333", fontSize: "12px", fontWeight: "bold", cursor: "pointer" },
+
+  gridFolders: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "15px" },
+  folderCard: { background: "#141417", border: "1px solid #222", borderRadius: "12px", padding: "18px", cursor: "pointer", textAlign: "center" },
+  folderCover: { width: "60px", height: "60px", background: "#1f1f24", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px auto" },
+  folderTitle: { fontWeight: "700", fontSize: "15px", color: "#fff", marginBottom: "4px" },
+  folderSub: { fontSize: "12px", color: "#666" },
+
+  trackList: { display: "flex", flexDirection: "column", gap: "8px" },
+  trackCard: { background: "#141417", border: "1px solid #222", borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
+  albumBadge: { width: "48px", height: "48px", background: "linear-gradient(135deg, #222, #111)", border: "1px solid #d4af37", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" },
+  badgeNum: { color: "#d4af37", fontWeight: "bold", fontSize: "14px" },
+  trackDetails: { flex: 1, display: "flex", flexDirection: "column", gap: "2px" },
+  trackTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
+  trackMeasure: { fontSize: "13px", color: "#d4af37", fontWeight: "normal" },
+  trackSub: { fontSize: "13px", color: "#999" },
+  trackNotes: { fontSize: "12px", color: "#666", fontStyle: "italic" },
+  btnDeleteTrack: { background: "none", border: "none", fontSize: "16px", cursor: "pointer", padding: "8px", opacity: 0.7 },
+
+  emptyState: { textAlign: "center", padding: "40px", color: "#555", background: "#141417", borderRadius: "12px", border: "1px dashed #222" },
+
+  modalOverlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "15px" },
+  modalBox: { background: "#141417", border: "1px solid #333", borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "550px", maxHeight: "90vh", overflowY: "auto" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },
+  btnEditHeader: { background: "#d4af37", color: "#000", border: "none", padding: "6px 12px", borderRadius: "6px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" },
+
+  scanBox: { border: "1px dashed #d4af37", background: "rgba(212,175,55,0.05)", borderRadius: "10px", padding: "16px", textAlign: "center", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", marginBottom: "20px" },
+  progressTrack: { width: "100%", height: "4px", background: "#222", borderRadius: "2px", overflow: "hidden", marginTop: "8px" },
+  progressBarFill: { height: "100%", background: "#d4af37", transition: "width 0.2s ease" },
+
+  readCardLarge: { background: "#0a0a0c", border: "1px solid #26262a", borderRadius: "10px", padding: "15px", marginBottom: "12px" },
+  readCard: { background: "#0a0a0c", border: "1px solid #26262a", borderRadius: "10px", padding: "12px", marginBottom: "12px" },
+  readLabel: { fontSize: "11px", color: "#d4af37", fontWeight: "bold", letterSpacing: "1px", display: "block", marginBottom: "4px" },
+  readValBig: { fontSize: "26px", color: "#fff", fontWeight: "bold" },
+  readVal: { fontSize: "15px", color: "#e0e0e0" },
+
+  formRow: { display: "flex", gap: "12px", marginBottom: "12px" },
+  label: { fontSize: "12px", color: "#aaa", fontWeight: "bold", marginBottom: "6px", display: "block" },
+  input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #2a2a2e", background: "#0a0a0c", color: "#fff", fontSize: "14px", boxSizing: "border-box" },
+  textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #2a2a2e", background: "#0a0a0c", color: "#fff", fontSize: "14px", boxSizing: "border-box", minHeight: "80px", resize: "vertical", marginBottom: "12px" }
+};
