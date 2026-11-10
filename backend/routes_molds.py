@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException
 from PIL import Image
 import io
 import json
+from core import db
 
 # Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
@@ -11,11 +12,10 @@ router = APIRouter(prefix="/api")
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Modelos actuales y vigentes en la API de Google
+# Modelos oficiales estables y reales para el OCR de tus notas
 GEMINI_MODELS = [
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash-lite"
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
 ]
 
 @router.post("/molds/scan")
@@ -27,21 +27,22 @@ async def scan_mold(file: UploadFile = File(...)):
         prompt = (
             "Analiza esta imagen de un cuaderno o nota manuscrita de joyería. "
             "Extrae la información estructurada en un objeto JSON válido con exactamente estas llaves: "
-            "\"numero\" (el código o número del molde, ej. MG05), "
-            "\"tipo\" (ej. Anillo, Dije, Plancha), "
-            "\"carrera\" (el texto de la carrera o diseño, ej. Perito Contador), "
-            "\"medida\" (ej. 10x8, 13x13 mm), y "
-            "\"notas\" (detalles extra como piedras o acabados). "
-            "Si algún campo no está presente, déjalo como cadena vacía."
+            "\"numero\" (el código o número del molde escrito a mano), "
+            "\"tipo\" (el tipo de joya, ej. Anillo, Dije, Plancha), "
+            "\"carrera\" (el texto de la carrera, motivo de graduación o diseño), "
+            "\"medida\" (las dimensiones escritas), y "
+            "\"notas\" (cualquier detalle o acabado extra). "
+            "Si algún campo no está presente, déjalo como cadena vacía. "
+            "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
         response_text = None
         last_error = None
 
-        # Bucle de respaldo automático entre los modelos actuales
+        # Bucle de respaldo automático usando solo modelos reales oficiales
         for model_name in GEMINI_MODELS:
             try:
-                print(f"Intentando escaneo OCR con el modelo: {model_name}")
+                print(f"Intentando escaneo OCR con el modelo oficial: {model_name}")
                 model = genai.GenerativeModel(
                     model_name=model_name,
                     generation_config={"response_mime_type": "application/json"}
@@ -71,24 +72,45 @@ async def scan_mold(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
 
 
+# ---------------------------------------------------------
+# GESTIÓN DE CARPETAS / LIBRERÍAS (Tú las creas y organizas)
+# ---------------------------------------------------------
+
 @router.get("/libraries")
 async def get_libraries():
-    return [
-        {"id": "1", "nombre": "Anillos de Graduación"},
-        {"id": "2", "nombre": "Ovales y Octagonales"},
-        {"id": "3", "nombre": "Dijes y Planchas"}
-    ]
+    # Consulta las carpetas reales que tú vayas creando en tu base de datos
+    libraries = await db.libraries.find({}, {"_id": 0}).to_list(100)
+    return libraries
 
+
+@router.post("/libraries")
+async def create_library(data: dict):
+    # Permite crear una carpeta nueva de forma manual desde tu panel
+    await db.libraries.insert_one(data)
+    return {"success": True, "message": "Carpeta creada exitosamente"}
+
+
+@router.delete("/libraries/{library_id}")
+async def delete_library(library_id: str):
+    # Permite eliminar una carpeta que ya no necesites
+    await db.libraries.delete_one({"id": library_id})
+    return {"success": True, "message": "Carpeta eliminada"}
+
+
+# ---------------------------------------------------------
+# GESTIÓN DE MOLDES DENTRO DE TUS CARPETAS
+# ---------------------------------------------------------
 
 @router.get("/libraries/{library_id}/molds")
 async def get_molds_by_library(library_id: str):
-    return [
-        {
-            "id": "mold_1",
-            "numero": "MG01",
-            "tipo": "Anillo",
-            "carrera": "Perito Contador",
-            "medida": "12x10 mm",
-            "notas": "Modelo base con grecas"
-        }
-    ]
+    # Trae los moldes reales guardados en esta carpeta específica
+    molds = await db.molds.find({"library_id": library_id}, {"_id": 0}).to_list(500)
+    return molds
+
+
+@router.post("/libraries/{library_id}/molds")
+async def save_mold(library_id: str, data: dict):
+    # Guarda un nuevo molde escaneado o escrito por ti en su respectiva carpeta
+    data["library_id"] = library_id
+    await db.molds.insert_one(data)
+    return {"success": True, "message": "Molde guardado correctamente"}
