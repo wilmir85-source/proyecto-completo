@@ -10,9 +10,12 @@ export default function Moldes() {
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
   
+  // Estados para el Modal
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false); // Controla si estamos leyendo o editando
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
+  
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -37,13 +40,15 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
+  // --- ABRIR MODAL ---
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
+    setIsEditMode(true); // En uno nuevo, abrimos directo en edición
     setModalOpen(true);
   };
 
-  const openEditModal = (molde) => {
+  const openViewModal = (molde) => {
     setEditing(molde);
     setFormData({
       numero: molde.numero || "",
@@ -52,10 +57,11 @@ export default function Moldes() {
       medida: molde.medida || "",
       notas: molde.notas || "",
     });
+    setIsEditMode(false); // Abrimos en modo LECTURA
     setModalOpen(true);
   };
 
-  // Barra de progreso simulada
+  // --- BARRA DE PROGRESO SIMULADA ---
   useEffect(() => {
     let interval;
     if (scanning) {
@@ -120,31 +126,32 @@ export default function Moldes() {
     } catch { toast.error("Error al borrar"); }
   };
 
-  // Edición en línea: guarda el cambio de una celda al presionar Enter
-  const handleInlineEdit = async (id, field, value) => {
-    try {
-      await api.put(`/molds/${id}`, { [field]: value });
-      setMolds(prev => prev.map(m => m.id === id ? { ...m, [field]: value } : m));
-      toast.success("Cambio guardado", { duration: 1000 });
-    } catch {
-      toast.error("Error al guardar el cambio");
-    }
-  };
-
+  // --- EXPORTAR A PDF (CON MANEJO DE ERRORES) ---
   const exportToPDF = () => {
-    if (!selectedLib) return;
-    const doc = new jsPDF();
-    doc.text(`Listado de Moldes: ${selectedLib.nombre}`, 14, 16);
-    const tableData = filteredMolds.map(m => [m.numero, m.tipo, m.carrera, m.medida, m.notas]);
-    doc.autoTable({
-      head: [['N° Molde', 'Tipo', 'Carrera / Diseño', 'Medida', 'Notas']],
-      body: tableData,
-      startY: 22,
-      styles: { fontSize: 8, cellPadding: 2 },
-      columnStyles: { 2: { cellWidth: 60 } } // más ancho para la carrera
-    });
-    doc.save(`Moldes_${selectedLib.nombre}.pdf`);
-    toast.success("PDF descargado");
+    try {
+      if (!selectedLib) return;
+      const doc = new jsPDF();
+      doc.text(`Listado de Moldes: ${selectedLib.nombre}`, 14, 16);
+      const tableData = filteredMolds.map(m => [m.numero, m.tipo, m.carrera, m.medida, m.notas]);
+      
+      if (typeof doc.autoTable === "function") {
+        doc.autoTable({
+          head: [['N° Molde', 'Tipo', 'Carrera / Diseño', 'Medida', 'Notas']],
+          body: tableData,
+          startY: 22,
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: { 2: { cellWidth: 70 } }
+        });
+      } else {
+        toast.error("Error: Falta instalar jspdf-autotable");
+        return;
+      }
+      doc.save(`Moldes_${selectedLib.nombre}.pdf`);
+      toast.success("PDF descargado");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al generar PDF. Revisa la consola.");
+    }
   };
 
   const filteredMolds = useMemo(() => {
@@ -157,7 +164,7 @@ export default function Moldes() {
     );
   }, [molds, search]);
 
-  // --- ESTILOS MEJORADOS ---
+  // --- ESTILOS ---
   const s = {
     page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
     title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
@@ -165,29 +172,34 @@ export default function Moldes() {
     btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
     btnSecondary: { background: "#222", color: "#fff", border: "1px solid #444", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
     
-    // Tabla más legible
-    tableWrapper: { overflowX: "auto", background: "#111", borderRadius: "12px", border: "1px solid #333" },
-    table: { width: "100%", borderCollapse: "collapse", textAlign: "left", minWidth: "700px" },
-    th: { padding: "12px 10px", borderBottom: "1px solid #333", color: "#d4af37", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" },
-    td: { padding: "10px", borderBottom: "1px solid #222", fontSize: "14px", color: "#ddd", verticalAlign: "top" },
-    editableCell: { cursor: "pointer", padding: "8px", borderRadius: "4px", "&:hover": { background: "#222" } },
-    
-    // Modal tipo ficha técnica
+    // LISTA TIPO SPOTIFY (Tarjetas verticales)
+    listContainer: { display: "flex", flexDirection: "column", gap: "10px" },
+    listCard: { background: "#151515", border: "1px solid #333", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer", transition: "0.2s" },
+    listBadge: { background: "#333", color: "#d4af37", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
+    listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
+    listTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
+    listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
+    listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
+
+    // MODAL DE LECTURA/EDICIÓN
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "700px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
+    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "90vh", overflowY: "auto", display: "flex", flexDirection: "column" },
+    
+    // ESTILOS DE LECTURA
+    readContainer: { background: "#0a0a0a", border: "1px solid #222", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
+    readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "5px", display: "block" },
+    readValue: { fontSize: "16px", color: "#fff", lineHeight: "1.5", whiteSpace: "pre-wrap" },
+    
+    // ESTILOS DE EDICIÓN
     label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "15px", fontWeight: "bold" },
     input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
-    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "120px", resize: "vertical", fontFamily: "inherit" },
+    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "100px", resize: "vertical", fontFamily: "inherit" },
     row: { display: "flex", gap: "15px" },
     col: { flex: 1 },
+    
     btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: scanning ? "wait" : "pointer", marginBottom: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "10px", transition: "0.3s" },
     progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "10px", overflow: "hidden" },
     progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
-    
-    // Ficha técnica (Description List)
-    dl: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "8px 15px", margin: "10px 0", alignItems: "start" },
-    dt: { color: "#d4af37", fontWeight: "bold", fontSize: "13px", textAlign: "right", paddingTop: "12px" },
-    dd: { margin: 0, fontSize: "15px", color: "#fff" },
   };
 
   return (
@@ -195,19 +207,18 @@ export default function Moldes() {
       <style>{`
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .spinner { animation: spin 1s linear infinite; display: inline-block; }
-        tr:hover { background-color: #1a1a1a; }
-        .editable-cell:hover { background-color: #222; }
+        .list-card:hover { border-color: #d4af37; background-color: #1a1a1a; }
       `}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Listado de moldes (Toca una celda para editar)" : "Selecciona una carpeta"}</p>
+          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Toca un molde para LEER o editar" : "Selecciona una carpeta"}</p>
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
             <button style={s.btnSecondary} onClick={exportToPDF}>📄 PDF</button>
-            <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo Molde</button>
+            <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo</button>
           </div>
         )}
       </div>
@@ -239,56 +250,36 @@ export default function Moldes() {
         </div>
       )}
 
+      {/* LISTA TIPO SPOTIFY (En lugar de la tabla) */}
       {selectedLib && (
-        <div style={s.tableWrapper}>
-          <table style={s.table}>
-            <thead>
-              <tr>
-                <th style={s.th}>N°</th>
-                <th style={s.th}>Tipo</th>
-                <th style={s.th}>Carrera / Diseño</th>
-                <th style={s.th}>Medida</th>
-                <th style={s.th}>Notas</th>
-                <th style={s.th}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredMolds.map((m) => (
-                <tr key={m.id} style={s.tr}>
-                  {/* Celdas editables */}
-                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'numero', e.target.innerText)}>
-                    <span style={{ background: "#333", padding: "4px 8px", borderRadius: "4px", fontSize: "13px", color: "#d4af37", fontWeight: "bold" }}>{m.numero}</span>
-                  </td>
-                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'tipo', e.target.innerText)}>
-                    {m.tipo || "-"}
-                  </td>
-                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'carrera', e.target.innerText)}>
-                    {m.carrera || "-"}
-                  </td>
-                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'medida', e.target.innerText)}>
-                    {m.medida || "-"}
-                  </td>
-                  <td style={{ ...s.td, ...s.editableCell }} contentEditable suppressContentEditableWarning onBlur={(e) => handleInlineEdit(m.id, 'notas', e.target.innerText)}>
-                    {m.notas || "-"}
-                  </td>
-                  <td style={s.td}>
-                    <button style={s.actionBtn} onClick={() => openEditModal(m)}>✏️</button>
-                    <button style={s.actionBtn} onClick={() => handleDelete(m.id)}>🗑️</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={s.listContainer}>
+          {filteredMolds.map((m) => (
+            <div key={m.id} style={s.listCard} className="list-card" onClick={() => openViewModal(m)}>
+              <div style={s.listBadge}>{m.numero}</div>
+              <div style={s.listContent}>
+                <div style={s.listTitle}>{m.tipo || "Sin tipo"}</div>
+                <div style={s.listSub}>{m.carrera || "Sin diseño"}</div>
+              </div>
+              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>🗑️</button>
+            </div>
+          ))}
           {filteredMolds.length === 0 && <p style={{ textAlign: "center", padding: "20px", color: "#666" }}>No hay moldes. Crea uno nuevo.</p>}
         </div>
       )}
 
-      {/* MODAL CON FICHA TÉCNICA (Description List) */}
+      {/* MODAL: LECTURA Y EDICIÓN */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ color: "#d4af37", margin: "0 0 15px 0" }}>{editing ? "Editar Molde" : "Nuevo Molde"}</h2>
             
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <h2 style={{ color: "#d4af37", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
+              {editing && !isEditMode && (
+                <button style={{ ...s.btnPrimary, padding: "8px 12px", fontSize: "12px" }} onClick={() => setIsEditMode(true)}>✏️ Editar</button>
+              )}
+            </div>
+            
+            {/* SI ESTAMOS CREANDO UNO NUEVO, MOSTRAMOS EL BOTÓN DE ESCANEAR */}
             {!editing && (
               <div style={s.btnScan} onClick={() => !scanning && fileInputRef.current?.click()}>
                 {scanning ? (
@@ -300,42 +291,76 @@ export default function Moldes() {
               </div>
             )}
 
-            <form onSubmit={handleSave}>
-              {/* Ficha técnica con Description List */}
-              <dl style={s.dl}>
-                <dt style={s.dt}>N° Molde</dt>
-                <dd style={s.dd}>
-                  <input style={s.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
-                </dd>
-
-                <dt style={s.dt}>Tipo</dt>
-                <dd style={s.dd}>
-                  <input style={s.input} placeholder="Ej. Anillo, Dije..." value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} />
-                </dd>
-
-                <dt style={s.dt}>Carrera / Diseño</dt>
-                <dd style={s.dd}>
-                  <textarea style={s.textarea} placeholder="Ej. Perito Contador Octagonal..." value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
-                </dd>
-
-                <dt style={s.dt}>Medida</dt>
-                <dd style={s.dd}>
-                  <input style={s.input} placeholder="Ej. 10x8" value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} />
-                </dd>
-
-                <dt style={s.dt}>Notas</dt>
-                <dd style={s.dd}>
-                  <input style={s.input} placeholder="Ej. Nombre del cliente..." value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
-                </dd>
-              </dl>
-
-              <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || scanning}>
-                  {saving ? "Guardando..." : "💾 Guardar Ficha"}
-                </button>
-                <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cerrar</button>
+            {/* MODO LECTURA (Ficha técnica bonita) */}
+            {!isEditMode && editing ? (
+              <div>
+                <div style={s.readContainer}>
+                  <span style={s.readLabel}>Número de Molde</span>
+                  <div style={{ ...s.readValue, fontSize: "24px", color: "#d4af37", fontWeight: "bold" }}>{formData.numero}</div>
+                </div>
+                <div style={s.readContainer}>
+                  <span style={s.readLabel}>Tipo de Joya</span>
+                  <div style={s.readValue}>{formData.tipo || "-"}</div>
+                </div>
+                <div style={s.readContainer}>
+                  <span style={s.readLabel}>Carrera / Diseño</span>
+                  <div style={s.readValue}>{formData.carrera || "-"}</div>
+                </div>
+                <div style={s.row}>
+                  <div style={{...s.readContainer, flex: 1}}>
+                    <span style={s.readLabel}>Medida</span>
+                    <div style={s.readValue}>{formData.medida || "-"}</div>
+                  </div>
+                  <div style={{...s.readContainer, flex: 1}}>
+                    <span style={s.readLabel}>Notas</span>
+                    <div style={s.readValue}>{formData.notas || "-"}</div>
+                  </div>
+                </div>
+                <button style={{ ...s.btnSecondary, width: "100%", marginTop: "20px" }} onClick={() => setModalOpen(false)}>Cerrar</button>
               </div>
-            </form>
+            ) : (
+              
+              /* MODO EDICIÓN */
+              <form onSubmit={handleSave}>
+                <div style={s.row}>
+                  <div style={s.col}>
+                    <label style={s.label}>Número de Molde</label>
+                    <input style={s.input} required placeholder="Ej. 45, 212..." value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} />
+                  </div>
+                  <div style={s.col}>
+                    <label style={s.label}>Tipo de Joya</label>
+                    <input style={s.input} placeholder="Ej. Anillo, Dije..." value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} />
+                  </div>
+                </div>
+
+                <label style={s.label}>Carrera / Diseño</label>
+                <textarea style={s.textarea} placeholder="Ej. Perito Contador Octagonal..." value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
+
+                <div style={s.row}>
+                  <div style={s.col}>
+                    <label style={s.label}>Medida</label>
+                    <input style={s.input} placeholder="Ej. 10x8" value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} />
+                  </div>
+                  <div style={s.col}>
+                    <label style={s.label}>Notas Adicionales</label>
+                    <input style={s.input} placeholder="Ej. Nombre del cliente..." value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
+                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || scanning}>
+                    {saving ? "Guardando..." : "💾 Guardar Ficha"}
+                  </button>
+                  {editing && (
+                    <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setIsEditMode(false)}>Cancelar Edición</button>
+                  )}
+                  {!editing && (
+                    <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cerrar</button>
+                  )}
+                </div>
+              </form>
+            )}
+
           </div>
         </div>
       )}
