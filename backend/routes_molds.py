@@ -5,15 +5,17 @@ from PIL import Image
 import io
 import json
 
+# Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
 
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Lista de modelos oficiales actualizados (sistema de respaldo ante caídas 503)
+# Modelos actualizados y compatibles con la API actual de Google
 GEMINI_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro"
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-1.5-flash"
 ]
 
 @router.post("/molds/scan")
@@ -36,7 +38,7 @@ async def scan_mold(file: UploadFile = File(...)):
         response_text = None
         last_error = None
 
-        # Bucle de respaldo automático (Fallback ante saturación 503)
+        # Bucle de respaldo automático entre modelos
         for model_name in GEMINI_MODELS:
             try:
                 print(f"Intentando escaneo OCR con el modelo: {model_name}")
@@ -50,13 +52,13 @@ async def scan_mold(file: UploadFile = File(...)):
                     break 
             except Exception as model_err:
                 last_error = str(model_err)
-                print(f"Modelo {model_name} falló o está saturado: {last_error}")
+                print(f"Modelo {model_name} falló: {last_error}")
                 continue
 
         if not response_text:
             raise HTTPException(
                 status_code=503, 
-                detail=f"Los servidores de IA están saturados temporalmente. Detalle: {last_error}"
+                detail=f"No se pudo procesar con IA. Detalle: {last_error}"
             )
 
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
@@ -71,9 +73,24 @@ async def scan_mold(file: UploadFile = File(...)):
 
 @router.get("/libraries")
 async def get_libraries():
-    # Devuelve las carpetas para que la app cargue tus colecciones de moldes sin error
+    # Devuelve las carpetas principales para tu catálogo
     return [
         {"id": "1", "nombre": "Anillos de Graduación"},
         {"id": "2", "nombre": "Ovales y Octagonales"},
         {"id": "3", "nombre": "Dijes y Planchas"}
+    ]
+
+
+@router.get("/libraries/{library_id}/molds")
+async def get_molds_by_library(library_id: str):
+    # Resuelve el error 404 devolviendo la lista de moldes para esa librería
+    return [
+        {
+            "id": "mold_1",
+            "numero": "MG01",
+            "tipo": "Anillo",
+            "carrera": "Perito Contador",
+            "medida": "12x10 mm",
+            "notas": "Modelo base con grecas"
+        }
     ]
