@@ -1,5 +1,6 @@
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from PIL import Image
 import io
@@ -9,11 +10,9 @@ from core import db
 # Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
 
-# Configura tu API key de Gemini
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Usamos el modelo estable actual admitido por la librería clásica
-GEMINI_MODEL = "gemini-2.5-flash"
+# Inicializamos el cliente moderno oficial de Google GenAI
+# Lee automáticamente la variable de entorno GEMINI_API_KEY
+client = genai.Client()
 
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
@@ -21,7 +20,7 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar la imagen para optimizar el procesamiento y evitar tiempos de espera
+        # Redimensionar ligeramente para optimizar y evitar tiempos de espera
         image.thumbnail((1600, 1600))
         
         prompt = (
@@ -36,11 +35,17 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print(f"Escaneando con el modelo estable: {GEMINI_MODEL}...")
+        print("Iniciando escaneo OCR con el cliente moderno de Google GenAI (gemini-3.8-flash)...")
         
-        model = genai.GenerativeModel(GEMINI_MODEL)
+        # Usamos el cliente oficial moderno con el modelo recomendado por Google
+        response = client.models.generate_content(
+            model='gemini-3.8-flash',
+            contents=[image, prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            ),
+        )
         
-        response = model.generate_content([prompt, image])
         response_text = response.text
 
         if not response_text:
