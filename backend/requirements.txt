@@ -15,6 +15,6 @@ cloudinary
 groq
 tavily-python
 pywebpush
-google-genai
+google-generativeai
 Pillow
 openai
