@@ -33,10 +33,10 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print("Iniciando escaneo OCR con gemini-2.5-flash...")
+        print("Iniciando escaneo OCR con gemini-3.8-flash...")
         
-        # Usamos el modelo actual y vigente compatible con la API de Google
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        # Usamos el modelo exacto que indicó el mensaje de error de Google
+        model = genai.GenerativeModel("gemini-3.8-flash")
         
         response = model.generate_content([prompt, image])
         response_text = response.text
