@@ -5,7 +5,7 @@ from PIL import Image
 import io
 import json
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
 
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
