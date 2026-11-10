@@ -6,11 +6,14 @@ import io
 import json
 from core import db
 
-# Usamos el prefijo /api para que coincida perfectamente con tus peticiones
+# Usamos el prefijo /api para que coincida exactamente con tus peticiones
 router = APIRouter(prefix="/api")
 
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+
+# Usamos el modelo oficial estable para lectura rápida de imágenes
+GEMINI_MODEL = "gemini-1.5-flash"
 
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
@@ -21,55 +24,26 @@ async def scan_mold(file: UploadFile = File(...)):
         prompt = (
             "Analiza esta imagen de un cuaderno o nota manuscrita de joyería. "
             "Extrae la información estructurada en un objeto JSON válido con exactamente estas llaves: "
-            "\"numero\" (el código o número del molde escrito a mano), "
+            "\"numero\" (el código o número del molde escrito a mano, ej. 45, MG05), "
             "\"tipo\" (el tipo de joya, ej. Anillo, Dije, Plancha), "
-            "\"carrera\" (el texto de la carrera, motivo de graduación o diseño), "
-            "\"medida\" (las dimensiones escritas), y "
+            "\"carrera\" (el texto de la carrera, diseño o motivo de graduación), "
+            "\"medida\" (las dimensiones escritas, ej. 10x8 mm), y "
             "\"notas\" (cualquier detalle o acabado extra). "
             "Si algún campo no está presente, déjalo como cadena vacía. "
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        response_text = None
-        last_error = None
-
-        # Buscamos automáticamente un modelo compatible con generación de contenido en tu cuenta
-        available_models = []
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    if 'flash' in m.name or 'pro' in m.name:
-                        available_models.append(m.name)
-        except Exception as list_err:
-            print(f"No se pudo listar automáticamente: {list_err}")
-
-        # Lista de respaldo por si la auto-detección falla
-        if not available_models:
-            available_models = ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
-
-        # Probamos los modelos disponibles de forma automática
-        for model_path in available_models:
-            try:
-                model_name = model_path.replace("models/", "")
-                print(f"Probando modelo compatible: {model_name}")
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    generation_config={"response_mime_type": "application/json"}
-                )
-                response = model.generate_content([prompt, image])
-                response_text = response.text
-                if response_text:
-                    break
-            except Exception as model_err:
-                last_error = str(model_err)
-                print(f"Modelo {model_name} falló: {last_error}")
-                continue
+        print(f"Iniciando escaneo OCR con el modelo oficial: {GEMINI_MODEL}")
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL,
+            generation_config={"response_mime_type": "application/json"}
+        )
+        
+        response = model.generate_content([prompt, image])
+        response_text = response.text
 
         if not response_text:
-            raise HTTPException(
-                status_code=503, 
-                detail=f"No se pudo procesar con IA. Detalle: {last_error}"
-            )
+            raise HTTPException(status_code=503, detail="La IA no devolvió respuesta.")
 
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         parsed_data = json.loads(clean_json)
@@ -113,8 +87,20 @@ async def get_molds_by_library(library_id: str):
     return molds
 
 
-@router.post("/libraries/{library_id}/molds")
-async def save_mold(library_id: str, data: dict):
-    data["library_id"] = library_id
+@router.post("/molds")
+async def create_mold(data: dict):
+    # Guarda el molde en la base de datos vinculado a su librería
     await db.molds.insert_one(data)
     return {"success": True, "message": "Molde guardado correctamente"}
+
+
+@router.put("/molds/{mold_id}")
+async def update_mold(mold_id: str, data: dict):
+    await db.molds.update_one({"id": mold_id}, {"$set": data})
+    return {"success": True, "message": "Molde actualizado"}
+
+
+@router.delete("/molds/{mold_id}")
+async def delete_mold(mold_id: str):
+    await db.molds.delete_one({"id": mold_id})
+    return {"success": True, "message": "Molde borrado"}
