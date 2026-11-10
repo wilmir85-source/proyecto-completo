@@ -18,7 +18,7 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar ligeramente para optimizar y evitar tiempos de espera (timeout / 504)
+        # Redimensionar ligeramente para optimizar y evitar tiempos de espera
         image.thumbnail((1600, 1600))
         
         prompt = (
@@ -33,10 +33,10 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print("Iniciando escaneo OCR con gemini-1.5-flash...")
+        print("Iniciando escaneo OCR con GenerativeModel v1...")
         
-        # Inicialización directa compatible con la SDK actual
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # Usamos el nombre con el namespace completo que la v1beta acepta por defecto en esta versión del SDK
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         response = model.generate_content([prompt, image])
         response_text = response.text
