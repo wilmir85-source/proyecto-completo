@@ -6,14 +6,11 @@ import io
 import json
 from core import db
 
-# Usamos el prefijo /api para que coincida con tus peticiones
+# Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
 
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Usamos el nombre completo con el prefijo models/ que exige la API actual
-GEMINI_MODEL = "models/gemini-1.5-flash"
 
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
@@ -21,7 +18,7 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar ligeramente para evitar tiempos de espera (timeout / 504)
+        # Redimensionar ligeramente para optimizar y evitar tiempos de espera (timeout / 504)
         image.thumbnail((1600, 1600))
         
         prompt = (
@@ -36,8 +33,10 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print(f"Escaneando con {GEMINI_MODEL}...")
-        model = genai.GenerativeModel(model_name=GEMINI_MODEL)
+        print("Iniciando escaneo OCR con gemini-1.5-flash...")
+        
+        # Inicialización directa compatible con la SDK actual
+        model = genai.GenerativeModel("gemini-1.5-flash")
         
         response = model.generate_content([prompt, image])
         response_text = response.text
