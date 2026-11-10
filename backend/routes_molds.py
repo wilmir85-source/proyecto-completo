@@ -1,6 +1,5 @@
 import os
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from PIL import Image
 import io
@@ -10,9 +9,8 @@ from core import db
 # Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
 
-# Inicializamos el cliente moderno oficial de Google GenAI
-# Lee automáticamente la variable de entorno GEMINI_API_KEY
-client = genai.Client()
+# Configura tu API key de Gemini
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
@@ -20,7 +18,7 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar ligeramente para optimizar y evitar tiempos de espera
+        # Redimensionar para optimizar y evitar tiempos de espera
         image.thumbnail((1600, 1600))
         
         prompt = (
@@ -35,17 +33,12 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print("Iniciando escaneo OCR con el cliente moderno de Google GenAI (gemini-3.8-flash)...")
+        print("Iniciando escaneo OCR con gemini-1.5-flash...")
         
-        # Usamos el cliente oficial moderno con el modelo recomendado por Google
-        response = client.models.generate_content(
-            model='gemini-3.8-flash',
-            contents=[image, prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json"
-            ),
-        )
+        # Instanciamos el modelo clásico de forma segura
+        model = genai.GenerativeModel("gemini-1.5-flash")
         
+        response = model.generate_content([prompt, image])
         response_text = response.text
 
         if not response_text:
