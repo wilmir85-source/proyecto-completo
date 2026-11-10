@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api")
 # Configura tu API key de Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# Usamos únicamente el modelo flash oficial, rápido y ligero
-GEMINI_MODEL = "gemini-1.5-flash"
+# Usamos el nombre completo con el prefijo models/ que exige la API actual
+GEMINI_MODEL = "models/gemini-1.5-flash"
 
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
@@ -21,7 +21,7 @@ async def scan_mold(file: UploadFile = File(...)):
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar ligeramente la imagen si es muy pesada evita el error 504 de tiempo de espera
+        # Redimensionar ligeramente para evitar tiempos de espera (timeout / 504)
         image.thumbnail((1600, 1600))
         
         prompt = (
@@ -39,7 +39,6 @@ async def scan_mold(file: UploadFile = File(...)):
         print(f"Escaneando con {GEMINI_MODEL}...")
         model = genai.GenerativeModel(model_name=GEMINI_MODEL)
         
-        # Generamos la respuesta de forma directa
         response = model.generate_content([prompt, image])
         response_text = response.text
 
