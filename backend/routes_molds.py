@@ -1,139 +1,209 @@
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import Response
+from pydantic import BaseModel
+from typing import Optional
 import os
-import httpx
-from fastapi import APIRouter, File, UploadFile, HTTPException
-from PIL import Image
 import io
-import json
-from core import db
+import asyncio
+from google import genai
+from google.genai import types
+from PIL import Image
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from core import db, current_user, now_iso, new_id, logger
+from dotenv import load_dotenv
 
-# Usamos el prefijo /api para que coincida perfectamente con tus peticiones
+load_dotenv()
 router = APIRouter(prefix="/api")
 
+# --- MODELOS DE DATOS ---
+class LibreriaIn(BaseModel):
+    nombre: str
+
+class MoldeIn(BaseModel):
+    libreria_id: str
+    numero: str
+    tipo: Optional[str] = ""
+    carrera: Optional[str] = ""
+    medida: Optional[str] = ""
+    notas: Optional[str] = ""
+    texto: Optional[str] = "" # Se mantiene por compatibilidad
+
+class MoldeUpdate(BaseModel):
+    numero: Optional[str] = None
+    tipo: Optional[str] = None
+    carrera: Optional[str] = None
+    medida: Optional[str] = None
+    notas: Optional[str] = None
+    texto: Optional[str] = None
+
+# --- MODELO PARA LA IA (GEMINI) ---
+class DatosMolde(BaseModel):
+    tipo: str
+    carrera: str
+    medida: str
+    numero: str
+    notas: str
+
+
+# 1. ESCANEAR FOTO CON GEMINI (OCR)
 @router.post("/molds/scan")
-async def scan_mold(file: UploadFile = File(...)):
+async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
-        image_bytes = await file.read()
-        image = Image.open(io.BytesIO(image_bytes))
+        API_KEY = os.getenv("GEMINI_API_KEY")
+        if not API_KEY:
+            raise HTTPException(500, "GEMINI_API_KEY no configurada.")
         
-        # Redimensionar para optimizar y asegurar rapidez
-        image.thumbnail((1600, 1600))
+        client = genai.Client(api_key=API_KEY)
+        data = await file.read()
+
+        with Image.open(io.BytesIO(data)) as imagen:
+            if imagen.mode != "RGB":
+                imagen = imagen.convert("RGB")
+
+            prompt = (
+                "Analiza la imagen del molde de joyería. Extrae los datos de manera precisa. "
+                "Si algún campo no aparece, asigna una cadena vacía."
+            )
+
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model="gemini-3.8-flash",
+                contents=[prompt, imagen],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=DatosMolde,
+                ),
+            )
         
-        # Convertir la imagen a formato JPEG en memoria para enviarla limpia
-        buffered = io.BytesIO()
-        image.save(buffered, format="JPEG")
-        import base64
-        image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        
-        prompt = (
-            "Analiza esta imagen de un cuaderno o nota manuscrita de joyería. "
-            "Extrae la información en un objeto JSON válido con exactamente estas llaves: "
-            "\"numero\" (el código del molde, ej. 45, MG05), "
-            "\"tipo\" (ej. Anillo, Dije, Plancha), "
-            "\"carrera\" (el texto de la carrera o diseño), "
-            "\"medida\" (las dimensiones, ej. 10x8 mm), y "
-            "\"notas\" (detalles extra). "
-            "Si algún campo no está presente, déjalo como cadena vacía. "
-            "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
-        )
-
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=500, detail="Falta la API Key de Gemini en las variables de entorno.")
-
-        print("Iniciando escaneo OCR directo por HTTP con gemini-2.5-flash...")
-
-        # URL del endpoint oficial actual de Google Gemini API
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
-
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt},
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": image_base64
-                            }
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "response_mime_type": "application/json"
-            }
-        }
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, json=payload)
-
-        if response.status_code != 200:
-            print(f"Error de API Gemini: {response.text}")
-            raise HTTPException(status_code=502, detail=f"Error en el servicio de IA: {response.text}")
-
-        res_json = response.json()
-        
-        # Extraer el texto de la respuesta de la API REST
-        try:
-            response_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError) as e:
-            raise HTTPException(status_code=503, detail="La IA devolvió una respuesta vacía o con formato inesperado.")
-
-        clean_json = response_text.replace("```json", "").replace("```", "").strip()
-        parsed_data = json.loads(clean_json)
-
-        return {"success": True, "datos": parsed_data}
-
+        return {"ok": True, "datos": response.parsed.model_dump()}
     except Exception as e:
-        print(f"Error crítico en /molds/scan: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error al procesar la imagen: {str(e)}")
+        logger.error(f"Error OCR: {e}")
+        raise HTTPException(502, "Error al leer la imagen.")
 
 
-# ---------------------------------------------------------
-# GESTIÓN DE CARPETAS / LIBRERÍAS
-# ---------------------------------------------------------
-
-@router.get("/libraries")
-async def get_libraries():
-    libraries = await db.libraries.find({}, {"_id": 0}).to_list(100)
-    return libraries
-
-
+# 2. CREAR UNA CARPETA (LIBRERÍA)
 @router.post("/libraries")
-async def create_library(data: dict):
-    await db.libraries.insert_one(data)
-    return {"success": True, "message": "Carpeta creada exitosamente"}
+async def create_library(payload: LibreriaIn, user=Depends(current_user)):
+    lib = {
+        "id": new_id(), 
+        "nombre": payload.nombre, 
+        "creado_por": user["name"], 
+        "created_at": now_iso()
+    }
+    await db.libraries.insert_one(lib)
+    lib.pop("_id", None)
+    return lib
+
+# 3. VER TODAS LAS CARPETAS
+@router.get("/libraries")
+async def get_libraries(user=Depends(current_user)):
+    return await db.libraries.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+# 4. EDITAR UNA CARPETA
+@router.put("/libraries/{libreria_id}")
+async def update_library(libreria_id: str, payload: LibreriaIn, user=Depends(current_user)):
+    existing = await db.libraries.find_one({"id": libreria_id})
+    if not existing:
+        raise HTTPException(404, "Carpeta no encontrada")
+    await db.libraries.update_one({"id": libreria_id}, {"$set": {"nombre": payload.nombre}})
+    return await db.libraries.find_one({"id": libreria_id}, {"_id": 0})
+
+# 5. BORRAR UNA CARPETA
+@router.delete("/libraries/{libreria_id}")
+async def delete_library(libreria_id: str, user=Depends(current_user)):
+    result = await db.libraries.delete_one({"id": libreria_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Carpeta no encontrada")
+    await db.molds.delete_many({"libreria_id": libreria_id})
+    return {"ok": True}
 
 
-@router.delete("/libraries/{library_id}")
-async def delete_library(library_id: str):
-    await db.libraries.delete_one({"id": library_id})
-    return {"success": True, "message": "Carpeta eliminada"}
-
-
-# ---------------------------------------------------------
-# GESTIÓN DE MOLDES
-# ---------------------------------------------------------
-
-@router.get("/libraries/{library_id}/molds")
-async def get_molds_by_library(library_id: str):
-    molds = await db.molds.find({"library_id": library_id}, {"_id": 0}).to_list(500)
-    return molds
-
-
+# 6. GUARDAR UN MOLDE
 @router.post("/molds")
-async def create_mold(data: dict):
-    await db.molds.insert_one(data)
-    return {"success": True, "message": "Molde guardado correctamente"}
+async def save_mold(payload: MoldeIn, user=Depends(current_user)):
+    molde = payload.model_dump()
+    molde["id"] = new_id()
+    molde["creado_por"] = user["name"]
+    molde["created_at"] = now_iso()
+    
+    await db.molds.insert_one(molde)
+    molde.pop("_id", None)
+    return molde
 
+# 7. EDITAR UN MOLDE
+@router.put("/molds/{molde_id}")
+async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
+    existing = await db.molds.find_one({"id": molde_id})
+    if not existing:
+        raise HTTPException(404, "Molde no encontrado")
+    
+    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if updates:
+        await db.molds.update_one({"id": molde_id}, {"$set": updates})
+        
+    return await db.molds.find_one({"id": molde_id}, {"_id": 0})
 
-@router.put("/molds/{mold_id}")
-async def update_mold(mold_id: str, data: dict):
-    await db.molds.update_one({"id": mold_id}, {"$set": data})
-    return {"success": True, "message": "Molde actualizado"}
+# 8. BORRAR UN MOLDE
+@router.delete("/molds/{molde_id}")
+async def delete_mold(molde_id: str, user=Depends(current_user)):
+    result = await db.molds.delete_one({"id": molde_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Molde no encontrado")
+    return {"ok": True}
 
+# 9. VER LOS MOLDES DE UNA CARPETA
+@router.get("/libraries/{libreria_id}/molds")
+async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
+    return await db.molds.find(
+        {"libreria_id": libreria_id}, {"_id": 0}
+    ).sort("numero", 1).to_list(1000)
 
-@router.delete("/molds/{mold_id}")
-async def delete_mold(mold_id: str):
-    await db.molds.delete_one({"id": mold_id})
-    return {"success": True, "message": "Molde borrado"}
+# 10. BUSCADOR GLOBAL
+@router.get("/molds/search")
+async def search_molds(q: str, user=Depends(current_user)):
+    if not q:
+        return []
+    query = {
+        "$or": [
+            {"numero": {"$regex": q, "$options": "i"}},
+            {"tipo": {"$regex": q, "$options": "i"}},
+            {"carrera": {"$regex": q, "$options": "i"}},
+            {"medida": {"$regex": q, "$options": "i"}},
+            {"notas": {"$regex": q, "$options": "i"}},
+        ]
+    }
+    resultados = await db.molds.find(query, {"_id": 0}).to_list(200)
+    for r in resultados:
+        lib = await db.libraries.find_one({"id": r["libreria_id"]})
+        r["nombre_libreria"] = lib["nombre"] if lib else "Sin Carpeta"
+    return resultados
+
+# 11. GENERAR PDF DE UN MOLDE (Opcional desde el backend)
+@router.get("/molds/{molde_id}/pdf")
+async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
+    molde = await db.molds.find_one({"id": molde_id})
+    if not molde:
+        raise HTTPException(404, "Molde no encontrado")
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    elements = [
+        Paragraph(f"Molde: {molde.get('numero')}", styles["Heading1"]),
+        Spacer(1, 12),
+    ]
+    
+    for key, val in molde.items():
+        if val and key not in ["_id", "id", "libreria_id", "creado_por", "created_at", "texto"]:
+            elements.append(Paragraph(f"<b>{key.capitalize()}:</b> {val}", styles["Normal"]))
+            elements.append(Spacer(1, 6))
+            
+    doc.build(elements)
+    buffer.seek(0)
+    return Response(
+        content=buffer.read(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=Molde_{molde.get('numero')}.pdf"},
+    )
