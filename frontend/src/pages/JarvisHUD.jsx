@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Send, Mic, Volume2, Image as ImageIcon, X } from "lucide-react";
+import { Loader2, Send, Mic, Volume2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { api, API } from "@/lib/api";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"; 
@@ -142,29 +142,26 @@ export default function JarvisHUD() {
   };
 
   const orbState = speech.listening ? "listening" : state;
-
-  // COMPONENTE DEL REACTOR ARC CASERO (AZUL Y ANIMADO)
-  const BlueReactor = () => {
-    const isActive = orbState !== "idle";
-    return (
-      <div className="relative flex items-center justify-center cursor-pointer group" onClick={listen}>
-        {/* Anillo exterior giratorio */}
-        <div className={`absolute w-[180px] h-[180px] md:w-[240px] md:h-[240px] rounded-full border-[2px] border-dashed transition-all duration-700 ${isActive ? 'border-cyan-400 animate-[spin_4s_linear_infinite]' : 'border-zinc-700'}`} />
-        
-        {/* Anillo interior brillante */}
-        <div className={`absolute w-[140px] h-[140px] md:w-[190px] md:h-[190px] rounded-full border-[3px] transition-all duration-500 ${isActive ? 'border-cyan-500 shadow-[0_0_30px_rgba(34,211,238,0.5)] animate-pulse' : 'border-zinc-800'}`} />
-        
-        {/* Centro del reactor */}
-        <div className={`w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center transition-all duration-300 ${isActive ? 'bg-cyan-900/40 shadow-[inset_0_0_20px_rgba(34,211,238,0.8)]' : 'bg-zinc-900'}`}>
-           <div className={`w-10 h-10 md:w-16 md:h-16 rounded-full transition-all duration-500 ${isActive ? 'bg-cyan-300 shadow-[0_0_40px_rgba(34,211,238,1)]' : 'bg-zinc-600'}`} />
-        </div>
-      </div>
-    );
-  };
+  const isActive = orbState !== "idle"; // <-- ARREGLADO AQUÍ: Evita el pantallazo negro
 
   return (
     <div className="h-[100dvh] flex flex-col lg:flex-row bg-[#09090b] overflow-hidden relative">
       
+      {/* CSS MÁGICO PARA LA ANIMACIÓN DEL REACTOR */}
+      <style>{`
+        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.6; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+        
+        .reactor-outer { animation: spin-slow 8s linear infinite; }
+        .reactor-inner { animation: spin-reverse 6s linear infinite; }
+        .reactor-core { animation: pulse-glow 2s ease-in-out infinite; }
+        
+        .reactor-idle .reactor-outer { animation-play-state: paused; border-color: #3f3f46; }
+        .reactor-idle .reactor-inner { animation-play-state: paused; border-color: #27272a; }
+        .reactor-idle .reactor-core { animation-play-state: paused; background-color: #52525b; box-shadow: none; }
+      `}</style>
+
       {/* HUD DE FONDO (Líneas de escaneo) */}
       <div className="absolute inset-0 pointer-events-none opacity-10" style={{
         backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(34, 211, 238, 0.2) 2px, rgba(34, 211, 238, 0.2) 4px)"
@@ -184,9 +181,21 @@ export default function JarvisHUD() {
           </div>
         </div>
 
-        {/* REACTOR ARC AZUL */}
-        <div className="my-6">
-          <BlueReactor />
+        {/* REACTOR ARC AZUL (HECHO 100% EN CSS PARA QUE NO FALLE) */}
+        <div 
+          className={`relative flex items-center justify-center cursor-pointer my-6 ${!isActive ? 'reactor-idle' : ''}`} 
+          onClick={listen}
+        >
+          {/* Anillo exterior giratorio */}
+          <div className={`reactor-outer absolute w-[180px] h-[180px] md:w-[240px] md:h-[240px] rounded-full border-[2px] border-dashed transition-colors duration-500 ${isActive ? 'border-cyan-400' : ''}`} />
+          
+          {/* Anillo interior girando al revés */}
+          <div className={`reactor-inner absolute w-[140px] h-[140px] md:w-[190px] md:h-[190px] rounded-full border-[3px] transition-colors duration-500 ${isActive ? 'border-cyan-500 shadow-[0_0_30px_rgba(34,211,238,0.5)]' : ''}`} />
+          
+          {/* Centro del reactor */}
+          <div className="w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center bg-cyan-950/40 shadow-[inset_0_0_20px_rgba(34,211,238,0.8)] z-10">
+             <div className={`reactor-core w-10 h-10 md:w-16 md:h-16 rounded-full transition-all duration-500 ${isActive ? 'bg-cyan-300 shadow-[0_0_40px_rgba(34,211,238,1)]' : ''}`} />
+          </div>
         </div>
         
         {/* INTERRUPTORES SEPARADOS */}
