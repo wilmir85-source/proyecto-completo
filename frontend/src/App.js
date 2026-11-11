@@ -37,14 +37,19 @@ function RoleGate({ roles, children }) {
   return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
 }
 
-// <-- CANDADO DE MOLDES MEJORADO PARA YUSLIN -->
+// <-- CANDADO DE MOLDES A PRUEBA DE FALLOS -->
 function MoldesGate({ children }) {
   const { user } = useAuth();
   
-  // Convertimos a minúsculas y quitamos espacios en blanco
-  const depto = user?.departamento?.toLowerCase().trim() || "";
+  // Esta función convierte a minúsculas sin importar si es texto o una lista
+  const getDeptoString = (depto) => {
+    if (Array.isArray(depto)) return depto.join(" ").toLowerCase();
+    if (typeof depto === 'string') return depto.toLowerCase();
+    return "";
+  };
+
+  const depto = getDeptoString(user?.departamento);
   
-  // Acepta si es admin, ventas, o si el departamento contiene "cera" o "inyec"
   const tieneAcceso = ["admin", "ventas"].includes(user?.role) || 
                       depto.includes("cera") || 
                       depto.includes("inyec");
@@ -63,18 +68,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster 
-          theme="dark" 
-          position="bottom-center" 
-          richColors 
-          toastOptions={{ 
-            style: { 
-              bottom: '80px', 
-              marginBottom: 'env(safe-area-inset-bottom)' 
-            } 
-          }} 
-        />
-        
+        <Toaster theme="dark" position="bottom-center" richColors />
         <Routes>
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
@@ -94,8 +88,6 @@ export default function App() {
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
             <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} />
-            
-            {/* RUTA DE MOLDES PROTEGIDA POR EL NUEVO CANDADO */}
             <Route path="/moldes" element={<MoldesGate><Moldes /></MoldesGate>} />
           </Route>
           
