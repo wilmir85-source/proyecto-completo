@@ -9,28 +9,30 @@ export default function Moldes() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("TODOS");
 
-  // --- ESTADOS PARA CREAR CARPETA ---
   const [newLibName, setNewLibName] = useState("");
   const [showNewLib, setShowNewLib] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
   
-  // --- ESTADO PARA REVISIÓN DE LISTA ---
+  // ESTADO CON FOTO_URL
+  const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "", foto_url: "" });
+  
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchTitle, setBatchTitle] = useState("");
   const [batchMoldes, setBatchMoldes] = useState([]);
   
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false); // Para la foto
   const [progress, setProgress] = useState(0);
   const [currentSheet, setCurrentSheet] = useState(0);
   const [totalSheets, setTotalSheets] = useState(0);
 
   const singleFileRef = useRef(null);
   const multipleFileRef = useRef(null);
+  const photoInputRef = useRef(null);
 
   const loadLibraries = useCallback(async () => {
     try {
@@ -51,45 +53,66 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- CREAR CARPETA ---
   const handleCreateLibrary = async () => {
-    if (!newLibName.trim()) return toast.error("Escribe un nombre para la carpeta");
+    if (!newLibName.trim()) return toast.error("Escribe un nombre");
     try {
       await api.post("/libraries", { nombre: newLibName });
       setNewLibName("");
       setShowNewLib(false);
       await loadLibraries();
-      toast.success("Carpeta creada correctamente");
-    } catch {
-      toast.error("Error al crear la carpeta");
-    }
+      toast.success("Carpeta creada");
+    } catch { toast.error("Error al crear"); }
   };
 
-  // --- BORRAR CARPETA ---
   const handleDeleteLibrary = async (e, lib) => {
     e.stopPropagation();
-    if (!window.confirm(`¿Estás seguro de borrar la carpeta "${lib.nombre}"?\n\n¡Se borrarán TODOS los moldes que tenga adentro!`)) return;
+    if (!window.confirm(`¿Borrar carpeta "${lib.nombre}" y TODOS sus moldes?`)) return;
     try {
       await api.delete(`/libraries/${lib.id}`);
-      toast.success("Carpeta y moldes eliminados");
+      toast.success("Carpeta eliminada");
       await loadLibraries();
-    } catch {
-      toast.error("Error al borrar la carpeta");
-    }
+    } catch { toast.error("Error al borrar"); }
   };
 
   const openNewModal = () => {
     setEditing(null);
-    setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
+    setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "", foto_url: "" });
     setIsEditMode(true);
     setModalOpen(true);
   };
 
   const openViewModal = (molde) => {
     setEditing(molde);
-    setFormData({ numero: molde.numero || "", tipo: molde.tipo || "", carrera: molde.carrera || "", medida: molde.medida || "", notas: molde.notas || "" });
+    setFormData({ 
+      numero: molde.numero || "", 
+      tipo: molde.tipo || "", 
+      carrera: molde.carrera || "", 
+      medida: molde.medida || "", 
+      notas: molde.notas || "",
+      foto_url: molde.foto_url || ""
+    });
     setIsEditMode(false);
     setModalOpen(true);
+  };
+
+  // --- LÓGICA PARA SUBIR LA FOTO ---
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const r = await api.post("/molds/upload-photo", data, { headers: { "Content-Type": "multipart/form-data" } });
+      if (r.data?.url) {
+        setFormData(prev => ({ ...prev, foto_url: r.data.url }));
+        toast.success("Foto subida correctamente");
+      }
+    } catch {
+      toast.error("Error al subir la foto");
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const processFiles = async (files) => {
@@ -176,6 +199,7 @@ export default function Moldes() {
       else await api.post("/molds", { libreria_id: selectedLib.id, ...formData });
       await loadMolds();
       setModalOpen(false);
+      toast.success("Molde guardado");
     } catch { toast.error("Error al guardar"); } 
     finally { setSaving(false); }
   };
@@ -227,10 +251,12 @@ export default function Moldes() {
     folderCard: { background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center", position: "relative" },
     folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "#f0b0b0", fontSize: "14px", cursor: "pointer" },
     batchCard: { background: "#0a0a0a", padding: "12px", borderRadius: "8px", border: "1px solid #333", marginBottom: "10px" },
-    
-    // ESTILOS PARA CREAR CARPETA
     btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
     inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
+    
+    // ESTILOS PARA LA FOTO
+    photoPreview: { width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "8px", marginTop: "10px", border: "1px solid #333" },
+    btnPhoto: { background: "#222", color: "#fff", border: "1px dashed #d4af37", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" }
   };
 
   return (
@@ -256,24 +282,15 @@ export default function Moldes() {
         </button>
       )}
 
-      {/* VISTA 1: CARPETAS Y CREACIÓN DE CARPETAS */}
       {!selectedLib && (
         <>
-          {/* AQUÍ ESTÁ EL BOTÓN PARA CREAR LA CARPETA */}
           {!showNewLib ? (
             <button style={s.btnAddLib} onClick={() => setShowNewLib(true)}>
               + Nueva Colección / Cuaderno
             </button>
           ) : (
             <div style={{ marginBottom: "20px" }}>
-              <input 
-                autoFocus
-                style={s.inputNewLib} 
-                placeholder="Ej. Anillos de Graduación, Dijes..." 
-                value={newLibName} 
-                onChange={(e) => setNewLibName(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateLibrary()}
-              />
+              <input autoFocus style={s.inputNewLib} placeholder="Ej. Anillos, Dijes..." value={newLibName} onChange={(e) => setNewLibName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateLibrary()} />
               <div style={{ display: "flex", gap: "10px" }}>
                 <button style={{ ...s.btnPrimary, flex: 1 }} onClick={handleCreateLibrary}>Guardar Carpeta</button>
                 <button style={{ ...s.btnSecondary, flex: 1 }} onClick={() => { setShowNewLib(false); setNewLibName(""); }}>Cancelar</button>
@@ -284,9 +301,7 @@ export default function Moldes() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
             {libraries.map((lib) => (
               <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
-                <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)} title="Borrar carpeta entera">
-                  🗑️
-                </button>
+                <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)}>🗑️</button>
                 <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
                 <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
               </div>
@@ -298,7 +313,6 @@ export default function Moldes() {
         </>
       )}
 
-      {/* VISTA 2: DENTRO DE LA CARPETA */}
       {selectedLib && (
         <div style={s.listContainer}>
           {scanning ? (
@@ -339,12 +353,12 @@ export default function Moldes() {
             </div>
           ))}
           {filteredMolds.length === 0 && (
-            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Usa los botones de arriba para escanear una hoja.</p>
+            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja para empezar.</p>
           )}
         </div>
       )}
 
-      {/* --- MODAL: REVISIÓN DE LISTA (TARJETAS VERTICALES) --- */}
+      {/* MODAL DE LISTA EXTRAÍDA */}
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
@@ -364,24 +378,18 @@ export default function Moldes() {
                   </div>
 
                   <div style={s.row}>
-                    <div style={s.col}>
-                      <label style={s.label}>N° Molde</label>
-                      <input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
-                    </div>
-                    <div style={s.col}>
-                      <label style={s.label}>Medida</label>
-                      <input style={s.input} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Ej. 10x8" />
-                    </div>
+                    <div style={s.col}><label style={s.label}>N° Molde</label><input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} /></div>
+                    <div style={s.col}><label style={s.label}>Medida</label><input style={s.input} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Ej. 10x8" /></div>
                   </div>
 
                   <label style={s.label}>Tipo de Joya</label>
-                  <input style={s.input} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Ej. Anillo, Dije..." />
+                  <input style={s.input} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Ej. Anillo..." />
 
                   <label style={s.label}>Carrera / Diseño Completo</label>
-                  <textarea style={{...s.textarea, minHeight: "60px"}} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} placeholder="Ej. Perito Contador..." />
+                  <textarea style={{...s.textarea, minHeight: "60px"}} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} />
                   
                   <label style={s.label}>Notas (Opcional)</label>
-                  <input style={s.input} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} placeholder="Ej. 2 Gemas..." />
+                  <input style={s.input} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} />
                 </div>
               ))}
             </div>
@@ -396,7 +404,7 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL */}
+      {/* MODAL INDIVIDUAL CON FOTO */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
@@ -409,7 +417,11 @@ export default function Moldes() {
             
             {!isEditMode && editing ? (
               <div>
-                <div style={s.readContainer}>
+                {formData.foto_url && (
+                  <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
+                )}
+
+                <div style={{...s.readContainer, marginTop: formData.foto_url ? "15px" : "0"}}>
                   <span style={s.readLabel}>Número</span>
                   <div style={{ ...s.readValue, fontSize: "24px", color: "#d4af37", fontWeight: "bold" }}>{formData.numero}</div>
                 </div>
@@ -423,6 +435,16 @@ export default function Moldes() {
               </div>
             ) : (
               <form onSubmit={handleSave}>
+                {/* BOTÓN PARA SUBIR LA FOTO */}
+                <label style={s.label}>Foto del Molde (Opcional)</label>
+                {formData.foto_url && (
+                  <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
+                )}
+                <button type="button" style={s.btnPhoto} onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
+                  {uploadingPhoto ? "⏳ Subiendo foto..." : "📷 Subir / Cambiar Foto"}
+                </button>
+                <input type="file" accept="image/*" ref={photoInputRef} style={{ display: "none" }} onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+
                 <div style={s.row}>
                   <div style={s.col}><label style={s.label}>Número</label><input style={s.input} required value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} /></div>
                   <div style={s.col}><label style={s.label}>Tipo</label><input style={s.input} value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} /></div>
@@ -434,7 +456,7 @@ export default function Moldes() {
                   <div style={s.col}><label style={s.label}>Notas</label><input style={s.input} value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} /></div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving}>{saving ? "..." : "💾 Guardar"}</button>
+                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || uploadingPhoto}>{saving ? "..." : "💾 Guardar"}</button>
                   <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => editing ? setIsEditMode(false) : setModalOpen(false)}>Cancelar</button>
                 </div>
               </form>
