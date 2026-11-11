@@ -1,6 +1,6 @@
 import json
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
@@ -60,6 +60,9 @@ async def find_client(name):
             return c
     return None
 
+# ==========================================
+# HERRAMIENTAS DE JARVIS
+# ==========================================
 TOOLS = [
     {"type": "function", "function": {
         "name": "generar_imagen",
@@ -114,6 +117,26 @@ TOOLS = [
         "name": "agregar_nota_cliente", "description": "Guarda una nota importante en el perfil del cliente.",
         "parameters": {"type": "object", "properties": {"nombre": {"type": "string"}, "nota": {"type": "string"}},
                        "required": ["nombre", "nota"]}}},
+    
+    # --- NUEVAS HERRAMIENTAS DE MOLDES Y FECHAS ---
+    {"type": "function", "function": {
+        "name": "contar_moldes", 
+        "description": "Cuenta cuántos moldes hay en total o en una carpeta específica.",
+        "parameters": {"type": "object", "properties": {
+            "carpeta_nombre": {"type": "string", "description": "Nombre de la carpeta (opcional). Si no se da, cuenta todos."}
+        }}}},
+    {"type": "function", "function": {
+        "name": "buscar_moldes", 
+        "description": "Busca moldes por número, tipo de joya, carrera o notas.",
+        "parameters": {"type": "object", "properties": {
+            "termino": {"type": "string", "description": "Palabra clave a buscar (ej. 'Perito', 'Anillo', 'MG05')."}
+        }, "required": ["termino"]}}},
+    {"type": "function", "function": {
+        "name": "pedidos_por_fecha", 
+        "description": "Busca pedidos que se entregan en una fecha específica.",
+        "parameters": {"type": "object", "properties": {
+            "fecha_str": {"type": "string", "description": "Fecha en formato YYYY-MM-DD."}
+        }, "required": ["fecha_str"]}}},
 ]
 
 async def run_tool(name, args, user):
@@ -124,7 +147,6 @@ async def run_tool(name, args, user):
                 if not api_token:
                     return {"error": "Falta configurar la llave REPLICATE_API_TOKEN en Render."}
                 
-                # Llamada a Replicate con FLUX.1-schnell
                 url = "https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions"
                 headers = {
                     "Authorization": f"Token {api_token}",
@@ -137,7 +159,7 @@ async def run_tool(name, args, user):
                         "aspect_ratio": "1:1",
                         "output_format": "webp",
                         "output_quality": 90,
-                        "disable_safety_checker": True  # <--- FILTRO DESACTIVADO AQUÍ
+                        "disable_safety_checker": True
                     }
                 }
                 
@@ -145,7 +167,6 @@ async def run_tool(name, args, user):
                 response.raise_for_status()
                 result = response.json()
                 
-                # Replicate devuelve las URLs en el campo "output"
                 output_urls = result.get("output")
                 if output_urls and isinstance(output_urls, list) and len(output_urls) > 0:
                     image_url = output_urls[0]
@@ -242,6 +263,50 @@ async def run_tool(name, args, user):
             return {"ok": True, "pedido": r["cliente"], "etapa": r["stage"], "asignado": r.get("asignado_nombre"),
                     "progreso": r.get("progreso"),
                     "alerta_saldo_pendiente": r["saldo"] if r["stage"] == "Terminado" and r["saldo"] > 0 else None}
+        
+        # --- LÓGICA DE LAS NUEVAS HERRAMIENTAS ---
+        if name == "contar_moldes":
+            carpeta_nombre = args.get("carpeta_nombre")
+            if carpeta_nombre:
+                lib = await db.libraries.find_one({"nombre": {"$regex": carpeta_nombre, "$options": "i"}})
+                if lib:
+                    count = await db.molds.count_documents({"libreria_id": lib["id"]})
+                    return {"ok": True, "mensaje": f"Hay {count} moldes en la carpeta '{lib['nombre']}'."}
+                return {"error": f"No encontré la carpeta '{carpeta_nombre}'."}
+            else:
+                count = await db.molds.count_documents({})
+                return {"ok": True, "mensaje": f"Hay un total de {count} moldes en la base de datos."}
+
+        if name == "buscar_moldes":
+            termino = args["termino"]
+            query = {
+                "$or": [
+                    {"numero": {"$regex": termino, "$options": "i"}},
+                    {"tipo": {"$regex": termino, "$options": "i"}},
+                    {"carrera": {"$regex": termino, "$options": "i"}},
+                    {"notas": {"$regex": termino, "$options": "i"}},
+                ]
+            }
+            resultados = await db.molds.find(query, {"_id": 0}).limit(5).to_list(5)
+            if not resultados:
+                return {"error": f"No encontré ningún molde relacionado con '{termino}'."}
+            
+            texto = f"Encontré {len(resultados)} molde(s):\n"
+            for r in resultados:
+                texto += f"- {r.get('numero')}: {r.get('tipo')} / {r.get('carrera')}\n"
+            return {"ok": True, "mensaje": texto}
+
+        if name == "pedidos_por_fecha":
+            fecha_str = args["fecha_str"]
+            resultados = await db.orders.find({"fecha_entrega": {"$regex": f"^{fecha_str}"}}, {"_id": 0}).limit(10).to_list(10)
+            if not resultados:
+                return {"ok": True, "mensaje": f"No hay pedidos programados para el {fecha_str}."}
+            
+            texto = f"Para el {fecha_str} tienes {len(resultados)} pedido(s):\n"
+            for r in resultados:
+                texto += f"- Cliente: {r.get('cliente')} | Etapa: {r.get('stage')}\n"
+            return {"ok": True, "mensaje": texto}
+
         return {"error": "Herramienta desconocida"}
     except HTTPException as e:
         return {"error": e.detail}
@@ -275,11 +340,11 @@ async def build_context(user, tz) -> str:
 JARVIS_SYSTEM = """Eres JARVIS, el mayordomo digital de la joyería "Mundo de Joyas". Inspirado en el JARVIS de Iron Man.
 PERSONALIDAD: Elegante, británico, con un humor seco y sarcástico. Llamas al usuario "señor" o "señora".
 TU MISIÓN: Que el taller funcione como un reloj suizo.
-- Si el usuario pide GENERAR, DIBUJAR o CREAR UNA IMAGEN de un anillo o diseño, DEBES usar la herramienta "generar_imagen". No crees un pedido a menos que el usuario diga explícitamente "crea un pedido" o "registra este pedido".
-- Cuando uses la herramienta "generar_imagen", DEBES traducir la petición del usuario al INGLÉS y describir los rasgos visuales (colores, formas). Si es un personaje con copyright (ej. Iron Man, Goku), describe sus rasgos sin usar su nombre original.
-- Usa la herramienta "buscar_en_internet" para consultar precios del oro, plata, tendencias, etc.
+- Si el usuario pide GENERAR, DIBUJAR o CREAR UNA IMAGEN de un anillo o diseño, DEBES usar la herramienta "generar_imagen".
+- Usa "buscar_en_internet" para consultar precios del oro, plata, tendencias, etc.
 - Alertas proactivamente sobre pedidos ATRASADOS o POR VENCER.
 - EJECUTAS acciones usando tus herramientas cuando te lo piden.
+- AHORA TIENES PODERES DE BÚSQUEDA EN EL TALLER: Si te preguntan cuántos moldes hay, usa "contar_moldes". Si buscan un molde específico, usa "buscar_moldes". Si preguntan por pedidos de una fecha (ej. 'mañana'), calcula la fecha en formato YYYY-MM-DD y usa "pedidos_por_fecha".
 - Tus respuestas se leen en voz alta: sé breve (2-4 frases), sin markdown, sin emojis, pero con chispa.
 - IMPORTANTE: La moneda de la joyería son Quetzales (Q). Siempre usa 'Q' en lugar de '$' al hablar de dinero.
 Departamentos: Ventas, Diseño 3D, Ceras, Inyección, Vulcanizado, Casting, Fabricación, Grabado Láser, Reparaciones, Importación de máquinas, Terminado."""
