@@ -3,19 +3,26 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
 import os, io, asyncio, random
+import cloudinary
+import cloudinary.uploader
 from google import genai
 from google.genai import types
 from PIL import Image
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
 from core import db, current_user, now_iso, new_id, logger
 from dotenv import load_dotenv
 
 load_dotenv()
 router = APIRouter(prefix="/api")
 
-# --- MODELOS DE DATOS ---
+# --- CONFIGURACIÓN DE CLOUDINARY ---
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
+
+# --- MODELOS ---
 class LibreriaIn(BaseModel):
     nombre: str
 
@@ -26,6 +33,7 @@ class MoldeIn(BaseModel):
     carrera: Optional[str] = ""
     medida: Optional[str] = ""
     notas: Optional[str] = ""
+    foto_url: Optional[str] = "" # <--- NUEVO CAMPO
 
 class MoldeUpdate(BaseModel):
     numero: Optional[str] = None
@@ -33,6 +41,7 @@ class MoldeUpdate(BaseModel):
     carrera: Optional[str] = None
     medida: Optional[str] = None
     notas: Optional[str] = None
+    foto_url: Optional[str] = None # <--- NUEVO CAMPO
 
 class MoldeExtraido(BaseModel):
     numero: str
@@ -45,10 +54,10 @@ class ListaMoldes(BaseModel):
     titulo_hoja: str
     moldes: List[MoldeExtraido]
 
-# --- CLIENTE GEMINI ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 client_gemini = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
+# --- ESCANEAR HOJA (OCR) ---
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
@@ -63,7 +72,7 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
             prompt = (
                 "Analiza esta imagen que contiene una lista escrita a mano de moldes de joyería. "
                 "1. Extrae el título principal de la hoja (ej. 'Anillo Graduación de Mujer'). "
-                "2. Extrae TODOS los moldes que veas en la lista. Para cada molde, identifica el número (ej. MG05), "
+                "2. Extrae TODOS los moldes que veas. Para cada molde, identifica el número, "
                 "el tipo de joya, la carrera o diseño, la medida y las notas. "
                 "Si un dato no aparece, déjalo vacío."
             )
@@ -83,7 +92,23 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         logger.error(f"Error OCR: {e}")
         raise HTTPException(502, "Error al leer la imagen.")
 
-# --- ENDPOINTS DE CARPETAS ---
+# --- SUBIR FOTO DEL MOLDE A CLOUDINARY ---
+@router.post("/molds/upload-photo")
+async def upload_mold_photo(file: UploadFile = File(...), user=Depends(current_user)):
+    try:
+        data = await file.read()
+        # Subimos a Cloudinary en un hilo separado
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            io.BytesIO(data),
+            folder="jarvis_moldes"
+        )
+        return {"ok": True, "url": result.get("secure_url")}
+    except Exception as e:
+        logger.error(f"Error subiendo foto a Cloudinary: {e}")
+        raise HTTPException(500, "Error al subir la foto")
+
+# --- RUTAS DE CARPETAS ---
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib = {"id": new_id(), "nombre": payload.nombre, "creado_por": user["name"], "created_at": now_iso()}
@@ -95,23 +120,13 @@ async def create_library(payload: LibreriaIn, user=Depends(current_user)):
 async def get_libraries(user=Depends(current_user)):
     return await db.libraries.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
-@router.put("/libraries/{libreria_id}")
-async def update_library(libreria_id: str, payload: LibreriaIn, user=Depends(current_user)):
-    existing = await db.libraries.find_one({"id": libreria_id})
-    if not existing:
-        raise HTTPException(404, "Carpeta no encontrada")
-    await db.libraries.update_one({"id": libreria_id}, {"$set": {"nombre": payload.nombre}})
-    return await db.libraries.find_one({"id": libreria_id}, {"_id": 0})
-
 @router.delete("/libraries/{libreria_id}")
 async def delete_library(libreria_id: str, user=Depends(current_user)):
-    result = await db.libraries.delete_one({"id": libreria_id})
-    if result.deleted_count == 0:
-        raise HTTPException(404, "Carpeta no encontrada")
+    await db.libraries.delete_one({"id": libreria_id})
     await db.molds.delete_many({"libreria_id": libreria_id})
     return {"ok": True}
 
-# --- ENDPOINTS DE MOLDES ---
+# --- RUTAS DE MOLDES ---
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = payload.model_dump()
@@ -122,11 +137,12 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde.pop("_id", None)
     return molde
 
+@router.get("/libraries/{libreria_id}/molds")
+async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
+    return await db.molds.find({"libreria_id": libreria_id}, {"_id": 0}).sort("numero", 1).to_list(1000)
+
 @router.put("/molds/{molde_id}")
 async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
-    existing = await db.molds.find_one({"id": molde_id})
-    if not existing:
-        raise HTTPException(404, "Molde no encontrado")
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     if updates:
         await db.molds.update_one({"id": molde_id}, {"$set": updates})
@@ -134,11 +150,5 @@ async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_
 
 @router.delete("/molds/{molde_id}")
 async def delete_mold(molde_id: str, user=Depends(current_user)):
-    result = await db.molds.delete_one({"id": molde_id})
-    if result.deleted_count == 0:
-        raise HTTPException(404, "Molde no encontrado")
+    await db.molds.delete_one({"id": molde_id})
     return {"ok": True}
-
-@router.get("/libraries/{libreria_id}/molds")
-async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
-    return await db.molds.find({"libreria_id": libreria_id}, {"_id": 0}).sort("numero", 1).to_list(1000)
