@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, NavLink } from "react-router-dom";
+import { Outlet, useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store, Gem } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
@@ -27,6 +27,10 @@ export const NAV_ITEMS = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
+  
+  // Detecta si estamos en la pantalla de Jarvis
+  const isJarvisPage = location.pathname === "/jarvis";
   
   // Filtro especial para mostrar/ocultar botones según el rol Y el departamento
   const items = NAV_ITEMS.filter((i) => {
@@ -89,17 +93,22 @@ export default function Layout() {
       </aside>
 
       {/* Contenido Principal */}
-      <main className="flex-1 min-w-0 md:ml-64 h-full flex flex-col pb-16 md:pb-0 pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden">
+      <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden ${isJarvisPage ? 'pb-0' : 'pb-16 md:pb-0'}`}>
         <div className="flex-1 overflow-y-auto md:overflow-visible">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>
       
-      {/* Menú inferior (Solo celular) */}
-      <BottomNav />
+      {/* AQUI ESTA LA MAGIA: Ocultamos menú y botón si estamos en Jarvis */}
+      {!isJarvisPage && (
+        <>
+          {/* Menú inferior (Solo celular) */}
+          <BottomNav />
 
-      {/* Botón Flotante */}
-      {["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
+          {/* Botón Flotante */}
+          {["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
+        </>
+      )}
     </div>
   );
 }
