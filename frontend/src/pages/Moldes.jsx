@@ -9,7 +9,6 @@ export default function Moldes() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("TODOS");
 
-  // Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -48,6 +47,19 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
+  // --- BORRAR UNA CARPETA COMPLETA ---
+  const handleDeleteLibrary = async (e, lib) => {
+    e.stopPropagation(); // Evita que se abra la carpeta al tocar el basurero
+    if (!window.confirm(`¿Estás seguro de borrar la carpeta "${lib.nombre}"?\n\n¡Se borrarán TODOS los moldes que tenga adentro!`)) return;
+    try {
+      await api.delete(`/libraries/${lib.id}`);
+      toast.success("Carpeta y moldes eliminados");
+      await loadLibraries();
+    } catch {
+      toast.error("Error al borrar la carpeta");
+    }
+  };
+
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
@@ -62,7 +74,6 @@ export default function Moldes() {
     setModalOpen(true);
   };
 
-  // --- LÓGICA DE ESCANEO (1 O VARIAS) ---
   const processFiles = async (files) => {
     if (files.length === 0) return;
 
@@ -153,7 +164,7 @@ export default function Moldes() {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteMold = async (id) => {
     if (!window.confirm("¿Borrar este molde?")) return;
     try {
       await api.delete(`/molds/${id}`);
@@ -197,11 +208,15 @@ export default function Moldes() {
     btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
     progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
+    
+    // NUEVO ESTILO PARA LAS CARPETAS CON BOTÓN DE BORRAR
+    folderCard: { background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center", position: "relative" },
+    folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "#f0b0b0", fontSize: "14px", cursor: "pointer" },
   };
 
   return (
     <div style={s.page}>
-      <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
           <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona una carpeta"}</p>
@@ -214,18 +229,24 @@ export default function Moldes() {
         )}
       </div>
 
-      <input className="no-print" style={s.searchBar} placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input style={s.searchBar} placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
 
       {selectedLib && (
-        <button className="no-print" onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
+        <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
           ← Volver a Colecciones
         </button>
       )}
 
+      {/* VISTA 1: CARPETAS CON BOTÓN DE BORRAR */}
       {!selectedLib && (
-        <div className="no-print" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
           {libraries.map((lib) => (
-            <div key={lib.id} style={{ background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center" }} onClick={() => setSelectedLib(lib)}>
+            <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
+              {/* BOTÓN DE BORRAR CARPETA */}
+              <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)} title="Borrar carpeta entera">
+                🗑️
+              </button>
+              
               <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
               <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
             </div>
@@ -233,8 +254,9 @@ export default function Moldes() {
         </div>
       )}
 
+      {/* VISTA 2: DENTRO DE LA CARPETA */}
       {selectedLib && (
-        <div className="no-print" style={s.listContainer}>
+        <div style={s.listContainer}>
           
           {scanning ? (
             <div style={{ background: "#151515", padding: "15px", borderRadius: "10px", border: "1px solid #333", textAlign: "center", marginBottom: "20px" }}>
@@ -270,15 +292,15 @@ export default function Moldes() {
                 <div style={s.listSub}>{m.carrera || "Sin diseño"}</div>
                 {m.notas && <div style={{ fontSize: "11px", color: "#d4af37", marginTop: "2px" }}>✍️ {m.notas}</div>}
               </div>
-              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>🗑️</button>
+              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDeleteMold(m.id); }}>🗑️</button>
             </div>
           ))}
         </div>
       )}
 
-      {/* --- MODAL: REVISIÓN DE LISTA (TIPO CUADERNO) --- */}
+      {/* --- MODAL: REVISIÓN DE LISTA --- */}
       {batchOpen && (
-        <div className="no-print" style={s.modalBg}>
+        <div style={s.modalBg}>
           <div style={s.modal}>
             <div style={{ background: "#222", padding: "15px", borderRadius: "8px", marginBottom: "20px", borderLeft: "4px solid #d4af37" }}>
               <label style={{ ...s.label, marginTop: 0 }}>Título de la Hoja (Opcional)</label>
@@ -316,9 +338,9 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL (LECTURA / EDICIÓN) */}
+      {/* MODAL INDIVIDUAL */}
       {modalOpen && (
-        <div className="no-print" style={s.modalBg} onClick={() => setModalOpen(false)}>
+        <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h2 style={{ color: "#d4af37", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
