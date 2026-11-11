@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+import httpx
 from fastapi import APIRouter, File, UploadFile, HTTPException
 from PIL import Image
 import io
@@ -9,17 +9,20 @@ from core import db
 # Usamos el prefijo /api para que coincida perfectamente con tus peticiones
 router = APIRouter(prefix="/api")
 
-# Configura tu API key de Gemini
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
 @router.post("/molds/scan")
 async def scan_mold(file: UploadFile = File(...)):
     try:
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes))
         
-        # Redimensionar para optimizar y evitar tiempos de espera
+        # Redimensionar para optimizar y asegurar rapidez
         image.thumbnail((1600, 1600))
+        
+        # Convertir la imagen a formato JPEG en memoria para enviarla limpia
+        buffered = io.BytesIO()
+        image.save(buffered, format="JPEG")
+        import base64
+        image_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
         
         prompt = (
             "Analiza esta imagen de un cuaderno o nota manuscrita de joyería. "
@@ -33,16 +36,48 @@ async def scan_mold(file: UploadFile = File(...)):
             "Devuelve ÚNICAMENTE el JSON limpio sin bloques de código markdown adicionales."
         )
 
-        print("Iniciando escaneo OCR con gemini-1.5-flash...")
-        
-        # Usamos el modelo estándar compatible
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        
-        response = model.generate_content([prompt, image])
-        response_text = response.text
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="Falta la API Key de Gemini en las variables de entorno.")
 
-        if not response_text:
-            raise HTTPException(status_code=503, detail="La IA no devolvió respuesta.")
+        print("Iniciando escaneo OCR directo por HTTP con gemini-2.5-flash...")
+
+        # URL del endpoint oficial actual de Google Gemini API
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": image_base64
+                            }
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "response_mime_type": "application/json"
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(url, json=payload)
+
+        if response.status_code != 200:
+            print(f"Error de API Gemini: {response.text}")
+            raise HTTPException(status_code=502, detail=f"Error en el servicio de IA: {response.text}")
+
+        res_json = response.json()
+        
+        # Extraer el texto de la respuesta de la API REST
+        try:
+            response_text = res_json["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError) as e:
+            raise HTTPException(status_code=503, detail="La IA devolvió una respuesta vacía o con formato inesperado.")
 
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         parsed_data = json.loads(clean_json)
