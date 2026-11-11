@@ -89,7 +89,6 @@ export default function JarvisHUD() {
     setState("thinking");
 
     try {
-      // CORRECCIÓN 1: Buscamos el token correcto (como en el resto de tu app)
       const token = localStorage.getItem("token") || localStorage.getItem("access_token") || localStorage.getItem("jarvis_token");
       
       const response = await fetch(`${API}/chat`, {
@@ -144,7 +143,6 @@ export default function JarvisHUD() {
   const orbState = speech.listening ? "listening" : state;
 
   return (
-    // CORRECCIÓN 2: Usamos h-[100dvh] en lugar de h-screen para que el teclado del iPhone no tape el input
     <div className="h-[100dvh] flex flex-col lg:flex-row jarvis-hud bg-zinc-950">
       <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-4 py-4 lg:py-8 lg:border-r border-white/5 relative overflow-hidden">
         <div className="text-center">
@@ -187,7 +185,6 @@ export default function JarvisHUD() {
             <div ref={endRef} />
           </div>
         </div>
-        {/* El formulario de input */}
         <div className="p-3 md:p-4 border-t border-white/5 bg-zinc-950 pb-safe">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
             <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-10 w-10 md:h-12 md:w-12 shrink-0 bg-zinc-900 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
