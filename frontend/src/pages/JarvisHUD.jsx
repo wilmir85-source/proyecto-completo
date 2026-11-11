@@ -106,8 +106,6 @@ export default function JarvisHUD() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
-      
-      // --- AQUI ESTA LA MAGIA PARA LEER CODIGOS ---
       let buffer = "";
 
       while (true) {
@@ -115,10 +113,7 @@ export default function JarvisHUD() {
         if (done) break;
         
         buffer += decoder.decode(value, { stream: true });
-        
-        // Los mensajes del servidor se separan por doble salto de línea (\n\n)
         const parts = buffer.split("\n\n");
-        // Guardamos el último pedazo que no se ha completado
         buffer = parts.pop() || ""; 
 
         for (const part of parts) {
@@ -132,9 +127,7 @@ export default function JarvisHUD() {
                 const imgMsg = { id: Date.now().toString(), role: "assistant", type: "image", content: data.url };
                 setMessages((m) => [...m, imgMsg]);
               }
-            } catch (err) {
-               // Ignoramos si una parte no es JSON válido
-            }
+            } catch (err) {}
           }
         }
       }
@@ -153,39 +146,51 @@ export default function JarvisHUD() {
 
   return (
     <div className="h-[100dvh] flex flex-col lg:flex-row jarvis-hud bg-zinc-950">
-      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-4 py-4 lg:py-8 lg:border-r border-white/5 relative overflow-hidden">
-        <div className="text-center">
-          <div className="text-[9px] md:text-[10px] uppercase tracking-[0.5em] text-cyan-400/70">Just A Rather Very Intelligent System</div>
-          <h1 className="font-display text-2xl md:text-4xl font-light tracking-[0.3em] mt-2 text-gold-gradient">J.A.R.V.I.S.</h1>
-        </div>
-        <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 100 : 220} />
+      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-6 py-6 lg:py-8 lg:border-r border-white/5 relative overflow-hidden">
         
-        <div className="flex flex-col gap-3 w-64 mt-2 text-xs text-zinc-400">
-          <label className="flex items-center justify-between">
+        {/* ENCABEZADO Y ESTADO EN LÍNEA */}
+        <div className="text-center flex flex-col items-center">
+          <div className="text-[9px] md:text-[10px] uppercase tracking-[0.5em] text-cyan-400/70 mb-1">Just A Rather Very Intelligent System</div>
+          <h1 className="font-display text-3xl md:text-5xl font-light tracking-[0.3em] text-gold-gradient mb-4">J.A.R.V.I.S.</h1>
+          
+          {/* AQUI ESTA EL BADGE ARREGLADO */}
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full">
+            <span className={`w-2 h-2 rounded-full ${state === "thinking" ? "bg-yellow-500 animate-pulse" : "bg-emerald-500"}`} />
+            <span className="text-xs font-mono tracking-widest text-zinc-400">
+              {state === "thinking" ? "PROCESANDO..." : "EN LÍNEA"}
+            </span>
+          </div>
+        </div>
+
+        <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 130 : 220} />
+        
+        {/* INTERRUPTORES ALINEADOS */}
+        <div className="flex flex-col gap-4 w-64 text-sm text-zinc-400 bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+          <label className="flex items-center justify-between cursor-pointer">
             <span className="flex items-center gap-2"><Volume2 className="w-4 h-4" /> Respuesta por voz</span>
             <Switch checked={voiceOn} onCheckedChange={setVoiceOn} />
           </label>
-          <label className="flex items-center justify-between">
+          <label className="flex items-center justify-between cursor-pointer">
             <span className="flex items-center gap-2"><Mic className="w-4 h-4" /> Manos libres</span>
             <Switch checked={handsFree} onCheckedChange={(v) => { setHandsFree(v); handsFreeRef.current = v; }} />
           </label>
         </div>
       </section>
 
-      <section className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4" aria-live="polite">
-          <div className="max-w-3xl mx-auto space-y-4">
+      <section className="flex-1 flex flex-col min-h-0 bg-black/40">
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6" aria-live="polite">
+          <div className="max-w-3xl mx-auto space-y-5">
             {messages.map((m, i) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.type === "image" ? (
                   <div className="bg-zinc-900/60 border border-[#c5a572]/30 rounded-2xl p-2 max-w-[85%] shadow-lg">
-                    <div className="text-xs text-[#c5a572] mb-2 flex items-center gap-2">
+                    <div className="text-xs text-[#c5a572] mb-2 flex items-center gap-2 font-sans">
                       <ImageIcon className="w-4 h-4" /> Diseño generado
                     </div>
                     <img src={m.content} alt="Diseño" className="rounded-xl w-full object-cover shadow-md" />
                   </div>
                 ) : (
-                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap font-mono ${m.role === "user" ? "bg-[#c5a572] text-black font-medium font-sans" : "card-glass border-[#c5a572]/20 text-zinc-200"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-[#c5a572] text-black font-medium font-sans" : "card-glass border-[#c5a572]/20 text-zinc-200 font-mono"}`}>
                     {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-[#c5a572]" /> : "")}
                   </div>
                 )}
@@ -194,13 +199,20 @@ export default function JarvisHUD() {
             <div ref={endRef} />
           </div>
         </div>
-        <div className="p-3 md:p-4 border-t border-white/5 bg-zinc-950 pb-safe">
+        
+        <div className="p-4 border-t border-white/5 bg-zinc-950 pb-safe">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
-            <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-10 w-10 md:h-12 md:w-12 shrink-0 bg-zinc-900 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
+            <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-11 w-11 md:h-12 md:w-12 shrink-0 bg-zinc-900 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : 'text-zinc-400'}`}>
               <Mic className="w-4 h-4" />
             </Button>
-            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Pídele a Jarvis..."} className="bg-zinc-900 border-zinc-800 h-10 md:h-12 text-sm" disabled={state === "thinking"} />
-            <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-10 w-10 md:h-12 md:w-12 shrink-0 bg-[#c5a572] hover:bg-[#b08d5b] text-black font-medium">
+            <Input 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              placeholder={speech.listening ? "Escuchando..." : "Pídele a Jarvis..."} 
+              className="bg-zinc-900 border-zinc-800 h-11 md:h-12 text-sm font-sans" 
+              disabled={state === "thinking"} 
+            />
+            <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-11 w-11 md:h-12 md:w-12 shrink-0 bg-[#c5a572] hover:bg-[#b08d5b] text-black font-medium">
               {state === "thinking" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </form>
