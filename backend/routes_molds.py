@@ -5,8 +5,6 @@ from typing import Optional, List
 import os, io, asyncio, random
 from google import genai
 from google.genai import types
-from openai import OpenAI
-from groq import Groq
 from PIL import Image
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -17,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 router = APIRouter(prefix="/api")
 
+# --- MODELOS DE DATOS ---
 class LibreriaIn(BaseModel):
     nombre: str
 
@@ -35,7 +34,6 @@ class MoldeUpdate(BaseModel):
     medida: Optional[str] = None
     notas: Optional[str] = None
 
-# --- NUEVO MODELO PARA EXTRAER LISTAS ---
 class MoldeExtraido(BaseModel):
     numero: str
     tipo: str
@@ -44,8 +42,10 @@ class MoldeExtraido(BaseModel):
     notas: str
 
 class ListaMoldes(BaseModel):
+    titulo_hoja: str
     moldes: List[MoldeExtraido]
 
+# --- CLIENTE GEMINI ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 client_gemini = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
@@ -60,11 +60,11 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
             if imagen.mode != "RGB":
                 imagen = imagen.convert("RGB")
 
-            # EL PROMPT CAMBIA: Le pedimos que lea TODA la hoja
             prompt = (
                 "Analiza esta imagen que contiene una lista escrita a mano de moldes de joyería. "
-                "Extrae TODOS los moldes que veas en la lista. Para cada molde, identifica el número (ej. MG05), "
-                "el tipo de joya, la carrera o diseño, la medida y cualquier nota adicional. "
+                "1. Extrae el título principal de la hoja (ej. 'Anillo Graduación de Mujer'). "
+                "2. Extrae TODOS los moldes que veas en la lista. Para cada molde, identifica el número (ej. MG05), "
+                "el tipo de joya, la carrera o diseño, la medida y las notas. "
                 "Si un dato no aparece, déjalo vacío."
             )
 
@@ -74,16 +74,16 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
                 contents=[prompt, imagen],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=ListaMoldes, # Le pedimos una LISTA
+                    response_schema=ListaMoldes,
                 ),
             )
         
-        return {"ok": True, "moldes": response.parsed.moldes}
+        return {"ok": True, "titulo": response.parsed.titulo_hoja, "moldes": response.parsed.moldes}
     except Exception as e:
         logger.error(f"Error OCR: {e}")
         raise HTTPException(502, "Error al leer la imagen.")
 
-# ... (El resto de tus endpoints de librerías y moldes se mantienen igual)
+# --- ENDPOINTS DE CARPETAS ---
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib = {"id": new_id(), "nombre": payload.nombre, "creado_por": user["name"], "created_at": now_iso()}
@@ -95,6 +95,23 @@ async def create_library(payload: LibreriaIn, user=Depends(current_user)):
 async def get_libraries(user=Depends(current_user)):
     return await db.libraries.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
+@router.put("/libraries/{libreria_id}")
+async def update_library(libreria_id: str, payload: LibreriaIn, user=Depends(current_user)):
+    existing = await db.libraries.find_one({"id": libreria_id})
+    if not existing:
+        raise HTTPException(404, "Carpeta no encontrada")
+    await db.libraries.update_one({"id": libreria_id}, {"$set": {"nombre": payload.nombre}})
+    return await db.libraries.find_one({"id": libreria_id}, {"_id": 0})
+
+@router.delete("/libraries/{libreria_id}")
+async def delete_library(libreria_id: str, user=Depends(current_user)):
+    result = await db.libraries.delete_one({"id": libreria_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Carpeta no encontrada")
+    await db.molds.delete_many({"libreria_id": libreria_id})
+    return {"ok": True}
+
+# --- ENDPOINTS DE MOLDES ---
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = payload.model_dump()
@@ -105,12 +122,11 @@ async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde.pop("_id", None)
     return molde
 
-@router.get("/libraries/{libreria_id}/molds")
-async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
-    return await db.molds.find({"libreria_id": libreria_id}, {"_id": 0}).sort("numero", 1).to_list(1000)
-
 @router.put("/molds/{molde_id}")
 async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_user)):
+    existing = await db.molds.find_one({"id": molde_id})
+    if not existing:
+        raise HTTPException(404, "Molde no encontrado")
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     if updates:
         await db.molds.update_one({"id": molde_id}, {"$set": updates})
@@ -118,5 +134,11 @@ async def update_mold(molde_id: str, payload: MoldeUpdate, user=Depends(current_
 
 @router.delete("/molds/{molde_id}")
 async def delete_mold(molde_id: str, user=Depends(current_user)):
-    await db.molds.delete_one({"id": molde_id})
+    result = await db.molds.delete_one({"id": molde_id})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Molde no encontrado")
     return {"ok": True}
+
+@router.get("/libraries/{libreria_id}/molds")
+async def get_molds_by_library(libreria_id: str, user=Depends(current_user)):
+    return await db.molds.find({"libreria_id": libreria_id}, {"_id": 0}).sort("numero", 1).to_list(1000)

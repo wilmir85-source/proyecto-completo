@@ -7,24 +7,26 @@ export default function Moldes() {
   const [selectedLib, setSelectedLib] = useState(null);
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
-  
-  // Filtro de tipo (por si lo usas)
   const [filterType, setFilterType] = useState("TODOS");
 
-  // Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
   
-  // --- ESTADO PARA EL MODO LOTE (LISTA EXTRAÍDA) ---
-  const [batchMoldes, setBatchMoldes] = useState([]);
+  // --- ESTADO PARA REVISIÓN DE LISTA ---
   const [batchOpen, setBatchOpen] = useState(false);
-
+  const [batchTitle, setBatchTitle] = useState("");
+  const [batchMoldes, setBatchMoldes] = useState([]);
+  
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [progress, setProgress] = useState(0); // <--- BARRA DE PROGRESO
-  const fileInputRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [currentSheet, setCurrentSheet] = useState(0);
+  const [totalSheets, setTotalSheets] = useState(0);
+
+  const singleFileRef = useRef(null);
+  const multipleFileRef = useRef(null);
 
   const loadLibraries = useCallback(async () => {
     try {
@@ -45,20 +47,6 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- BARRA DE PROGRESO SIMULADA ---
-  useEffect(() => {
-    let interval;
-    if (scanning) {
-      setProgress(0);
-      interval = setInterval(() => {
-        setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 10) + 1));
-      }, 300);
-    } else {
-      setProgress(100);
-    }
-    return () => clearInterval(interval);
-  }, [scanning]);
-
   const openNewModal = () => {
     setEditing(null);
     setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
@@ -73,44 +61,73 @@ export default function Moldes() {
     setModalOpen(true);
   };
 
-  // --- ESCANEAR FOTO (MODO LOTE) ---
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // --- LÓGICA DE ESCANEO (1 O VARIAS) ---
+  const processFiles = async (files) => {
+    if (files.length === 0) return;
+
     setScanning(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
-      
-      if (r.data?.moldes && r.data.moldes.length > 0) {
-        setBatchMoldes(r.data.moldes);
-        setBatchOpen(true);
-        toast.success(`¡Se encontraron ${r.data.moldes.length} moldes!`);
-      } else {
-        toast.error("No se detectaron moldes en la imagen.");
+    setTotalSheets(files.length);
+    setCurrentSheet(1);
+    setProgress(0);
+    
+    let allExtractedMolds = [];
+    let mainTitle = "";
+
+    for (let i = 0; i < files.length; i++) {
+      setCurrentSheet(i + 1);
+      setProgress(Math.round(((i) / files.length) * 100));
+
+      try {
+        const formData = new FormData();
+        formData.append("file", files[i]);
+        
+        const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
+        
+        if (r.data?.moldes && r.data.moldes.length > 0) {
+          allExtractedMolds = [...allExtractedMolds, ...r.data.moldes];
+          // Guardamos el título de la primera hoja como referencia
+          if (!mainTitle && r.data.titulo) mainTitle = r.data.titulo;
+        }
+      } catch (error) {
+        toast.error(`Error al leer la foto ${i + 1}`);
       }
-    } catch { toast.error("Error al escanear. Intenta de nuevo."); } 
-    finally { 
-      setScanning(false); 
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+
+    setProgress(100);
+    setScanning(false);
+
+    if (allExtractedMolds.length > 0) {
+      setBatchTitle(mainTitle);
+      setBatchMoldes(allExtractedMolds);
+      setBatchOpen(true);
+      toast.success(`¡Se extrajeron ${allExtractedMolds.length} moldes!`);
+    } else {
+      toast.error("No se detectaron moldes.");
+    }
+
+    if (singleFileRef.current) singleFileRef.current.value = "";
+    if (multipleFileRef.current) multipleFileRef.current.value = "";
   };
+
+  const handleSingleFile = (e) => processFiles(Array.from(e.target.files));
+  const handleMultipleFiles = (e) => processFiles(Array.from(e.target.files));
 
   const saveBatch = async () => {
     setSaving(true);
     try {
       for (const molde of batchMoldes) {
         if (molde.numero.trim()) {
-          await api.post("/molds", { libreria_id: selectedLib.id, ...molde });
+          // Si el título es "Anillo Graduación", lo agregamos como tipo si está vacío
+          const tipoFinal = molde.tipo || batchTitle;
+          await api.post("/molds", { libreria_id: selectedLib.id, ...molde, tipo: tipoFinal });
         }
       }
-      toast.success("¡Todos los moldes guardados!");
+      toast.success("¡Lista guardada exitosamente!");
       setBatchOpen(false);
       setBatchMoldes([]);
       await loadMolds();
     } catch {
-      toast.error("Error al guardar el lote");
+      toast.error("Error al guardar");
     } finally { setSaving(false); }
   };
 
@@ -118,6 +135,10 @@ export default function Moldes() {
     const nuevos = [...batchMoldes];
     nuevos[index][field] = value;
     setBatchMoldes(nuevos);
+  };
+
+  const removeBatchItem = (index) => {
+    setBatchMoldes(batchMoldes.filter((_, i) => i !== index));
   };
 
   const handleSave = async (e) => {
@@ -129,7 +150,6 @@ export default function Moldes() {
       else await api.post("/molds", { libreria_id: selectedLib.id, ...formData });
       await loadMolds();
       setModalOpen(false);
-      toast.success("Molde guardado");
     } catch { toast.error("Error al guardar"); } 
     finally { setSaving(false); }
   };
@@ -139,27 +159,14 @@ export default function Moldes() {
     try {
       await api.delete(`/molds/${id}`);
       await loadMolds();
-      toast.success("Molde borrado");
     } catch { toast.error("Error al borrar"); }
   };
-
-  const exportToPDF = () => { window.print(); };
 
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
     return molds.filter(m => {
-      const matchSearch = (m.numero || "").toLowerCase().includes(q) || 
-                          (m.tipo || "").toLowerCase().includes(q) ||
-                          (m.carrera || "").toLowerCase().includes(q) || 
-                          (m.medida || "").toLowerCase().includes(q);
-      
-      // Si tienes filtros de tipo, aquí se aplican
-      let matchType = true;
-      if (filterType !== "TODOS") {
-        // Ejemplo simple: si el tipo incluye la palabra (ANILLO, DIJE, etc.)
-        matchType = (m.tipo || "").toUpperCase().includes(filterType);
-      }
-
+      const matchSearch = (m.numero || "").toLowerCase().includes(q) || (m.tipo || "").toLowerCase().includes(q) || (m.carrera || "").toLowerCase().includes(q);
+      let matchType = filterType === "TODOS" || (m.tipo || "").toUpperCase().includes(filterType);
       return matchSearch && matchType;
     });
   }, [molds, search, filterType]);
@@ -177,8 +184,8 @@ export default function Moldes() {
     listTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
     listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
     listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
-    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.9)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
+    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.95)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
+    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "800px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
     readContainer: { background: "#0a0a0a", border: "1px solid #222", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
     readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", marginBottom: "5px", display: "block" },
     readValue: { fontSize: "16px", color: "#fff", whiteSpace: "pre-wrap" },
@@ -187,27 +194,14 @@ export default function Moldes() {
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
     row: { display: "flex", gap: "15px" },
     col: { flex: 1 },
-    
-    // ESTILOS DE LA BARRA DE PROGRESO
-    btnScan: { width: "100%", padding: "15px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.2)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: scanning ? "wait" : "pointer", marginBottom: "20px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" },
+    btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
     progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
   };
 
   return (
     <div style={s.page}>
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #print-section, #print-section * { visibility: visible; }
-          #print-section { position: absolute; left: 0; top: 0; width: 100%; color: black; background: white; padding: 20px; }
-          .no-print { display: none !important; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #000; padding: 8px; text-align: left; color: #000; font-size: 12px; }
-          th { background-color: #f0f0f0; }
-        }
-      `}</style>
-
       <div className="no-print" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
@@ -215,13 +209,13 @@ export default function Moldes() {
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
-            <button style={s.btnSecondary} onClick={exportToPDF}>📄 PDF</button>
+            <button style={s.btnSecondary} onClick={() => window.print()}>📄 PDF</button>
             <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo</button>
           </div>
         )}
       </div>
 
-      <input className="no-print" style={s.searchBar} placeholder="Buscar por número, tipo, carrera..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input className="no-print" style={s.searchBar} placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
 
       {selectedLib && (
         <button className="no-print" onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
@@ -243,25 +237,28 @@ export default function Moldes() {
       {selectedLib && (
         <div className="no-print" style={s.listContainer}>
           
-          {/* BOTÓN DE ESCANEO CON BARRA DE PROGRESO */}
-          <div style={s.btnScan} onClick={() => !scanning && fileInputRef.current?.click()}>
-            {scanning ? (
-              <>
-                <span>⏳ Extrayendo lista de la hoja...</span>
-                <div style={s.progressBar}>
-                  <div style={s.progressFill}></div>
-                </div>
-              </>
-            ) : (
-              <span>📷 Escanear Hoja (Lote)</span>
-            )}
-            <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} disabled={scanning} />
-          </div>
+          {/* NUEVOS BOTONES DE ESCANEO */}
+          {scanning ? (
+            <div style={{ background: "#151515", padding: "15px", borderRadius: "10px", border: "1px solid #333", textAlign: "center", marginBottom: "20px" }}>
+              <span style={{ color: "#d4af37", fontWeight: "bold" }}>⏳ Procesando hoja {currentSheet} de {totalSheets}...</span>
+              <div style={s.progressBar}><div style={s.progressFill}></div></div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+              <div style={s.btnScanSingle} onClick={() => singleFileRef.current?.click()}>
+                📷 1 Hoja
+                <input type="file" accept="image/*" ref={singleFileRef} style={{ display: "none" }} onChange={handleSingleFile} />
+              </div>
+              <div style={s.btnScanMulti} onClick={() => multipleFileRef.current?.click()}>
+                📸 Varias Hojas
+                <input type="file" accept="image/*" multiple ref={multipleFileRef} style={{ display: "none" }} onChange={handleMultipleFiles} />
+              </div>
+            </div>
+          )}
 
-          {/* FILTROS (Opcionales, se ven en tu foto) */}
           <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
             {["TODOS", "ANILLO", "DIJE", "PLANCHA"].map(f => (
-               <button key={f} onClick={() => setFilterType(f)} style={{ background: filterType === f ? "#d4af37" : "#151515", color: filterType === f ? "#000" : "#fff", border: "1px solid #333", padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", cursor: "pointer" }}>
+               <button key={f} onClick={() => setFilterType(f)} style={{ background: filterType === f ? "#d4af37" : "#151515", color: filterType === f ? "#000" : "#fff", border: "1px solid #333", padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
                  {f}
                </button>
             ))}
@@ -281,44 +278,39 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* --- MODAL MODO LOTE (REVISAR LISTA EXTRAÍDA) --- */}
+      {/* --- MODAL: REVISIÓN DE LISTA (COMO EN EL CUADERNO) --- */}
       {batchOpen && (
         <div className="no-print" style={s.modalBg}>
           <div style={s.modal}>
-            <h2 style={{ color: "#d4af37", marginBottom: "15px" }}>Revisar Lista ({batchMoldes.length} moldes)</h2>
-            <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "20px" }}>Revisa los datos extraídos. Puedes corregirlos antes de guardarlos todos.</p>
+            <div style={{ background: "#222", padding: "15px", borderRadius: "8px", marginBottom: "20px", borderLeft: "4px solid #d4af37" }}>
+              <label style={{ ...s.label, marginTop: 0 }}>Título de la Hoja (Opcional)</label>
+              <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación de Mujer" />
+            </div>
+
+            <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Revisa la lista antes de guardar.</p>
             
-            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            {/* LISTA COMPACTA Y EDITABLE (Como en tu cuaderno) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 2fr 70px 40px", gap: "8px", padding: "0 10px", color: "#888", fontSize: "11px", fontWeight: "bold" }}>
+                <span>NÚMERO</span>
+                <span>TIPO</span>
+                <span>CARRERA / DISEÑO</span>
+                <span>MEDIDA</span>
+                <span></span>
+              </div>
               {batchMoldes.map((m, idx) => (
-                <div key={idx} style={{ background: "#0a0a0a", padding: "15px", borderRadius: "8px", border: "1px solid #333" }}>
-                  <div style={s.row}>
-                    <div style={s.col}>
-                      <label style={s.label}>N° Molde</label>
-                      <input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
-                    </div>
-                    <div style={s.col}>
-                      <label style={s.label}>Tipo</label>
-                      <input style={s.input} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} />
-                    </div>
-                  </div>
-                  <label style={s.label}>Carrera</label>
-                  <input style={s.input} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} />
-                  <div style={s.row}>
-                    <div style={s.col}>
-                      <label style={s.label}>Medida</label>
-                      <input style={s.input} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} />
-                    </div>
-                    <div style={s.col}>
-                      <label style={s.label}>Notas</label>
-                      <input style={s.input} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} />
-                    </div>
-                  </div>
+                <div key={idx} style={{ display: "grid", gridTemplateColumns: "80px 1fr 2fr 70px 40px", gap: "8px", background: "#0a0a0a", padding: "8px", borderRadius: "6px", border: "1px solid #222", alignItems: "center" }}>
+                  <input style={{ ...s.input, padding: "8px" }} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
+                  <input style={{ ...s.input, padding: "8px" }} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Tipo"/>
+                  <input style={{ ...s.input, padding: "8px" }} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} placeholder="Carrera"/>
+                  <input style={{ ...s.input, padding: "8px" }} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Medida"/>
+                  <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "16px" }}>❌</button>
                 </div>
               ))}
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "20px", position: "sticky", bottom: 0, background: "#151515", paddingTop: "10px" }}>
-              <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 1 }}>
+              <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 2, padding: "15px" }}>
                 {saving ? "Guardando..." : `💾 Guardar los ${batchMoldes.length} Moldes`}
               </button>
               <button onClick={() => setBatchOpen(false)} style={{ ...s.btnSecondary, flex: 1 }}>Cancelar</button>
@@ -327,10 +319,10 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL (LECTURA / EDICIÓN) */}
+      {/* MODAL INDIVIDUAL (Se mantiene igual) */}
       {modalOpen && (
         <div className="no-print" style={s.modalBg} onClick={() => setModalOpen(false)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+          <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
               <h2 style={{ color: "#d4af37", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
               {editing && !isEditMode && (
@@ -365,7 +357,7 @@ export default function Moldes() {
                   <div style={s.col}><label style={s.label}>Notas</label><input style={s.input} value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} /></div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving}>{saving ? "Guardando..." : "💾 Guardar"}</button>
+                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving}>{saving ? "..." : "💾 Guardar"}</button>
                   <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => editing ? setIsEditMode(false) : setModalOpen(false)}>Cancelar</button>
                 </div>
               </form>
