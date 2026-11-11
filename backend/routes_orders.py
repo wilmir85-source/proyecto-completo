@@ -105,14 +105,24 @@ async def op_create_order(data: dict, user) -> dict:
     await db.orders.insert_one(order)
     order.pop("_id", None)
     
-    # --- NOTIFICACIÓN INSTANTÁNEA AL CREAR PEDIDO ---
-    try:
-        admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
-        for u in admins:
-            await send_push_notification(u["id"], "🆕 Nuevo Pedido", f"Se registró el pedido {folio} para {order['cliente']}.", "/pedidos")
-    except Exception as e:
-        logger.error(f"Error notificando nuevo pedido: {e}")
-    # ------------------------------------------------
+    # --- NOTIFICACIONES AL CREAR PEDIDO (En segundo plano) ---
+    async def notificar_creacion():
+        try:
+            # 1. Notificar a Admin y Ventas
+            admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+            for u in admins:
+                await send_push_notification(u["id"], "🆕 Nuevo Pedido", f"Se registró el pedido {folio} para {order['cliente']}.", "/pedidos")
+            
+            # 2. Notificar al departamento asignado (si es distinto a Ventas o Diseño 3D)
+            dept = order.get("stage")
+            if dept and dept not in ["Ventas", "Diseño 3D"]:
+                dept_users = await db.users.find({"departamento": dept, "push_subscription": {"$exists": True}}).to_list(20)
+                for u in dept_users:
+                    await send_push_notification(u["id"], f"📌 Nuevo trabajo en {dept}", f"Pedido {folio}: {order['cliente']}", "/produccion")
+        except Exception as e:
+            logger.error(f"Error notificando nuevo pedido: {e}")
+
+    asyncio.create_task(notificar_creacion())
     
     return enrich_order(order)
 
@@ -147,18 +157,32 @@ async def op_update_order(order_id: str, update: dict, user) -> dict:
         ops["$push"] = {"historial": {"$each": logs}}
     await db.orders.update_one({"id": order_id}, ops)
     
-    # --- NOTIFICACIÓN INSTANTÁNEA AL TERMINAR/ENTREGAR ---
-    if update.get("stage") in ["Terminado", "Entregado"] and order.get("stage") != update.get("stage"):
+    # --- NOTIFICACIONES AL ACTUALIZAR PEDIDO (En segundo plano) ---
+    async def notificar_actualizacion():
         try:
-            admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
-            for u in admins:
-                await send_push_notification(u["id"], f"✅ Pedido {update['stage']}", f"El pedido {order.get('folio')} de {order['cliente']} finalizó.", "/pedidos")
-            
-            if order.get("asignado_a"):
-                await send_push_notification(order["asignado_a"], "🎉 Trabajo Finalizado", f"El pedido {order.get('folio')} terminó.", "/mis-trabajos")
+            nuevo_stage = update.get("stage")
+            viejo_stage = order.get("stage")
+
+            # Si el pedido cambió de etapa
+            if nuevo_stage and nuevo_stage != viejo_stage:
+                # A. Si se movió a un departamento (Ceras, Inyección, etc.)
+                if nuevo_stage not in ["Ventas", "Diseño 3D", "Terminado", "Entregado"]:
+                    dept_users = await db.users.find({"departamento": nuevo_stage, "push_subscription": {"$exists": True}}).to_list(20)
+                    for u in dept_users:
+                        await send_push_notification(u["id"], f"📌 Pedido en {nuevo_stage}", f"El pedido {order.get('folio')} de {order['cliente']} te espera.", "/produccion")
+                
+                # B. Si se terminó o entregó
+                elif nuevo_stage in ["Terminado", "Entregado"]:
+                    admins = await db.users.find({"role": {"$in": ["admin", "ventas"]}, "push_subscription": {"$exists": True}}).to_list(10)
+                    for u in admins:
+                        await send_push_notification(u["id"], f"✅ Pedido {nuevo_stage}", f"El pedido {order.get('folio')} de {order['cliente']} finalizó.", "/pedidos")
+                    
+                    if order.get("asignado_a"):
+                        await send_push_notification(order["asignado_a"], "🎉 Trabajo Finalizado", f"El pedido {order.get('folio')} terminó.", "/mis-trabajos")
         except Exception as e:
-            logger.error(f"Error notificando fin de pedido: {e}")
-    # -----------------------------------------------------
+            logger.error(f"Error notificando actualización: {e}")
+
+    asyncio.create_task(notificar_actualizacion())
     
     return enrich_order(await get_order_or_404(order_id))
 
