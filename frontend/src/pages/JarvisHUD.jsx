@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom"; // <-- IMPORTANTE: Usamos Link para el botón Volver
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -169,14 +168,14 @@ export default function JarvisHUD() {
         @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
       `}</style>
 
-      {/* BARRA SUPERIOR CON BOTÓN VOLVER (AHORA ES UN LINK SEGURO) */}
+      {/* BARRA SUPERIOR CON BOTÓN VOLVER (A PRUEBA DE FALLOS) */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 bg-zinc-950/80 backdrop-blur-md shrink-0 z-50 relative">
-        <Link 
-          to="/" 
-          className="flex items-center gap-1 text-zinc-400 hover:text-cyan-400 bg-white/5 px-4 py-2 rounded-full transition-colors active:bg-white/20 border border-white/10"
+        <button 
+          onClick={() => { window.location.href = "/"; }}
+          className="flex items-center gap-1 text-zinc-400 hover:text-cyan-400 bg-white/5 px-4 py-2 rounded-full transition-colors active:bg-white/20 border border-white/10 z-[999] cursor-pointer"
         >
-          <ChevronLeft className="w-4 h-4" /> Volver
-        </Link>
+          <ChevronLeft className="w-4 h-4" /> Volver al Panel
+        </button>
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${state === "thinking" ? "bg-amber-400 animate-pulse" : isActive ? "bg-cyan-400 animate-ping" : "bg-emerald-500"}`} />
           <span className="text-[10px] font-mono tracking-widest text-cyan-300 font-bold uppercase">
@@ -231,8 +230,8 @@ export default function JarvisHUD() {
         </div>
       </div>
       
-      {/* INPUT */}
-      <div className="p-3 bg-black shrink-0">
+      {/* INPUT (Con padding extra para que el menú de abajo no lo tape) */}
+      <div className="p-3 pb-20 md:pb-3 bg-black shrink-0">
         <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2 bg-zinc-900/90 backdrop-blur-xl p-1.5 rounded-2xl border border-white/10 shadow-2xl">
           <Button type="button" variant="ghost" size="icon" onClick={listen} className={`h-9 w-9 shrink-0 rounded-xl ${speech.listening ? 'text-red-500 bg-red-500/10 animate-pulse' : 'text-cyan-400 hover:bg-cyan-900/30'}`}>
             <Mic className="w-4 h-4" />
