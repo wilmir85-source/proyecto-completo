@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from pywebpush import webpush, WebPushException
 import json
 import os
+import asyncio
 from datetime import datetime, timezone, timedelta
 from core import db, current_user, now_iso
 
@@ -21,7 +22,7 @@ class PushSubscription(BaseModel):
 async def subscribe(subscription: PushSubscription, user=Depends(current_user)):
     await db.users.update_one(
         {"id": user["id"]},
-        {"$set": {"push_subscription": subscription.dict(), "updated_at": now_iso()}}
+        {"$set": {"push_subscription": subscription.model_dump(), "updated_at": now_iso()}} # <-- CAMBIO: .model_dump()
     )
     return {"ok": True, "message": "Suscripción guardada."}
 
@@ -35,8 +36,14 @@ async def send_push_notification(user_id: str, title: str, body: str, url: str =
         "apns": {"payload": {"aps": {"sound": "default"}}}
     }
     try:
-        webpush(subscription_info=user["push_subscription"], data=json.dumps(payload),
-                vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims=VAPID_CLAIMS)
+        # CAMBIO: Usamos asyncio.to_thread para que el envío no congele la app
+        await asyncio.to_thread(
+            webpush,
+            subscription_info=user["push_subscription"], 
+            data=json.dumps(payload),
+            vapid_private_key=VAPID_PRIVATE_KEY, 
+            vapid_claims=VAPID_CLAIMS
+        )
         return True
     except WebPushException as ex:
         print(f"Error enviando push: {ex}")
@@ -122,7 +129,6 @@ async def evening_summary():
                 elif (fecha - hoy).total_seconds() < 86400: inminentes += 1
             except: pass
 
-    # SOLO NOTIFICAMOS SI HAY ALGO URGENTE
     if atrasados == 0 and inminentes == 0:
         return {"ok": True, "message": "Sin urgencias nocturnas. No se envió notificación."}
 
