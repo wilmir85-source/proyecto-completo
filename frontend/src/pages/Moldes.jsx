@@ -9,6 +9,7 @@ export default function Moldes() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("TODOS");
 
+  // Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -85,7 +86,6 @@ export default function Moldes() {
         
         if (r.data?.moldes && r.data.moldes.length > 0) {
           allExtractedMolds = [...allExtractedMolds, ...r.data.moldes];
-          // Guardamos el título de la primera hoja como referencia
           if (!mainTitle && r.data.titulo) mainTitle = r.data.titulo;
         }
       } catch (error) {
@@ -117,7 +117,6 @@ export default function Moldes() {
     try {
       for (const molde of batchMoldes) {
         if (molde.numero.trim()) {
-          // Si el título es "Anillo Graduación", lo agregamos como tipo si está vacío
           const tipoFinal = molde.tipo || batchTitle;
           await api.post("/molds", { libreria_id: selectedLib.id, ...molde, tipo: tipoFinal });
         }
@@ -237,7 +236,6 @@ export default function Moldes() {
       {selectedLib && (
         <div className="no-print" style={s.listContainer}>
           
-          {/* NUEVOS BOTONES DE ESCANEO */}
           {scanning ? (
             <div style={{ background: "#151515", padding: "15px", borderRadius: "10px", border: "1px solid #333", textAlign: "center", marginBottom: "20px" }}>
               <span style={{ color: "#d4af37", fontWeight: "bold" }}>⏳ Procesando hoja {currentSheet} de {totalSheets}...</span>
@@ -278,7 +276,7 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* --- MODAL: REVISIÓN DE LISTA (COMO EN EL CUADERNO) --- */}
+      {/* --- MODAL: REVISIÓN DE LISTA (TIPO CUADERNO) --- */}
       {batchOpen && (
         <div className="no-print" style={s.modalBg}>
           <div style={s.modal}>
@@ -289,7 +287,6 @@ export default function Moldes() {
 
             <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Revisa la lista antes de guardar.</p>
             
-            {/* LISTA COMPACTA Y EDITABLE (Como en tu cuaderno) */}
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 2fr 70px 40px", gap: "8px", padding: "0 10px", color: "#888", fontSize: "11px", fontWeight: "bold" }}>
                 <span>NÚMERO</span>
@@ -319,7 +316,7 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL (Se mantiene igual) */}
+      {/* MODAL INDIVIDUAL (LECTURA / EDICIÓN) */}
       {modalOpen && (
         <div className="no-print" style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
