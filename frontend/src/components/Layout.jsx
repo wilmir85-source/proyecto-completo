@@ -31,15 +31,20 @@ export default function Layout() {
   
   const isJarvisPage = location.pathname === "/jarvis";
   
+  // FUNCIÓN A PRUEBA DE FALLOS (Acepta listas y textos)
+  const userHasDepto = (searchTerms) => {
+    const d = user?.departamento;
+    if (!d) return false;
+    const dStr = Array.isArray(d) ? d.join(" ") : String(d);
+    return searchTerms.some(term => dStr.toLowerCase().includes(term));
+  };
+
   const items = NAV_ITEMS.filter((i) => {
     if (i.roles && !i.roles.includes(user?.role)) return false;
     
-    // <-- PERMISOS DE MOLDES MEJORADOS PARA YUSLIN -->
     if (i.to === "/moldes") {
-      const depto = user?.departamento?.toLowerCase().trim() || "";
       const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
-                          depto.includes("cera") || 
-                          depto.includes("inyec");
+                          userHasDepto(["cera", "inyec"]);
       if (!canSeeMolds) return false;
     }
     
@@ -75,14 +80,18 @@ export default function Layout() {
         </nav>
 
         <div className="border-t border-[#c5a572]/20 pt-4 mt-4">
-          <div className="text-sm text-zinc-100 font-medium mb-1 truncate" data-testid="current-user-name">{user?.name}</div>
+          <div className="text-sm text-zinc-100 font-medium mb-1 truncate">{user?.name}</div>
           <div className="flex flex-wrap gap-1.5 mb-3">
-            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[#c5a572]/50 text-[#c5a572] bg-[#c5a572]/10 shadow-sm" data-testid="current-user-role">
-              {ROLE_LABELS[user?.role]}
+            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-[#c5a572]/50 text-[#c5a572] bg-[#c5a572]/10 shadow-sm">
+              {ROLE_LABELS[user?.role] || user?.role}
             </span>
-            {user?.departamento && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400 bg-white/5">{user.departamento}</span>}
+            {user?.departamento && (
+              <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400 bg-white/5">
+                {Array.isArray(user.departamento) ? user.departamento.join(", ") : user.departamento}
+              </span>
+            )}
           </div>
-          <button onClick={logout} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-red-400 transition-colors" data-testid="btn-logout">
+          <button onClick={logout} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-red-400 transition-colors">
             <LogOut className="w-3.5 h-3.5" /> Cerrar sesión
           </button>
         </div>

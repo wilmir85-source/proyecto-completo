@@ -9,11 +9,16 @@ export const BottomNav = () => {
   const [showMore, setShowMore] = useState(false);
   const { user, logout } = useAuth(); 
 
-  // <-- PERMISOS DE MOLDES MEJORADOS PARA YUSLIN -->
-  const depto = user?.departamento?.toLowerCase().trim() || "";
+  // FUNCIÓN A PRUEBA DE FALLOS
+  const userHasDepto = (searchTerms) => {
+    const d = user?.departamento;
+    if (!d) return false;
+    const dStr = Array.isArray(d) ? d.join(" ") : String(d);
+    return searchTerms.some(term => dStr.toLowerCase().includes(term));
+  };
+
   const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
-                      depto.includes("cera") || 
-                      depto.includes("inyec");
+                      userHasDepto(["cera", "inyec"]);
 
   const handleTabClick = () => {
     if (navigator.vibrate) navigator.vibrate(10);
