@@ -89,7 +89,9 @@ export default function JarvisHUD() {
     setState("thinking");
 
     try {
-      const token = localStorage.getItem("jarvis_token");
+      // CORRECCIÓN 1: Buscamos el token correcto (como en el resto de tu app)
+      const token = localStorage.getItem("token") || localStorage.getItem("access_token") || localStorage.getItem("jarvis_token");
+      
       const response = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { 
@@ -99,6 +101,7 @@ export default function JarvisHUD() {
         body: JSON.stringify({ message: text, session_id: "default" })
       });
 
+      if (!response.ok) throw new Error("Error en la respuesta del servidor");
       if (!response.body) throw new Error("No stream");
 
       const reader = response.body.getReader();
@@ -120,7 +123,6 @@ export default function JarvisHUD() {
                 acc += data.content;
                 setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
               } else if (data.type === "image") {
-                // NUEVO: Aquí atrapamos la imagen que nos manda el backend
                 const imgMsg = { id: Date.now().toString(), role: "assistant", type: "image", content: data.url };
                 setMessages((m) => [...m, imgMsg]);
               }
@@ -142,15 +144,16 @@ export default function JarvisHUD() {
   const orbState = speech.listening ? "listening" : state;
 
   return (
-    <div className="h-[calc(100vh-5rem)] md:h-screen flex flex-col lg:flex-row jarvis-hud">
-      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-8 py-8 lg:border-r border-white/5 relative">
+    // CORRECCIÓN 2: Usamos h-[100dvh] en lugar de h-screen para que el teclado del iPhone no tape el input
+    <div className="h-[100dvh] flex flex-col lg:flex-row jarvis-hud bg-zinc-950">
+      <section className="lg:w-[420px] shrink-0 flex flex-col items-center justify-center gap-4 py-4 lg:py-8 lg:border-r border-white/5 relative overflow-hidden">
         <div className="text-center">
-          <div className="text-[10px] uppercase tracking-[0.5em] text-cyan-400/70">Just A Rather Very Intelligent System</div>
-          <h1 className="font-display text-4xl font-light tracking-[0.3em] mt-2 text-gold-gradient">J.A.R.V.I.S.</h1>
+          <div className="text-[9px] md:text-[10px] uppercase tracking-[0.5em] text-cyan-400/70">Just A Rather Very Intelligent System</div>
+          <h1 className="font-display text-2xl md:text-4xl font-light tracking-[0.3em] mt-2 text-gold-gradient">J.A.R.V.I.S.</h1>
         </div>
-        <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 150 : 220} />
+        <ArcReactor state={orbState} onClick={listen} size={window.innerWidth < 1024 ? 100 : 220} />
         
-        <div className="flex flex-col gap-3 w-64 mt-4 text-xs text-zinc-400">
+        <div className="flex flex-col gap-3 w-64 mt-2 text-xs text-zinc-400">
           <label className="flex items-center justify-between">
             <span className="flex items-center gap-2"><Volume2 className="w-4 h-4" /> Respuesta por voz</span>
             <Switch checked={voiceOn} onCheckedChange={setVoiceOn} />
@@ -163,19 +166,19 @@ export default function JarvisHUD() {
       </section>
 
       <section className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto px-5 md:px-8 py-6" aria-live="polite">
-          <div className="max-w-3xl mx-auto space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4" aria-live="polite">
+          <div className="max-w-3xl mx-auto space-y-4">
             {messages.map((m, i) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.type === "image" ? (
-                  <div className="bg-zinc-900/60 border border-[#c5a572]/30 rounded-2xl p-3 max-w-[85%] shadow-lg">
+                  <div className="bg-zinc-900/60 border border-[#c5a572]/30 rounded-2xl p-2 max-w-[85%] shadow-lg">
                     <div className="text-xs text-[#c5a572] mb-2 flex items-center gap-2">
                       <ImageIcon className="w-4 h-4" /> Diseño generado
                     </div>
                     <img src={m.content} alt="Diseño" className="rounded-xl w-full object-cover shadow-md" />
                   </div>
                 ) : (
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-[#c5a572] text-black font-medium" : "card-glass border-[#c5a572]/20 text-zinc-200"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-[#c5a572] text-black font-medium" : "card-glass border-[#c5a572]/20 text-zinc-200"}`}>
                     {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-[#c5a572]" /> : "")}
                   </div>
                 )}
@@ -184,13 +187,14 @@ export default function JarvisHUD() {
             <div ref={endRef} />
           </div>
         </div>
-        <div className="p-4 border-t border-white/5">
+        {/* El formulario de input */}
+        <div className="p-3 md:p-4 border-t border-white/5 bg-zinc-950 pb-safe">
           <form onSubmit={send} className="max-w-3xl mx-auto flex gap-2">
-            <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-12 w-12 bg-zinc-950 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
+            <Button type="button" variant="outline" size="icon" onClick={listen} className={`h-10 w-10 md:h-12 md:w-12 shrink-0 bg-zinc-900 border-zinc-800 ${speech.listening ? 'text-red-500 border-red-500 animate-pulse' : ''}`}>
               <Mic className="w-4 h-4" />
             </Button>
-            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Pídele a Jarvis que genere un diseño..."} className="bg-zinc-950 border-zinc-800 h-12 text-sm" disabled={state === "thinking"} />
-            <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-12 bg-[#c5a572] hover:bg-[#b08d5b] text-black font-medium">
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder={speech.listening ? "Escuchando..." : "Pídele a Jarvis..."} className="bg-zinc-900 border-zinc-800 h-10 md:h-12 text-sm" disabled={state === "thinking"} />
+            <Button type="submit" disabled={state === "thinking" || !input.trim()} className="h-10 w-10 md:h-12 md:w-12 shrink-0 bg-[#c5a572] hover:bg-[#b08d5b] text-black font-medium">
               {state === "thinking" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </form>
