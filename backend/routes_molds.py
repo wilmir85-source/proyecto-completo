@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional, List
-import os
-import io
-import asyncio
+import os, io, asyncio, random, base64, json
 import cloudinary
 import cloudinary.uploader
 from google import genai
 from google.genai import types
+from openai import OpenAI
+from groq import Groq
 from PIL import Image
 from core import db, current_user, now_iso, new_id, logger
 from dotenv import load_dotenv
@@ -55,79 +55,120 @@ class ListaMoldes(BaseModel):
     titulo_hoja: str
     moldes: List[MoldeExtraido]
 
-# --- CLIENTE GEMINI ---
+# --- CLIENTES DE IA ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_KEY = os.getenv("GROQ_API_KEY")
+
 client_gemini = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
+client_openai = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
+client_groq = Groq(api_key=GROQ_KEY) if GROQ_KEY else None
+
+PROMPT_OCR = (
+    "Analiza esta imagen que contiene una lista escrita a mano de moldes de joyería. "
+    "1. Extrae el título principal de la hoja (ej. 'Anillo Graduación de Mujer'). "
+    "2. Extrae TODOS los moldes que veas. Para cada molde, identifica el número, "
+    "el tipo de joya, la carrera o diseño, la medida y las notas. "
+    "Si un dato no aparece, déjalo vacío."
+)
 
 # ==========================================
-# RUTAS DE JARVIS (VOZ EN TIEMPO REAL)
+# LÓGICA DE RESPALDO (FALLBACK)
 # ==========================================
 
-@router.get("/jarvis/live-token")
-async def get_live_token():
-    try:
-        if not client_gemini:
-            raise HTTPException(500, "Falta API KEY de Gemini.")
-            
-        # Creamos un token de un solo uso para el navegador
-        token = client_gemini.auth_tokens.create(
-            config={
-                "uses": 1,
-                "live_connect_constraints": {
-                    "model": "gemini-2.0-flash-exp",
-                    "config": {
-                        "response_modalities": ["AUDIO"],
-                        "speech_config": {
-                            "voice_config": {
-                                "prebuilt_voice_config": {"voice_name": "Puck"}
-                            }
-                        }
-                    }
-                }
-            }
-        )
-        return {"token": token.name}
-    except Exception as e:
-        logger.error(f"Error creando token de voz: {e}")
-        raise HTTPException(500, "Error al iniciar el sistema de voz")
+async def extraer_con_gemini(imagen):
+    if not client_gemini: raise Exception("Gemini no configurado")
+    response = await asyncio.to_thread(
+        client_gemini.models.generate_content,
+        model="gemini-3.8-flash",
+        contents=[PROMPT_OCR, imagen],
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=ListaMoldes,
+        ),
+    )
+    return response.parsed.model_dump()
+
+async def extraer_con_openai(imagen):
+    if not client_openai: raise Exception("OpenAI no configurado")
+    buffered = io.BytesIO()
+    imagen.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    img_url = f"data:image/jpeg;base64,{img_str}"
+
+    response = await asyncio.to_thread(
+        client_openai.beta.chat.completions.parse,
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": [
+                {"type": "text", "text": PROMPT_OCR},
+                {"type": "image_url", "image_url": {"url": img_url}},
+            ]}
+        ],
+        response_format=ListaMoldes,
+        temperature=0,
+    )
+    return response.choices[0].message.parsed.model_dump()
+
+async def extraer_con_groq(imagen):
+    if not client_groq: raise Exception("Groq no configurado")
+    buffered = io.BytesIO()
+    imagen.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    img_url = f"data:image/jpeg;base64,{img_str}"
+
+    response = await asyncio.to_thread(
+        client_groq.chat.completions.create,
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        messages=[
+            {"role": "user", "content": [
+                {"type": "text", "text": PROMPT_OCR + " Devuelve SOLO un JSON válido."},
+                {"type": "image_url", "image_url": {"url": img_url}},
+            ]}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0,
+    )
+    data = json.loads(response.choices[0].message.content)
+    return ListaMoldes(**data).model_dump()
+
+
+async def procesar_ocr(imagen):
+    proveedores = [
+        ("Gemini", extraer_con_gemini),
+        ("OpenAI", extraer_con_openai),
+        ("Groq", extraer_con_groq),
+    ]
+    for nombre, funcion in proveedores:
+        try:
+            logger.info(f"Intentando OCR con {nombre}...")
+            resultado = await funcion(imagen)
+            logger.info(f"OCR exitoso con {nombre}")
+            return resultado
+        except Exception as e:
+            logger.warning(f"Falló {nombre}: {e}. Pasando al siguiente proveedor...")
+            continue
+    raise HTTPException(503, "Todos los servicios de lectura están saturados. Intenta de nuevo en unos minutos.")
 
 # ==========================================
-# RUTAS DE MOLDES (OCR Y FOTOS)
+# RUTAS
 # ==========================================
 
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
-        if not client_gemini:
-            raise HTTPException(500, "Falta API KEY de Gemini.")
-            
         data = await file.read()
         with Image.open(io.BytesIO(data)) as imagen:
             if imagen.mode != "RGB":
                 imagen = imagen.convert("RGB")
-
-            prompt = (
-                "Analiza esta imagen que contiene una lista escrita a mano de moldes de joyería. "
-                "1. Extrae el título principal de la hoja (ej. 'Anillo Graduación de Mujer'). "
-                "2. Extrae TODOS los moldes que veas. Para cada molde, identifica el número, "
-                "el tipo de joya, la carrera o diseño, la medida y las notas. "
-                "Si un dato no aparece, déjalo vacío."
-            )
-
-            response = await asyncio.to_thread(
-                client_gemini.models.generate_content,
-                model="gemini-3.8-flash",
-                contents=[prompt, imagen],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=ListaMoldes,
-                ),
-            )
-        
-        return {"ok": True, "titulo": response.parsed.titulo_hoja, "moldes": response.parsed.moldes}
+            
+            datos = await procesar_ocr(imagen)
+            return {"ok": True, "titulo": datos.get("titulo_hoja", ""), "moldes": datos.get("moldes", [])}
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error OCR: {e}")
-        raise HTTPException(502, "Error al leer la imagen.")
+        logger.error(f"Error OCR final: {e}")
+        raise HTTPException(502, "Error al procesar la imagen.")
 
 @router.post("/molds/upload-photo")
 async def upload_mold_photo(file: UploadFile = File(...), user=Depends(current_user)):
@@ -143,9 +184,29 @@ async def upload_mold_photo(file: UploadFile = File(...), user=Depends(current_u
         logger.error(f"Error subiendo foto a Cloudinary: {e}")
         raise HTTPException(500, "Error al subir la foto")
 
-# ==========================================
-# RUTAS DE CARPETAS
-# ==========================================
+@router.get("/jarvis/live-token")
+async def get_live_token():
+    try:
+        if not client_gemini:
+            raise HTTPException(500, "Falta API KEY de Gemini.")
+        token = client_gemini.auth_tokens.create(
+            config={
+                "uses": 1,
+                "live_connect_constraints": {
+                    "model": "gemini-2.0-flash-exp",
+                    "config": {
+                        "response_modalities": ["AUDIO"],
+                        "speech_config": {
+                            "voice_config": {"prebuilt_voice_config": {"voice_name": "Puck"}}
+                        }
+                    }
+                }
+            }
+        )
+        return {"token": token.name}
+    except Exception as e:
+        logger.error(f"Error creando token de voz: {e}")
+        raise HTTPException(500, "Error al iniciar el sistema de voz")
 
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
@@ -163,10 +224,6 @@ async def delete_library(libreria_id: str, user=Depends(current_user)):
     await db.libraries.delete_one({"id": libreria_id})
     await db.molds.delete_many({"libreria_id": libreria_id})
     return {"ok": True}
-
-# ==========================================
-# RUTAS DE MOLDES (CRUD)
-# ==========================================
 
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
