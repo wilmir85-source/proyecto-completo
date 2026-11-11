@@ -14,7 +14,7 @@ export const NAV_ITEMS = [
   { to: "/pedidos", label: "Pedidos", icon: GanttChartSquare, testid: "nav-orders" },
   { to: "/produccion", label: "Producción", icon: Factory, testid: "nav-production" },
   { to: "/mis-trabajos", label: "Mis trabajos", icon: Hammer, testid: "nav-my-work" },
-  { to: "/moldes", label: "Moldes", icon: Gem, testid: "nav-molds" }, // <-- NUEVO BOTÓN DE MOLDES
+  { to: "/moldes", label: "Moldes", icon: Gem, testid: "nav-molds" },
   { to: "/ventas", label: "Ventas y abonos", icon: Wallet, testid: "nav-sales", roles: STAFF },
   { to: "/inventario", label: "Inventario", icon: Boxes, testid: "nav-inventory" },
   { to: "/tareas", label: "Tareas", icon: ListTodo, testid: "nav-tasks" },
@@ -32,25 +32,17 @@ export default function Layout() {
   // Detecta si estamos en la pantalla de Jarvis
   const isJarvisPage = location.pathname === "/jarvis";
   
-  // Filtro especial para mostrar/ocultar botones según el rol Y el departamento
   const items = NAV_ITEMS.filter((i) => {
-    // 1. Si el botón pide un rol específico y no lo tiene, se oculta
     if (i.roles && !i.roles.includes(user?.role)) return false;
-    
-    // 2. Regla especial para Moldes: Admin, Ventas, o si es de Ceras/Inyección
     if (i.to === "/moldes") {
-      const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
-                          user?.departamento === "Ceras" || 
-                          user?.departamento === "Inyección";
+      const canSeeMolds = ["admin", "ventas"].includes(user?.role) || user?.departamento === "Ceras" || user?.departamento === "Inyección";
       if (!canSeeMolds) return false;
     }
-    
     return true;
   });
 
   return (
     <div className="h-[100dvh] flex overflow-hidden bg-[#09090b]">
-      {/* Menú Lateral (Solo para PC) - Efecto Cristal Lujo */}
       <aside className="w-64 border-r border-[#c5a572]/20 bg-black/40 backdrop-blur-2xl fixed left-0 top-0 h-screen hidden md:flex flex-col p-5 z-20 overflow-y-auto shadow-[4px_0_24px_rgba(0,0,0,0.6)]">
         <button onClick={() => nav("/")} className="mb-10 group transition-transform hover:scale-105" data-testid="brand-home">
           <BrandMark />
@@ -77,7 +69,6 @@ export default function Layout() {
           ))}
         </nav>
 
-        {/* Info del Usuario - Estilo VIP */}
         <div className="border-t border-[#c5a572]/20 pt-4 mt-4">
           <div className="text-sm text-zinc-100 font-medium mb-1 truncate" data-testid="current-user-name">{user?.name}</div>
           <div className="flex flex-wrap gap-1.5 mb-3">
@@ -92,23 +83,16 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Contenido Principal */}
-      <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden ${isJarvisPage ? 'pb-0' : 'pb-16 md:pb-0'}`}>
+      {/* AQUI ESTA EL CAMBIO: SIEMPRE mostramos el padding inferior para que el menú no tape el contenido */}
+      <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden pb-16 md:pb-0`}>
         <div className="flex-1 overflow-y-auto md:overflow-visible">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>
       
-      {/* AQUI ESTA LA MAGIA: Ocultamos menú y botón si estamos en Jarvis */}
-      {!isJarvisPage && (
-        <>
-          {/* Menú inferior (Solo celular) */}
-          <BottomNav />
-
-          {/* Botón Flotante */}
-          {["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
-        </>
-      )}
+      {/* AQUI ESTA EL CAMBIO: El BottomNav SIEMPRE se muestra. El botón flotante naranja se oculta en Jarvis */}
+      <BottomNav />
+      {!isJarvisPage && ["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
     </div>
   );
 }
