@@ -106,18 +106,25 @@ export default function JarvisHUD() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
+      
+      // --- AQUI ESTA LA MAGIA PARA LEER CODIGOS ---
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        buffer += decoder.decode(value, { stream: true });
         
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
+        // Los mensajes del servidor se separan por doble salto de línea (\n\n)
+        const parts = buffer.split("\n\n");
+        // Guardamos el último pedazo que no se ha completado
+        buffer = parts.pop() || ""; 
+
+        for (const part of parts) {
+          if (part.startsWith("data: ")) {
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(part.slice(6));
               if (data.type === "delta") {
                 acc += data.content;
                 setMessages((m) => m.map((x) => (x.id === replyId ? { ...x, content: acc } : x)));
@@ -125,7 +132,9 @@ export default function JarvisHUD() {
                 const imgMsg = { id: Date.now().toString(), role: "assistant", type: "image", content: data.url };
                 setMessages((m) => [...m, imgMsg]);
               }
-            } catch (err) {}
+            } catch (err) {
+               // Ignoramos si una parte no es JSON válido
+            }
           }
         }
       }
@@ -176,7 +185,7 @@ export default function JarvisHUD() {
                     <img src={m.content} alt="Diseño" className="rounded-xl w-full object-cover shadow-md" />
                   </div>
                 ) : (
-                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-[#c5a572] text-black font-medium" : "card-glass border-[#c5a572]/20 text-zinc-200"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap font-mono ${m.role === "user" ? "bg-[#c5a572] text-black font-medium font-sans" : "card-glass border-[#c5a572]/20 text-zinc-200"}`}>
                     {m.content || (state === "thinking" && i === messages.length - 1 ? <Loader2 className="w-4 h-4 animate-spin text-[#c5a572]" /> : "")}
                   </div>
                 )}

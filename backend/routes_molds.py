@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
-from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
-import os, io, asyncio, random
+import os
+import io
+import asyncio
 import cloudinary
 import cloudinary.uploader
 from google import genai
@@ -22,7 +23,7 @@ cloudinary.config(
     secure=True
 )
 
-# --- MODELOS ---
+# --- MODELOS DE DATOS ---
 class LibreriaIn(BaseModel):
     nombre: str
 
@@ -33,7 +34,7 @@ class MoldeIn(BaseModel):
     carrera: Optional[str] = ""
     medida: Optional[str] = ""
     notas: Optional[str] = ""
-    foto_url: Optional[str] = "" # <--- NUEVO CAMPO
+    foto_url: Optional[str] = ""
 
 class MoldeUpdate(BaseModel):
     numero: Optional[str] = None
@@ -41,7 +42,7 @@ class MoldeUpdate(BaseModel):
     carrera: Optional[str] = None
     medida: Optional[str] = None
     notas: Optional[str] = None
-    foto_url: Optional[str] = None # <--- NUEVO CAMPO
+    foto_url: Optional[str] = None
 
 class MoldeExtraido(BaseModel):
     numero: str
@@ -54,10 +55,46 @@ class ListaMoldes(BaseModel):
     titulo_hoja: str
     moldes: List[MoldeExtraido]
 
+# --- CLIENTE GEMINI ---
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 client_gemini = genai.Client(api_key=GEMINI_KEY) if GEMINI_KEY else None
 
-# --- ESCANEAR HOJA (OCR) ---
+# ==========================================
+# RUTAS DE JARVIS (VOZ EN TIEMPO REAL)
+# ==========================================
+
+@router.get("/jarvis/live-token")
+async def get_live_token():
+    try:
+        if not client_gemini:
+            raise HTTPException(500, "Falta API KEY de Gemini.")
+            
+        # Creamos un token de un solo uso para el navegador
+        token = client_gemini.auth_tokens.create(
+            config={
+                "uses": 1,
+                "live_connect_constraints": {
+                    "model": "gemini-2.0-flash-exp",
+                    "config": {
+                        "response_modalities": ["AUDIO"],
+                        "speech_config": {
+                            "voice_config": {
+                                "prebuilt_voice_config": {"voice_name": "Puck"}
+                            }
+                        }
+                    }
+                }
+            }
+        )
+        return {"token": token.name}
+    except Exception as e:
+        logger.error(f"Error creando token de voz: {e}")
+        raise HTTPException(500, "Error al iniciar el sistema de voz")
+
+# ==========================================
+# RUTAS DE MOLDES (OCR Y FOTOS)
+# ==========================================
+
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
     try:
@@ -92,12 +129,10 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
         logger.error(f"Error OCR: {e}")
         raise HTTPException(502, "Error al leer la imagen.")
 
-# --- SUBIR FOTO DEL MOLDE A CLOUDINARY ---
 @router.post("/molds/upload-photo")
 async def upload_mold_photo(file: UploadFile = File(...), user=Depends(current_user)):
     try:
         data = await file.read()
-        # Subimos a Cloudinary en un hilo separado
         result = await asyncio.to_thread(
             cloudinary.uploader.upload,
             io.BytesIO(data),
@@ -108,7 +143,10 @@ async def upload_mold_photo(file: UploadFile = File(...), user=Depends(current_u
         logger.error(f"Error subiendo foto a Cloudinary: {e}")
         raise HTTPException(500, "Error al subir la foto")
 
-# --- RUTAS DE CARPETAS ---
+# ==========================================
+# RUTAS DE CARPETAS
+# ==========================================
+
 @router.post("/libraries")
 async def create_library(payload: LibreriaIn, user=Depends(current_user)):
     lib = {"id": new_id(), "nombre": payload.nombre, "creado_por": user["name"], "created_at": now_iso()}
@@ -126,7 +164,10 @@ async def delete_library(libreria_id: str, user=Depends(current_user)):
     await db.molds.delete_many({"libreria_id": libreria_id})
     return {"ok": True}
 
-# --- RUTAS DE MOLDES ---
+# ==========================================
+# RUTAS DE MOLDES (CRUD)
+# ==========================================
+
 @router.post("/molds")
 async def save_mold(payload: MoldeIn, user=Depends(current_user)):
     molde = payload.model_dump()
