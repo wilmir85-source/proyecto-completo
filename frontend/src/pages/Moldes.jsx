@@ -47,9 +47,8 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- BORRAR UNA CARPETA COMPLETA ---
   const handleDeleteLibrary = async (e, lib) => {
-    e.stopPropagation(); // Evita que se abra la carpeta al tocar el basurero
+    e.stopPropagation();
     if (!window.confirm(`¿Estás seguro de borrar la carpeta "${lib.nombre}"?\n\n¡Se borrarán TODOS los moldes que tenga adentro!`)) return;
     try {
       await api.delete(`/libraries/${lib.id}`);
@@ -128,7 +127,8 @@ export default function Moldes() {
     try {
       for (const molde of batchMoldes) {
         if (molde.numero.trim()) {
-          const tipoFinal = molde.tipo || batchTitle;
+          // Si el tipo está vacío, usamos una parte corta del título o un genérico
+          const tipoFinal = molde.tipo || "Anillo"; 
           await api.post("/molds", { libreria_id: selectedLib.id, ...molde, tipo: tipoFinal });
         }
       }
@@ -191,27 +191,27 @@ export default function Moldes() {
     listCard: { background: "#151515", border: "1px solid #333", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
     listBadge: { background: "#333", color: "#d4af37", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
     listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
-    listTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
+    // Limitamos el título a 2 líneas para que no haga las tarjetas gigantes
+    listTitle: { fontSize: "14px", fontWeight: "bold", color: "#fff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
     listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
     listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.95)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "800px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
+    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
     readContainer: { background: "#0a0a0a", border: "1px solid #222", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
     readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", marginBottom: "5px", display: "block" },
     readValue: { fontSize: "16px", color: "#fff", whiteSpace: "pre-wrap" },
-    label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "15px", fontWeight: "bold" },
-    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
+    label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "10px", fontWeight: "bold" },
+    input: { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "14px" },
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
-    row: { display: "flex", gap: "15px" },
-    col: { flex: 1 },
+    row: { display: "flex", gap: "10px" },
+    col: { flex: 1, minWidth: 0 },
     btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
     progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
-    
-    // NUEVO ESTILO PARA LAS CARPETAS CON BOTÓN DE BORRAR
     folderCard: { background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center", position: "relative" },
     folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "#f0b0b0", fontSize: "14px", cursor: "pointer" },
+    batchCard: { background: "#0a0a0a", padding: "12px", borderRadius: "8px", border: "1px solid #333", marginBottom: "10px" },
   };
 
   return (
@@ -237,16 +237,13 @@ export default function Moldes() {
         </button>
       )}
 
-      {/* VISTA 1: CARPETAS CON BOTÓN DE BORRAR */}
       {!selectedLib && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
           {libraries.map((lib) => (
             <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
-              {/* BOTÓN DE BORRAR CARPETA */}
               <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)} title="Borrar carpeta entera">
                 🗑️
               </button>
-              
               <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
               <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
             </div>
@@ -254,10 +251,8 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* VISTA 2: DENTRO DE LA CARPETA */}
       {selectedLib && (
         <div style={s.listContainer}>
-          
           {scanning ? (
             <div style={{ background: "#151515", padding: "15px", borderRadius: "10px", border: "1px solid #333", textAlign: "center", marginBottom: "20px" }}>
               <span style={{ color: "#d4af37", fontWeight: "bold" }}>⏳ Procesando hoja {currentSheet} de {totalSheets}...</span>
@@ -298,37 +293,50 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* --- MODAL: REVISIÓN DE LISTA --- */}
+      {/* --- MODAL: REVISIÓN DE LISTA (TARJETAS VERTICALES) --- */}
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
-            <div style={{ background: "#222", padding: "15px", borderRadius: "8px", marginBottom: "20px", borderLeft: "4px solid #d4af37" }}>
-              <label style={{ ...s.label, marginTop: 0 }}>Título de la Hoja (Opcional)</label>
+            <div style={{ background: "#222", padding: "15px", borderRadius: "8px", marginBottom: "15px", borderLeft: "4px solid #d4af37" }}>
+              <label style={{ ...s.label, marginTop: 0 }}>Título General de la Hoja</label>
               <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación de Mujer" />
             </div>
 
-            <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Revisa la lista antes de guardar.</p>
+            <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
             
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 2fr 70px 40px", gap: "8px", padding: "0 10px", color: "#888", fontSize: "11px", fontWeight: "bold" }}>
-                <span>NÚMERO</span>
-                <span>TIPO</span>
-                <span>CARRERA / DISEÑO</span>
-                <span>MEDIDA</span>
-                <span></span>
-              </div>
+            {/* DISEÑO VERTICAL: Así se lee todo perfectamente en el celular */}
+            <div style={{ display: "flex", flexDirection: "column" }}>
               {batchMoldes.map((m, idx) => (
-                <div key={idx} style={{ display: "grid", gridTemplateColumns: "80px 1fr 2fr 70px 40px", gap: "8px", background: "#0a0a0a", padding: "8px", borderRadius: "6px", border: "1px solid #222", alignItems: "center" }}>
-                  <input style={{ ...s.input, padding: "8px" }} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
-                  <input style={{ ...s.input, padding: "8px" }} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Tipo"/>
-                  <input style={{ ...s.input, padding: "8px" }} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} placeholder="Carrera"/>
-                  <input style={{ ...s.input, padding: "8px" }} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Medida"/>
-                  <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "16px" }}>❌</button>
+                <div key={idx} style={s.batchCard}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <span style={{ color: "#d4af37", fontWeight: "bold", fontSize: "12px" }}>MOLDE {idx + 1}</span>
+                    <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "16px" }}>❌ Borrar</button>
+                  </div>
+
+                  <div style={s.row}>
+                    <div style={s.col}>
+                      <label style={s.label}>N° Molde</label>
+                      <input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
+                    </div>
+                    <div style={s.col}>
+                      <label style={s.label}>Medida</label>
+                      <input style={s.input} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Ej. 10x8" />
+                    </div>
+                  </div>
+
+                  <label style={s.label}>Tipo de Joya</label>
+                  <input style={s.input} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Ej. Anillo, Dije..." />
+
+                  <label style={s.label}>Carrera / Diseño Completo</label>
+                  <textarea style={{...s.textarea, minHeight: "60px"}} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} placeholder="Ej. Perito Contador..." />
+                  
+                  <label style={s.label}>Notas (Opcional)</label>
+                  <input style={s.input} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} placeholder="Ej. 2 Gemas..." />
                 </div>
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "20px", position: "sticky", bottom: 0, background: "#151515", paddingTop: "10px" }}>
+            <div style={{ display: "flex", gap: "10px", marginTop: "15px", position: "sticky", bottom: 0, background: "#151515", paddingTop: "10px", borderTop: "1px solid #333" }}>
               <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 2, padding: "15px" }}>
                 {saving ? "Guardando..." : `💾 Guardar los ${batchMoldes.length} Moldes`}
               </button>
