@@ -1,13 +1,14 @@
-import { useEffect } from "react"; // <-- IMPORTANTE: Agregamos useEffect
+import { useEffect, useState } from "react";
 import { Outlet, useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store, Gem } from "lucide-react";
+import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store, Gem, Bell } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/stages";
 import { BottomNav } from "@/components/BottomNav";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { FinishOrderProvider } from "@/components/FinishOrderDialog";
 import { BrandMark } from "@/components/BrandMark";
-import { api } from "@/lib/api"; // <-- IMPORTANTE: Importamos la API
+import { api } from "@/lib/api";
+import { toast } from "sonner"; // Para avisarle al usuario
 
 const STAFF = ["admin", "ventas"];
 
@@ -31,45 +32,46 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
+  const [notifActive, setNotifActive] = useState(false);
   
   const isJarvisPage = location.pathname === "/jarvis";
 
-  // --- LÓGICA DE NOTIFICACIONES PUSH ---
+  // Revisar si ya están activas al cargar
   useEffect(() => {
-    const setupNotifications = async () => {
-      if (!user) return; // Solo si el usuario inició sesión
-      
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        try {
-          // 1. Registrar el Service Worker
-          const register = await navigator.serviceWorker.register('/service-worker.js');
-          
-          // 2. Pedir permiso al celular/compu
-          const permission = await Notification.requestPermission();
-          if (permission !== 'granted') {
-            console.log("El usuario denegó las notificaciones");
-            return;
-          }
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setNotifActive(true);
+    }
+  }, []);
 
-          // 3. Suscribirse a las notificaciones usando la llave de Vercel
-          const subscription = await register.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
-          });
+  // --- FUNCIÓN PARA ACTIVAR NOTIFICACIONES MANUALMENTE ---
+  const activarNotificaciones = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error("Tu navegador no soporta notificaciones");
+      return;
+    }
 
-          // 4. Mandar los datos del celular a tu backend en Railway
-          await api.post('/notifications/subscribe', subscription);
-          console.log("✅ Suscripción push configurada correctamente");
-
-        } catch (error) {
-          console.error("❌ Error configurando notificaciones:", error);
-        }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error("Permiso denegado. Ve a ajustes de tu celular para permitirlas.");
+        return;
       }
-    };
 
-    setupNotifications();
-  }, [user]);
-  // -------------------------------------
+      const register = await navigator.serviceWorker.register('/service-worker.js');
+      const subscription = await register.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
+      });
+
+      await api.post('/notifications/subscribe', subscription);
+      setNotifActive(true);
+      toast.success("¡Notificaciones activadas con éxito!");
+      
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al activar notificaciones. Revisa la consola.");
+    }
+  };
 
   const items = NAV_ITEMS.filter((i) => {
     if (i.roles && !i.roles.includes(user?.role)) return false;
@@ -116,6 +118,14 @@ export default function Layout() {
             </span>
             {user?.departamento && <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-white/10 text-zinc-400 bg-white/5">{user.departamento}</span>}
           </div>
+          
+          {/* BOTÓN DE NOTIFICACIONES EN PC */}
+          {!notifActive && (
+             <button onClick={activarNotificaciones} className="w-full mb-3 flex items-center justify-center gap-2 bg-amber-600/20 text-amber-500 border border-amber-600/50 hover:bg-amber-600/30 px-3 py-2 rounded-lg text-xs font-bold transition-all">
+               <Bell className="w-4 h-4 animate-bounce" /> Activar Notificaciones
+             </button>
+          )}
+
           <button onClick={logout} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-red-400 transition-colors" data-testid="btn-logout">
             <LogOut className="w-3.5 h-3.5" /> Cerrar sesión
           </button>
@@ -123,12 +133,20 @@ export default function Layout() {
       </aside>
 
       <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden pb-16 md:pb-0`}>
+        {/* BOTÓN DE NOTIFICACIONES EN CELULAR (Flotando arriba) */}
+        {!notifActive && (
+          <div className="md:hidden p-2 bg-zinc-900 border-b border-white/5 flex justify-center">
+            <button onClick={activarNotificaciones} className="flex items-center gap-2 bg-amber-600 text-black px-4 py-1.5 rounded-full text-xs font-bold animate-pulse shadow-lg shadow-amber-900/50">
+               <Bell className="w-4 h-4" /> Toca aquí para activar notificaciones
+            </button>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto md:overflow-visible">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>
       
-      {/* El BottomNav SIEMPRE se muestra. El botón flotante naranja se oculta en Jarvis */}
       <BottomNav />
       {!isJarvisPage && ["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
     </div>
