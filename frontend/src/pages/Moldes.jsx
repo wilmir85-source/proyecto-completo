@@ -14,10 +14,15 @@ export default function Moldes() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "" });
 
+  // --- NUEVOS ESTADOS PARA EL MODO LOTE ---
+  const [batchMoldes, setBatchMoldes] = useState([]);
+  const [batchOpen, setBatchOpen] = useState(false);
+
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef(null);
+  const batchInputRef = useRef(null);
 
   // Carga de librerías
   const loadLibraries = useCallback(async () => {
@@ -78,7 +83,7 @@ export default function Moldes() {
     return () => clearInterval(interval);
   }, [scanning]);
 
-  // Manejo de lectura manuscrita con Gemini AI (OCR)
+  // Manejo de lectura manuscrita con Gemini AI (OCR) - MODO INDIVIDUAL
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -104,6 +109,61 @@ export default function Moldes() {
     } finally {
       setScanning(false);
     }
+  };
+
+  // --- NUEVO: MANEJO DE LECTURA DE HOJA COMPLETA (MODO LOTE) ---
+  const handleBatchFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await api.post("/molds/scan", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      
+      // Si el backend devuelve el arreglo "moldes"
+      if (r.data?.moldes && r.data.moldes.length > 0) {
+        setBatchMoldes(r.data.moldes);
+        setBatchOpen(true);
+        toast.success(`¡Se encontraron ${r.data.moldes.length} moldes en la hoja!`);
+      } else {
+        toast.error("No se detectaron moldes en la hoja. Intenta con una foto más clara.");
+      }
+    } catch {
+      toast.error("Error al escanear la hoja completa");
+    } finally {
+      setScanning(false);
+      if (batchInputRef.current) batchInputRef.current.value = "";
+    }
+  };
+
+  // Guardar todos los moldes del lote
+  const saveBatch = async () => {
+    setSaving(true);
+    try {
+      let guardados = 0;
+      for (const m of batchMoldes) {
+        if (m.numero.trim()) {
+          await api.post("/molds", { libreria_id: selectedLib.id, ...m });
+          guardados++;
+        }
+      }
+      toast.success(`¡${guardados} moldes guardados exitosamente!`);
+      setBatchOpen(false);
+      setBatchMoldes([]);
+      await loadMolds();
+    } catch {
+      toast.error("Error al guardar el lote");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Editar un elemento dentro del lote antes de guardar
+  const updateBatchItem = (index, field, value) => {
+    const nuevos = [...batchMoldes];
+    nuevos[index][field] = value;
+    setBatchMoldes(nuevos);
   };
 
   const handleSave = async (e) => {
@@ -199,8 +259,14 @@ export default function Moldes() {
           <h1 style={styles.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
         </div>
         {selectedLib && (
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button style={styles.btnSecondary} onClick={exportToPDF}>📄 Imprimir / PDF</button>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <button style={styles.btnSecondary} onClick={exportToPDF}>📄 PDF</button>
+            {/* NUEVO BOTÓN MODO LOTE */}
+            <button style={styles.btnSecondary} onClick={() => batchInputRef.current?.click()} disabled={scanning}>
+              {scanning ? "⏳ Leyendo hoja..." : "📷 Escanear Hoja"}
+            </button>
+            <input type="file" accept="image/*" ref={batchInputRef} style={{ display: "none" }} onChange={handleBatchFileChange} disabled={scanning} />
+            
             <button style={styles.btnPrimary} onClick={openNewModal}>+ Nuevo Molde</button>
           </div>
         )}
@@ -336,7 +402,66 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL FICHA DE MOLDE (LECTURA Y EDICIÓN CON LECTOR OCR) */}
+      {/* ======================================================== */}
+      {/* NUEVO MODAL: REVISIÓN DE LISTA EXTRAÍDA (MODO LOTE)      */}
+      {/* ======================================================== */}
+      {batchOpen && (
+        <div className="no-print" style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <div style={styles.modalHeader}>
+              <h2 style={{ color: "#d4af37", margin: 0, fontSize: "20px" }}>
+                📋 Revisar {batchMoldes.length} Moldes Extraídos
+              </h2>
+            </div>
+            
+            <p style={{ color: "#aaa", fontSize: "13px", marginBottom: "15px" }}>
+              Gemini leyó tu cuaderno. Revisa que los datos estén correctos antes de guardarlos todos en la base de datos.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "50vh", overflowY: "auto", paddingRight: "5px" }}>
+              {batchMoldes.map((m, idx) => (
+                <div key={idx} style={{ background: "#0a0a0c", padding: "12px", borderRadius: "8px", border: "1px solid #333" }}>
+                  <div style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>N° Molde</label>
+                      <input style={{ ...styles.input, padding: "8px" }} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>Tipo</label>
+                      <input style={{ ...styles.input, padding: "8px" }} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} />
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: "8px" }}>
+                    <label style={styles.label}>Carrera / Diseño</label>
+                    <input style={{ ...styles.input, padding: "8px" }} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} />
+                  </div>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>Medida</label>
+                      <input style={{ ...styles.input, padding: "8px" }} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>Notas</label>
+                      <input style={{ ...styles.input, padding: "8px" }} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px", borderTop: "1px solid #333", paddingTop: "15px" }}>
+              <button onClick={saveBatch} disabled={saving} style={{ ...styles.btnPrimary, flex: 1 }}>
+                {saving ? "Guardando..." : `💾 Guardar los ${batchMoldes.length} Moldes`}
+              </button>
+              <button onClick={() => setBatchOpen(false)} style={{ ...styles.btnSecondary, flex: 1 }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FICHA DE MOLDE (LECTURA Y EDICIÓN CON LECTOR OCR INDIVIDUAL) */}
       {modalOpen && (
         <div className="no-print" style={styles.modalOverlay} onClick={() => setModalOpen(false)}>
           <div style={styles.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -349,7 +474,7 @@ export default function Moldes() {
               )}
             </div>
 
-            {/* BOTÓN DE ESCANEO OCR CON GEMINI */}
+            {/* BOTÓN DE ESCANEO OCR INDIVIDUAL */}
             {!editing && (
               <div style={styles.scanBox} onClick={() => !scanning && fileInputRef.current?.click()}>
                 {scanning ? (
@@ -362,8 +487,8 @@ export default function Moldes() {
                 ) : (
                   <>
                     <span style={{ fontSize: "22px" }}>📷</span>
-                    <span style={{ color: "#d4af37", fontWeight: "bold" }}>Escanear cuaderno / nota manuscrita</span>
-                    <span style={{ color: "#666", fontSize: "12px" }}>Gemini extraerá el número, carrera y medida automáticamente</span>
+                    <span style={{ color: "#d4af37", fontWeight: "bold" }}>Escanear 1 solo molde</span>
+                    <span style={{ color: "#666", fontSize: "12px" }}>Usa el botón "Escanear Hoja" para listas completas</span>
                   </>
                 )}
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleFileChange} disabled={scanning} />
@@ -453,7 +578,7 @@ export default function Moldes() {
 // OBJETO DE ESTILOS UNIFICADO (DARK SPOTIFY STYLE)
 const styles = {
   page: { minHeight: "100vh", background: "#0c0c0e", color: "#f0f0f0", padding: "20px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", paddingBottom: "80px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px", flexWrap: "wrap", gap: "10px" },
   kicker: { color: "#d4af37", fontSize: "11px", fontWeight: "bold", letterSpacing: "1.5px", textTransform: "uppercase" },
   title: { fontSize: "28px", fontWeight: "800", margin: "4px 0 0 0", color: "#ffffff" },
   
@@ -467,7 +592,7 @@ const styles = {
 
   filterBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "10px", flexWrap: "wrap" },
   btnBack: { background: "none", border: "none", color: "#d4af37", fontSize: "14px", fontWeight: "bold", cursor: "pointer", padding: 0 },
-  chipGroup: { display: "flex", gap: "8px" },
+  chipGroup: { display: "flex", gap: "8px", flexWrap: "wrap" },
   chip: { padding: "6px 14px", borderRadius: "20px", border: "1px solid #333", fontSize: "12px", fontWeight: "bold", cursor: "pointer" },
 
   gridFolders: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "15px" },
@@ -478,14 +603,14 @@ const styles = {
 
   trackList: { display: "flex", flexDirection: "column", gap: "8px" },
   trackCard: { background: "#141417", border: "1px solid #222", borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
-  albumBadge: { width: "48px", height: "48px", background: "linear-gradient(135deg, #222, #111)", border: "1px solid #d4af37", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" },
+  albumBadge: { width: "48px", height: "48px", background: "linear-gradient(135deg, #222, #111)", border: "1px solid #d4af37", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   badgeNum: { color: "#d4af37", fontWeight: "bold", fontSize: "14px" },
-  trackDetails: { flex: 1, display: "flex", flexDirection: "column", gap: "2px" },
-  trackTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff" },
+  trackDetails: { flex: 1, display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden" },
+  trackTitle: { fontSize: "15px", fontWeight: "bold", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   trackMeasure: { fontSize: "13px", color: "#d4af37", fontWeight: "normal" },
-  trackSub: { fontSize: "13px", color: "#999" },
-  trackNotes: { fontSize: "12px", color: "#666", fontStyle: "italic" },
-  btnDeleteTrack: { background: "none", border: "none", fontSize: "16px", cursor: "pointer", padding: "8px", opacity: 0.7 },
+  trackSub: { fontSize: "13px", color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  trackNotes: { fontSize: "12px", color: "#666", fontStyle: "italic", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  btnDeleteTrack: { background: "none", border: "none", fontSize: "16px", cursor: "pointer", padding: "8px", opacity: 0.7, flexShrink: 0 },
 
   emptyState: { textAlign: "center", padding: "40px", color: "#555", background: "#141417", borderRadius: "12px", border: "1px dashed #222" },
 
