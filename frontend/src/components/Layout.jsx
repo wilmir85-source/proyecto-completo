@@ -1,3 +1,4 @@
+import { useEffect } from "react"; // <-- IMPORTANTE: Agregamos useEffect
 import { Outlet, useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { LayoutDashboard, GanttChartSquare, ListTodo, Users, LogOut, MessageSquareText, Factory, Hammer, Wallet, ShieldCheck, Smartphone, Boxes, Store, Gem } from "lucide-react";
@@ -6,8 +7,10 @@ import { BottomNav } from "@/components/BottomNav";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { FinishOrderProvider } from "@/components/FinishOrderDialog";
 import { BrandMark } from "@/components/BrandMark";
+import { api } from "@/lib/api"; // <-- IMPORTANTE: Importamos la API
 
 const STAFF = ["admin", "ventas"];
+
 export const NAV_ITEMS = [
   { to: "/", label: "Panel", icon: LayoutDashboard, end: true, testid: "nav-dashboard" },
   { to: "/jarvis", label: "Jarvis", icon: MessageSquareText, testid: "nav-jarvis" },
@@ -29,9 +32,45 @@ export default function Layout() {
   const nav = useNavigate();
   const location = useLocation();
   
-  // Detecta si estamos en la pantalla de Jarvis
   const isJarvisPage = location.pathname === "/jarvis";
-  
+
+  // --- LÓGICA DE NOTIFICACIONES PUSH ---
+  useEffect(() => {
+    const setupNotifications = async () => {
+      if (!user) return; // Solo si el usuario inició sesión
+      
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+          // 1. Registrar el Service Worker
+          const register = await navigator.serviceWorker.register('/service-worker.js');
+          
+          // 2. Pedir permiso al celular/compu
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            console.log("El usuario denegó las notificaciones");
+            return;
+          }
+
+          // 3. Suscribirse a las notificaciones usando la llave de Vercel
+          const subscription = await register.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
+          });
+
+          // 4. Mandar los datos del celular a tu backend en Railway
+          await api.post('/notifications/subscribe', subscription);
+          console.log("✅ Suscripción push configurada correctamente");
+
+        } catch (error) {
+          console.error("❌ Error configurando notificaciones:", error);
+        }
+      }
+    };
+
+    setupNotifications();
+  }, [user]);
+  // -------------------------------------
+
   const items = NAV_ITEMS.filter((i) => {
     if (i.roles && !i.roles.includes(user?.role)) return false;
     if (i.to === "/moldes") {
@@ -83,14 +122,13 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* AQUI ESTA EL CAMBIO: SIEMPRE mostramos el padding inferior para que el menú no tape el contenido */}
       <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden pb-16 md:pb-0`}>
         <div className="flex-1 overflow-y-auto md:overflow-visible">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>
       
-      {/* AQUI ESTA EL CAMBIO: El BottomNav SIEMPRE se muestra. El botón flotante naranja se oculta en Jarvis */}
+      {/* El BottomNav SIEMPRE se muestra. El botón flotante naranja se oculta en Jarvis */}
       <BottomNav />
       {!isJarvisPage && ["admin", "ventas"].includes(user?.role) && <FloatingActionButton />}
     </div>
