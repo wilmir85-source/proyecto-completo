@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut, Archive, Gem } from "lucide-react"; // <-- Agregamos Gem
+import { Home, ClipboardList, Hammer, Bot, Menu, Smartphone, LogOut, Archive, Gem } from "lucide-react"; 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -7,12 +7,13 @@ export const BottomNav = () => {
   const location = useLocation();
   const path = location.pathname;
   const [showMore, setShowMore] = useState(false);
-  const { user, logout } = useAuth(); // <-- Agregamos 'user' para validar el permiso
+  const { user, logout } = useAuth(); 
 
-  // Lógica para mostrar Moldes solo a los autorizados
+  // <-- PERMISOS DE MOLDES MEJORADOS PARA YUSLIN -->
+  const depto = user?.departamento?.toLowerCase().trim() || "";
   const canSeeMolds = ["admin", "ventas"].includes(user?.role) || 
-                      user?.departamento === "Ceras" || 
-                      user?.departamento === "Inyección";
+                      depto.includes("cera") || 
+                      depto.includes("inyec");
 
   const handleTabClick = () => {
     if (navigator.vibrate) navigator.vibrate(10);
@@ -28,7 +29,6 @@ export const BottomNav = () => {
 
   return (
     <>
-      {/* Menú flotante fijo abajo - Efecto Cristal */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#09090b]/80 backdrop-blur-2xl border-t border-[#c5a572]/30 z-50 pb-safe shadow-[0_-4px_24px_rgba(0,0,0,0.6)]">
         <div className="flex justify-around items-center h-[65px]">
           {tabs.map((tab) => {
@@ -65,7 +65,6 @@ export const BottomNav = () => {
         </div>
       </div>
 
-      {/* Panel desplegable de "Más" */}
       {showMore && (
         <div className="md:hidden fixed bottom-[65px] left-0 right-0 bg-zinc-950/95 backdrop-blur-2xl border-t border-[#c5a572]/30 z-40 p-5 grid grid-cols-3 gap-y-6 gap-x-2 pb-10 shadow-2xl">
           <Link to="/clientes" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
@@ -84,7 +83,6 @@ export const BottomNav = () => {
             <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm text-[#c5a572]">🏪</span> Mi Joyería
           </Link>
           
-          {/* BOTÓN DE MOLDES (Protegido) */}
           {canSeeMolds && (
             <Link to="/moldes" className="flex flex-col items-center text-zinc-300 text-[11px] hover:text-white" onClick={handleTabClick}>
               <span className="bg-[#c5a572]/10 border border-[#c5a572]/20 p-3 rounded-full mb-1.5 shadow-sm">
