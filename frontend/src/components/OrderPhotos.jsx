@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { fileUrl } from "@/lib/stages";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, X, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export const OrderPhotos = ({ order, onChange, readOnly }) => {
@@ -35,6 +35,16 @@ export const OrderPhotos = ({ order, onChange, readOnly }) => {
     } catch (e) { toast.error(e.response?.data?.detail || "No se pudo eliminar la foto"); }
   };
 
+  // --- TRUCO PARA DESCARGAR DESDE CLOUDINARY ---
+  const getDownloadUrl = (path) => {
+    const url = fileUrl(path);
+    // Si la foto está en Cloudinary, forzamos la descarga agregando fl_attachment
+    if (url.includes("cloudinary.com")) {
+      return url.replace("/upload/", "/upload/fl_attachment/");
+    }
+    return url; 
+  };
+
   return (
     <div data-testid="order-photos">
       <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Fotos de referencia ({fotos.length})</div>
@@ -56,9 +66,32 @@ export const OrderPhotos = ({ order, onChange, readOnly }) => {
       </div>
       <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
         onChange={(e) => e.target.files?.length && upload([...e.target.files])} data-testid="input-photo-file" />
+      
+      {/* VISOR DE FOTO MEJORADO (Z-INDEX ALTO Y BOTÓN DE DESCARGA) */}
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
-        <DialogContent className="max-w-[95vw] w-auto bg-black border-zinc-800 p-2" data-testid="photo-preview">
-          {preview && <img src={fileUrl(preview)} alt="" className="max-w-[90vw] max-h-[88vh] rounded-lg object-contain" />}
+        <DialogContent className="max-w-[95vw] w-auto bg-zinc-950 border-zinc-800 p-4 z-[999] flex flex-col items-center rounded-2xl shadow-2xl" data-testid="photo-preview">
+          {preview && (
+            <>
+              <img src={fileUrl(preview)} alt="" className="max-w-[90vw] max-h-[70vh] rounded-lg object-contain mb-4" />
+              
+              <div className="flex gap-3 w-full justify-center">
+                <a 
+                  href={getDownloadUrl(preview)} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#c5a572] hover:bg-[#b08d5b] text-black font-bold rounded-lg transition-colors text-sm"
+                >
+                  <Download className="w-4 h-4" /> Descargar Foto
+                </a>
+                <button 
+                  onClick={() => setPreview(null)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-lg transition-colors text-sm"
+                >
+                  <X className="w-4 h-4" /> Cerrar
+                </button>
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
