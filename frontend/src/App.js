@@ -10,7 +10,6 @@ import Tablero from "@/pages/Tablero";
 import Tareas from "@/pages/Tareas";
 import Clientes from "@/pages/Clientes";
 import JarvisHUD from "@/pages/JarvisHUD";
-import JarvisWidget from "@/components/JarvisWidget"; // <-- NUEVA IMPORTACIÓN DEL WIDGET
 import Produccion from "@/pages/Produccion";
 import MisTrabajos from "@/pages/MisTrabajos";
 import Ventas from "@/pages/Ventas";
@@ -38,13 +37,17 @@ function RoleGate({ roles, children }) {
   return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
 }
 
-// <-- NUEVO CANDADO EXCLUSIVO PARA MOLDES -->
+// <-- CANDADO DE MOLDES MEJORADO PARA YUSLIN -->
 function MoldesGate({ children }) {
   const { user } = useAuth();
-  // Damos acceso a Admin, Ventas (tu esposa), o si el usuario pertenece a Ceras o Inyección (tu hija)
+  
+  // Convertimos a minúsculas y quitamos espacios en blanco
+  const depto = user?.departamento?.toLowerCase().trim() || "";
+  
+  // Acepta si es admin, ventas, o si el departamento contiene "cera" o "inyec"
   const tieneAcceso = ["admin", "ventas"].includes(user?.role) || 
-                      user?.departamento === "Ceras" || 
-                      user?.departamento === "Inyección";
+                      depto.includes("cera") || 
+                      depto.includes("inyec");
                       
   return tieneAcceso ? children : <Navigate to="/" replace />;
 }
@@ -77,8 +80,7 @@ export default function App() {
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           
-          {/* AQUI INYECTAMOS EL WIDGET GLOBAL */}
-          <Route element={<Protected><><Layout /><JarvisWidget /></></Protected>}>
+          <Route element={<Protected><Layout /></Protected>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pedidos" element={<Tablero />} />
             <Route path="/produccion" element={<Produccion />} />
@@ -93,7 +95,7 @@ export default function App() {
             <Route path="/jarvis" element={<JarvisHUD />} />
             <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} />
             
-            {/* NUEVA RUTA DE MOLDES PROTEGIDA */}
+            {/* RUTA DE MOLDES PROTEGIDA POR EL NUEVO CANDADO */}
             <Route path="/moldes" element={<MoldesGate><Moldes /></MoldesGate>} />
           </Route>
           
