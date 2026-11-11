@@ -37,22 +37,19 @@ function RoleGate({ roles, children }) {
   return roles.includes(user?.role) ? children : <Navigate to="/" replace />;
 }
 
-// <-- CANDADO DE MOLDES A PRUEBA DE FALLOS -->
+// CANDADO A PRUEBA DE FALLOS
 function MoldesGate({ children }) {
   const { user } = useAuth();
   
-  // Esta función convierte a minúsculas sin importar si es texto o una lista
-  const getDeptoString = (depto) => {
-    if (Array.isArray(depto)) return depto.join(" ").toLowerCase();
-    if (typeof depto === 'string') return depto.toLowerCase();
-    return "";
+  const userHasDepto = (searchTerms) => {
+    const d = user?.departamento;
+    if (!d) return false;
+    const dStr = Array.isArray(d) ? d.join(" ") : String(d);
+    return searchTerms.some(term => dStr.toLowerCase().includes(term));
   };
 
-  const depto = getDeptoString(user?.departamento);
-  
   const tieneAcceso = ["admin", "ventas"].includes(user?.role) || 
-                      depto.includes("cera") || 
-                      depto.includes("inyec");
+                      userHasDepto(["cera", "inyec"]);
                       
   return tieneAcceso ? children : <Navigate to="/" replace />;
 }
