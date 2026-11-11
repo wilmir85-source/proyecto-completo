@@ -9,6 +9,10 @@ export default function Moldes() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("TODOS");
 
+  // --- ESTADOS PARA CREAR CARPETA ---
+  const [newLibName, setNewLibName] = useState("");
+  const [showNewLib, setShowNewLib] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -47,6 +51,21 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
+  // --- CREAR CARPETA ---
+  const handleCreateLibrary = async () => {
+    if (!newLibName.trim()) return toast.error("Escribe un nombre para la carpeta");
+    try {
+      await api.post("/libraries", { nombre: newLibName });
+      setNewLibName("");
+      setShowNewLib(false);
+      await loadLibraries();
+      toast.success("Carpeta creada correctamente");
+    } catch {
+      toast.error("Error al crear la carpeta");
+    }
+  };
+
+  // --- BORRAR CARPETA ---
   const handleDeleteLibrary = async (e, lib) => {
     e.stopPropagation();
     if (!window.confirm(`¿Estás seguro de borrar la carpeta "${lib.nombre}"?\n\n¡Se borrarán TODOS los moldes que tenga adentro!`)) return;
@@ -75,7 +94,6 @@ export default function Moldes() {
 
   const processFiles = async (files) => {
     if (files.length === 0) return;
-
     setScanning(true);
     setTotalSheets(files.length);
     setCurrentSheet(1);
@@ -91,7 +109,6 @@ export default function Moldes() {
       try {
         const formData = new FormData();
         formData.append("file", files[i]);
-        
         const r = await api.post("/molds/scan", formData, { headers: { "Content-Type": "multipart/form-data" } });
         
         if (r.data?.moldes && r.data.moldes.length > 0) {
@@ -127,7 +144,6 @@ export default function Moldes() {
     try {
       for (const molde of batchMoldes) {
         if (molde.numero.trim()) {
-          // Si el tipo está vacío, usamos una parte corta del título o un genérico
           const tipoFinal = molde.tipo || "Anillo"; 
           await api.post("/molds", { libreria_id: selectedLib.id, ...molde, tipo: tipoFinal });
         }
@@ -191,7 +207,6 @@ export default function Moldes() {
     listCard: { background: "#151515", border: "1px solid #333", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
     listBadge: { background: "#333", color: "#d4af37", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
     listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
-    // Limitamos el título a 2 líneas para que no haga las tarjetas gigantes
     listTitle: { fontSize: "14px", fontWeight: "bold", color: "#fff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
     listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
     listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
@@ -201,7 +216,7 @@ export default function Moldes() {
     readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", marginBottom: "5px", display: "block" },
     readValue: { fontSize: "16px", color: "#fff", whiteSpace: "pre-wrap" },
     label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "10px", fontWeight: "bold" },
-    input: { width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "14px" },
+    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
     row: { display: "flex", gap: "10px" },
     col: { flex: 1, minWidth: 0 },
@@ -212,6 +227,10 @@ export default function Moldes() {
     folderCard: { background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center", position: "relative" },
     folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "#f0b0b0", fontSize: "14px", cursor: "pointer" },
     batchCard: { background: "#0a0a0a", padding: "12px", borderRadius: "8px", border: "1px solid #333", marginBottom: "10px" },
+    
+    // ESTILOS PARA CREAR CARPETA
+    btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
+    inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
   };
 
   return (
@@ -219,7 +238,7 @@ export default function Moldes() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona una carpeta"}</p>
+          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona o crea una carpeta"}</p>
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
@@ -237,20 +256,49 @@ export default function Moldes() {
         </button>
       )}
 
+      {/* VISTA 1: CARPETAS Y CREACIÓN DE CARPETAS */}
       {!selectedLib && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
-          {libraries.map((lib) => (
-            <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
-              <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)} title="Borrar carpeta entera">
-                🗑️
-              </button>
-              <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
-              <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
+        <>
+          {/* AQUÍ ESTÁ EL BOTÓN PARA CREAR LA CARPETA */}
+          {!showNewLib ? (
+            <button style={s.btnAddLib} onClick={() => setShowNewLib(true)}>
+              + Nueva Colección / Cuaderno
+            </button>
+          ) : (
+            <div style={{ marginBottom: "20px" }}>
+              <input 
+                autoFocus
+                style={s.inputNewLib} 
+                placeholder="Ej. Anillos de Graduación, Dijes..." 
+                value={newLibName} 
+                onChange={(e) => setNewLibName(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateLibrary()}
+              />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button style={{ ...s.btnPrimary, flex: 1 }} onClick={handleCreateLibrary}>Guardar Carpeta</button>
+                <button style={{ ...s.btnSecondary, flex: 1 }} onClick={() => { setShowNewLib(false); setNewLibName(""); }}>Cancelar</button>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
+            {libraries.map((lib) => (
+              <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
+                <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)} title="Borrar carpeta entera">
+                  🗑️
+                </button>
+                <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
+                <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
+              </div>
+            ))}
+            {libraries.length === 0 && !showNewLib && (
+              <p style={{ color: "#666", gridColumn: "1 / -1", textAlign: "center", marginTop: "20px" }}>No hay carpetas creadas. Crea la primera arriba.</p>
+            )}
+          </div>
+        </>
       )}
 
+      {/* VISTA 2: DENTRO DE LA CARPETA */}
       {selectedLib && (
         <div style={s.listContainer}>
           {scanning ? (
@@ -290,6 +338,9 @@ export default function Moldes() {
               <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDeleteMold(m.id); }}>🗑️</button>
             </div>
           ))}
+          {filteredMolds.length === 0 && (
+            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Usa los botones de arriba para escanear una hoja.</p>
+          )}
         </div>
       )}
 
@@ -304,7 +355,6 @@ export default function Moldes() {
 
             <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
             
-            {/* DISEÑO VERTICAL: Así se lee todo perfectamente en el celular */}
             <div style={{ display: "flex", flexDirection: "column" }}>
               {batchMoldes.map((m, idx) => (
                 <div key={idx} style={s.batchCard}>
