@@ -10,6 +10,7 @@ import Tablero from "@/pages/Tablero";
 import Tareas from "@/pages/Tareas";
 import Clientes from "@/pages/Clientes";
 import JarvisHUD from "@/pages/JarvisHUD";
+import JarvisWidget from "@/components/JarvisWidget"; // <-- NUEVA IMPORTACIÓN DEL WIDGET
 import Produccion from "@/pages/Produccion";
 import MisTrabajos from "@/pages/MisTrabajos";
 import Ventas from "@/pages/Ventas";
@@ -19,7 +20,7 @@ import Inventario from "@/pages/Inventario";
 import MiJoyeria from "@/pages/MiJoyeria";
 import Seguimiento from "@/pages/Seguimiento";
 import Historial from "@/pages/Historial";
-import Moldes from "@/pages/Moldes"; // <-- NUEVA IMPORTACIÓN
+import Moldes from "@/pages/Moldes";
 import { Loader2 } from "lucide-react";
 
 const ADMIN_VENTAS = ["admin", "ventas"];
@@ -76,7 +77,8 @@ export default function App() {
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           
-          <Route element={<Protected><Layout /></Protected>}>
+          {/* AQUI INYECTAMOS EL WIDGET GLOBAL */}
+          <Route element={<Protected><><Layout /><JarvisWidget /></></Protected>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pedidos" element={<Tablero />} />
             <Route path="/produccion" element={<Produccion />} />
