@@ -5,6 +5,7 @@ from typing import Optional
 import os
 import io
 import asyncio
+import random
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -28,7 +29,7 @@ class MoldeIn(BaseModel):
     carrera: Optional[str] = ""
     medida: Optional[str] = ""
     notas: Optional[str] = ""
-    texto: Optional[str] = "" # Se mantiene por compatibilidad
+    texto: Optional[str] = ""
 
 class MoldeUpdate(BaseModel):
     numero: Optional[str] = None
@@ -38,13 +39,45 @@ class MoldeUpdate(BaseModel):
     notas: Optional[str] = None
     texto: Optional[str] = None
 
-# --- MODELO PARA LA IA (GEMINI) ---
 class DatosMolde(BaseModel):
     tipo: str
     carrera: str
     medida: str
     numero: str
     notas: str
+
+
+# --- FUNCIÓN DE REINTENTO CON BACKOFF EXPONENCIAL ---
+async def call_gemini_with_retry(client, prompt, imagen, max_retries=4):
+    """Intenta llamar a Gemini con reintentos y espera progresiva."""
+    for attempt in range(max_retries):
+        try:
+            return await asyncio.to_thread(
+                client.models.generate_content,
+                # Si 3.8 falla, puedes probar con "gemini-3.6-flash" aquí
+                model="gemini-3.8-flash", 
+                contents=[prompt, imagen],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=DatosMolde,
+                ),
+            )
+        except Exception as e:
+            error_str = str(e)
+            # Reintentar solo en errores 503 (UNAVAILABLE) o 429 (Rate Limit)
+            if "503" in error_str or "429" in error_str:
+                if attempt == max_retries - 1:
+                    logger.error(f"Gemini falló después de {max_retries} intentos: {e}")
+                    raise e # Si es el último intento, lanzar el error
+                
+                # Backoff exponencial: 2s, 4s, 8s... + un poco de aleatoriedad (jitter)
+                wait_time = (2 ** attempt) + random.uniform(0, 1)
+                logger.warning(f"Gemini ocupado (intento {attempt+1}/{max_retries}). Reintentando en {wait_time:.1f}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                # Si es otro error (ej. 400), no reintentar, lanzar de inmediato
+                logger.error(f"Error no reintentable de Gemini: {e}")
+                raise e
 
 
 # 1. ESCANEAR FOTO CON GEMINI (OCR)
@@ -67,20 +100,13 @@ async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_use
                 "Si algún campo no aparece, asigna una cadena vacía."
             )
 
-            response = await asyncio.to_thread(
-                client.models.generate_content,
-                model="gemini-3.8-flash",
-                contents=[prompt, imagen],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=DatosMolde,
-                ),
-            )
+            # Llamamos a la función con reintentos
+            response = await call_gemini_with_retry(client, prompt, imagen)
         
         return {"ok": True, "datos": response.parsed.model_dump()}
     except Exception as e:
-        logger.error(f"Error OCR: {e}")
-        raise HTTPException(502, "Error al leer la imagen.")
+        logger.error(f"Error OCR final: {e}")
+        raise HTTPException(502, "El servicio de lectura está saturado. Intenta de nuevo en unos segundos.")
 
 
 # 2. CREAR UNA CARPETA (LIBRERÍA)
@@ -118,7 +144,6 @@ async def delete_library(libreria_id: str, user=Depends(current_user)):
         raise HTTPException(404, "Carpeta no encontrada")
     await db.molds.delete_many({"libreria_id": libreria_id})
     return {"ok": True}
-
 
 # 6. GUARDAR UN MOLDE
 @router.post("/molds")
@@ -180,7 +205,7 @@ async def search_molds(q: str, user=Depends(current_user)):
         r["nombre_libreria"] = lib["nombre"] if lib else "Sin Carpeta"
     return resultados
 
-# 11. GENERAR PDF DE UN MOLDE (Opcional desde el backend)
+# 11. GENERAR PDF DE UN MOLDE
 @router.get("/molds/{molde_id}/pdf")
 async def download_mold_pdf(molde_id: str, user=Depends(current_user)):
     molde = await db.molds.find_one({"id": molde_id})
