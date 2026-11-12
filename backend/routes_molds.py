@@ -78,9 +78,10 @@ PROMPT_OCR = (
 
 async def extraer_con_gemini(imagen):
     if not client_gemini: raise Exception("Gemini no configurado")
+    # Usamos gemini-3.6-flash que es más estable en el plan gratuito
     response = await asyncio.to_thread(
         client_gemini.models.generate_content,
-        model="gemini-3.8-flash",
+        model="gemini-3.6-flash",
         contents=[PROMPT_OCR, imagen],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -117,9 +118,10 @@ async def extraer_con_groq(imagen):
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     img_url = f"data:image/jpeg;base64,{img_str}"
 
+    # Usamos qwen/qwen3.6-27b que es el modelo de visión actual de Groq
     response = await asyncio.to_thread(
         client_groq.chat.completions.create,
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        model="qwen/qwen3.6-27b",
         messages=[
             {"role": "user", "content": [
                 {"type": "text", "text": PROMPT_OCR + " Devuelve SOLO un JSON válido."},
