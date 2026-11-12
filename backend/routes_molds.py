@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional, List
-import os, io, asyncio, random, base64, json
+import os, io, asyncio, base64, json
 import cloudinary
 import cloudinary.uploader
 from google import genai
@@ -73,22 +73,29 @@ PROMPT_OCR = (
 )
 
 # ==========================================
-# LÓGICA DE RESPALDO (FALLBACK)
+# LÓGICA DE RESPALDO (CON LISTA DE MODELOS)
 # ==========================================
 
 async def extraer_con_gemini(imagen):
     if not client_gemini: raise Exception("Gemini no configurado")
-    # Usamos gemini-3.6-flash que es más estable en el plan gratuito
-    response = await asyncio.to_thread(
-        client_gemini.models.generate_content,
-        model="gemini-3.6-flash",
-        contents=[PROMPT_OCR, imagen],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=ListaMoldes,
-        ),
-    )
-    return response.parsed.model_dump()
+    # Probamos con varios modelos de Gemini por si uno está saturado
+    modelos = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+    for modelo in modelos:
+        try:
+            response = await asyncio.to_thread(
+                client_gemini.models.generate_content,
+                model=modelo,
+                contents=[PROMPT_OCR, imagen],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=ListaMoldes,
+                ),
+            )
+            return response.parsed.model_dump()
+        except Exception as e:
+            logger.warning(f"Falló Gemini con {modelo}: {e}")
+            continue
+    raise Exception("Todos los modelos de Gemini fallaron")
 
 async def extraer_con_openai(imagen):
     if not client_openai: raise Exception("OpenAI no configurado")
@@ -118,21 +125,28 @@ async def extraer_con_groq(imagen):
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     img_url = f"data:image/jpeg;base64,{img_str}"
 
-    # Usamos qwen/qwen3.6-27b que es el modelo de visión actual de Groq
-    response = await asyncio.to_thread(
-        client_groq.chat.completions.create,
-        model="qwen/qwen3.6-27b",
-        messages=[
-            {"role": "user", "content": [
-                {"type": "text", "text": PROMPT_OCR + " Devuelve SOLO un JSON válido."},
-                {"type": "image_url", "image_url": {"url": img_url}},
-            ]}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0,
-    )
-    data = json.loads(response.choices[0].message.content)
-    return ListaMoldes(**data).model_dump()
+    # Modelos de visión válidos en Groq (qwen3.8 es el correcto)
+    modelos = ["qwen/qwen3.8-27b", "meta-llama/llama-4-scout-17b-16e-instruct"]
+    for modelo in modelos:
+        try:
+            response = await asyncio.to_thread(
+                client_groq.chat.completions.create,
+                model=modelo,
+                messages=[
+                    {"role": "user", "content": [
+                        {"type": "text", "text": PROMPT_OCR + " Devuelve SOLO un JSON válido."},
+                        {"type": "image_url", "image_url": {"url": img_url}},
+                    ]}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+            data = json.loads(response.choices[0].message.content)
+            return ListaMoldes(**data).model_dump()
+        except Exception as e:
+            logger.warning(f"Falló Groq con {modelo}: {e}")
+            continue
+    raise Exception("Todos los modelos de Groq fallaron")
 
 
 async def procesar_ocr(imagen):
