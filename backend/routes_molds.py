@@ -66,19 +66,14 @@ client_groq = Groq(api_key=GROQ_KEY) if GROQ_KEY else None
 
 PROMPT_OCR = (
     "Analiza esta imagen que contiene una lista escrita a mano de moldes de joyería. "
-    "1. Extrae el título principal de la hoja (ej. 'Anillo Graduación de Mujer'). "
+    "1. Extrae el título principal de la hoja. "
     "2. Extrae TODOS los moldes que veas. Para cada molde, identifica el número, "
     "el tipo de joya, la carrera o diseño, la medida y las notas. "
-    "Si un dato no aparece, déjalo vacío."
+    "Si el texto está borroso, haz tu mejor esfuerzo por adivinar. No dejes la lista vacía."
 )
-
-# ==========================================
-# LÓGICA DE RESPALDO (CON LISTA DE MODELOS)
-# ==========================================
 
 async def extraer_con_gemini(imagen):
     if not client_gemini: raise Exception("Gemini no configurado")
-    # Probamos con varios modelos de Gemini por si uno está saturado
     modelos = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
     for modelo in modelos:
         try:
@@ -125,7 +120,6 @@ async def extraer_con_groq(imagen):
     img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
     img_url = f"data:image/jpeg;base64,{img_str}"
 
-    # Modelos de visión válidos en Groq (qwen3.8 es el correcto)
     modelos = ["qwen/qwen3.8-27b", "meta-llama/llama-4-scout-17b-16e-instruct"]
     for modelo in modelos:
         try:
@@ -152,23 +146,24 @@ async def extraer_con_groq(imagen):
 async def procesar_ocr(imagen):
     proveedores = [
         ("Gemini", extraer_con_gemini),
-        ("OpenAI", extraer_con_openai),
         ("Groq", extraer_con_groq),
+        ("OpenAI", extraer_con_openai),
     ]
     for nombre, funcion in proveedores:
         try:
             logger.info(f"Intentando OCR con {nombre}...")
             resultado = await funcion(imagen)
-            logger.info(f"OCR exitoso con {nombre}")
-            return resultado
+            # ESTE LOG NOS DIRÁ QUÉ LEYÓ LA IA EXACTAMENTE
+            logger.info(f"Respuesta de {nombre}: {resultado}") 
+            
+            if resultado.get("moldes") and len(resultado["moldes"]) > 0:
+                return resultado
+            else:
+                logger.warning(f"{nombre} devolvió una lista vacía.")
         except Exception as e:
             logger.warning(f"Falló {nombre}: {e}. Pasando al siguiente proveedor...")
             continue
-    raise HTTPException(503, "Todos los servicios de lectura están saturados. Intenta de nuevo en unos minutos.")
-
-# ==========================================
-# RUTAS
-# ==========================================
+    raise HTTPException(503, "No se pudieron detectar moldes. Intenta con una foto más clara o crea el molde manualmente.")
 
 @router.post("/molds/scan")
 async def scan_mold_image(file: UploadFile = File(...), user=Depends(current_user)):
