@@ -15,8 +15,6 @@ export default function Moldes() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  
-  // ESTADO CON FOTO_URL
   const [formData, setFormData] = useState({ numero: "", tipo: "", carrera: "", medida: "", notas: "", foto_url: "" });
   
   const [batchOpen, setBatchOpen] = useState(false);
@@ -25,7 +23,7 @@ export default function Moldes() {
   
   const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false); // Para la foto
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentSheet, setCurrentSheet] = useState(0);
   const [totalSheets, setTotalSheets] = useState(0);
@@ -95,7 +93,6 @@ export default function Moldes() {
     setModalOpen(true);
   };
 
-  // --- LÓGICA PARA SUBIR LA FOTO ---
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -137,6 +134,8 @@ export default function Moldes() {
         if (r.data?.moldes && r.data.moldes.length > 0) {
           allExtractedMolds = [...allExtractedMolds, ...r.data.moldes];
           if (!mainTitle && r.data.titulo) mainTitle = r.data.titulo;
+        } else {
+          toast.warning(`No se detectaron moldes en la foto ${i + 1}. Puedes agregarlos a mano.`);
         }
       } catch (error) {
         toast.error(`Error al leer la foto ${i + 1}`);
@@ -152,7 +151,9 @@ export default function Moldes() {
       setBatchOpen(true);
       toast.success(`¡Se extrajeron ${allExtractedMolds.length} moldes!`);
     } else {
-      toast.error("No se detectaron moldes.");
+      // Si no se extrajo ninguno, abrimos el modal de creación manual
+      toast.info("Ninguna foto arrojó resultados. Escribe uno a mano.");
+      openNewModal();
     }
 
     if (singleFileRef.current) singleFileRef.current.value = "";
@@ -253,8 +254,6 @@ export default function Moldes() {
     batchCard: { background: "#0a0a0a", padding: "12px", borderRadius: "8px", border: "1px solid #333", marginBottom: "10px" },
     btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
     inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
-    
-    // ESTILOS PARA LA FOTO
     photoPreview: { width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "8px", marginTop: "10px", border: "1px solid #333" },
     btnPhoto: { background: "#222", color: "#fff", border: "1px dashed #d4af37", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" }
   };
@@ -353,12 +352,11 @@ export default function Moldes() {
             </div>
           ))}
           {filteredMolds.length === 0 && (
-            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja para empezar.</p>
+            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja o crea un molde a mano.</p>
           )}
         </div>
       )}
 
-      {/* MODAL DE LISTA EXTRAÍDA */}
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
@@ -404,7 +402,6 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL CON FOTO */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
@@ -435,7 +432,6 @@ export default function Moldes() {
               </div>
             ) : (
               <form onSubmit={handleSave}>
-                {/* BOTÓN PARA SUBIR LA FOTO */}
                 <label style={s.label}>Foto del Molde (Opcional)</label>
                 {formData.foto_url && (
                   <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
