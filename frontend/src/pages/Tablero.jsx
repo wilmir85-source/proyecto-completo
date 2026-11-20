@@ -30,7 +30,6 @@ export default function Tablero() {
 
   const load = () => api.get("/orders").then((r) => setOrders(r.data)).catch(() => toast.error("Error al cargar pedidos"));
 
-  // ESTO DETECTA SI VIENES DEL DASHBOARD Y APLICA EL FILTRO
   useEffect(() => {
     const filterParam = searchParams.get("filter");
     const stageParam = searchParams.get("stage");
@@ -146,7 +145,8 @@ export default function Tablero() {
         </div>
       </header>
 
-      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth pb-20 md:pb-0">
+      {/* ARREGLO DE SCROLL: touch-pan-x para tablets, overflow-auto en compu */}
+      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x pb-20 md:pb-0">
         <div className="flex gap-4 md:gap-5 px-4 md:px-8 pb-8 pt-2 h-full min-w-max">
           {STAGES.map((stage) => {
             const list = displayOrders.filter((o) => o.stage === stage);
@@ -155,7 +155,7 @@ export default function Tablero() {
               <div 
                 key={stage} 
                 id={`kanban-col-${stage.replace(/\s+/g, '-')}`}
-                className="w-[88vw] md:w-[300px] flex flex-col flex-shrink-0 snap-center md:snap-align-none h-full" 
+                className="w-[85vw] sm:w-[300px] md:w-[320px] flex flex-col flex-shrink-0 snap-center md:snap-align-none h-full" 
                 data-testid={`kanban-col-${stage}`}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragging) { moveTo(dragging, stage); setDragging(null); } }}
