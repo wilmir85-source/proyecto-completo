@@ -97,8 +97,9 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className={`flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden pb-16 md:pb-0`}>
-        <div className="flex-1 overflow-y-auto md:overflow-visible">
+      {/* EL MAIN CON SCROLL CORRECTO PARA TABLETS Y PC */}
+      <main className="flex-1 min-w-0 md:ml-64 h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden pb-16 md:pb-0">
+        <div className="flex-1 overflow-y-auto h-full w-full">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>
