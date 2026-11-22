@@ -48,7 +48,25 @@ export default function Layout() {
   const items = useNavItems();
   const isJarvisPage = location.pathname === "/jarvis";
 
+  // Forzar modo oscuro en Jarvis
   useEffect(() => { setForceDark(isJarvisPage); return () => setForceDark(false); }, [isJarvisPage, setForceDark]);
+
+  // --- NUEVA LÓGICA AUTOMÁTICA DE DÍA / NOCHE ---
+  useEffect(() => {
+    const hora = new Date().getHours();
+    // De 7 AM a 7 PM (19:00) es de día, de lo contrario es de noche
+    const esDeDia = hora >= 7 && hora < 19;
+    
+    // Aplicamos la clase al documento HTML para que Tailwind lo detecte
+    if (esDeDia) {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
+  // -----------------------------------------------
 
   return (
     <div className="app-shell h-[100dvh] flex overflow-hidden">
