@@ -59,7 +59,9 @@ export const NewOrderDialog = ({ users, onCreated, openSignal, onClosed }) => {
       <DialogTrigger asChild>
         <Button className="bg-amber-600 hover:bg-[#c5a572] text-black font-medium" data-testid="btn-new-order"><Plus className="w-4 h-4 mr-1" /> Nuevo pedido</Button>
       </DialogTrigger>
-      <DialogContent className="bg-zinc-950 border-zinc-800 max-w-lg max-h-[90vh] overflow-y-auto">
+      
+      {/* EL ARREGLO ESTÁ AQUÍ: w-[95vw], max-h-[85vh] y overflow-y-auto para forzar el scroll */}
+      <DialogContent className="bg-zinc-950 border-zinc-800 w-[95vw] sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader><DialogTitle className="font-display">Nuevo pedido</DialogTitle></DialogHeader>
         <div className="space-y-3 mt-2">
           <div className="grid grid-cols-2 gap-3">
@@ -98,7 +100,13 @@ export const NewOrderDialog = ({ users, onCreated, openSignal, onClosed }) => {
               {previews.map((u) => <img key={u} src={u} alt="" className="aspect-square w-full object-cover rounded-md border border-white/10" />)}
             </div>
           )}
-          <Button onClick={create} disabled={saving} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-create-order">{saving ? "Guardando..." : "Crear pedido"}</Button>
+          
+          {/* El botón de crear se queda fijo abajo */}
+          <div className="pt-2 sticky bottom-0 bg-zinc-950 pb-2">
+            <Button onClick={create} disabled={saving} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-create-order">
+              {saving ? "Guardando..." : "Crear pedido"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
