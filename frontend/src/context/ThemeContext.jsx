@@ -1,33 +1,39 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const KEY = "jarvis_theme";
 const ThemeCtx = createContext(null);
-const systemTheme = () => (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+// Función que decide si es de día o de noche
+const getAutoTheme = () => {
+  const hora = new Date().getHours();
+  // De 7:00 AM a 6:59 PM = Modo Claro (light)
+  // De 7:00 PM a 6:59 AM = Modo Oscuro (dark)
+  return (hora >= 7 && hora < 19) ? "light" : "dark";
+};
 
 export const ThemeProvider = ({ children }) => {
-  const [pref, setPref] = useState(() => localStorage.getItem(KEY));
-  const [sys, setSys] = useState(systemTheme);
+  // Iniciamos el tema según la hora actual
+  const [theme, setTheme] = useState(getAutoTheme);
   const [forceDark, setForceDark] = useState(false);
-  const theme = pref || sys;
+  
+  // Si Jarvis está abierto, forzamos oscuro. Si no, usamos el tema automático
   const applied = forceDark ? "dark" : theme;
 
+  // Revisar la hora cada minuto. Si cambia de las 7 PM, la pantalla cambiará sola.
   useEffect(() => {
-    const m = window.matchMedia("(prefers-color-scheme: dark)");
-    const h = (e) => setSys(e.matches ? "dark" : "light");
-    m.addEventListener("change", h);
-    return () => m.removeEventListener("change", h);
+    const interval = setInterval(() => {
+      setTheme(getAutoTheme());
+    }, 60000); // Revisa cada minuto (60,000 ms)
+    return () => clearInterval(interval);
   }, []);
 
+  // Aplicar los colores al HTML
   useEffect(() => {
     document.documentElement.classList.toggle("dark", applied === "dark");
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", applied === "dark" ? "#08080a" : "#f6efe3");
   }, [applied]);
 
-  const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    localStorage.setItem(KEY, next);
-    setPref(next);
-  };
+  // Dejamos la función toggle vacía por si algún archivo viejo la sigue llamando
+  const toggle = () => {};
 
   return <ThemeCtx.Provider value={{ theme, applied, toggle, setForceDark }}>{children}</ThemeCtx.Provider>;
 };
