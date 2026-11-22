@@ -52,7 +52,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell h-[100dvh] flex overflow-hidden">
-      <aside className="glass-panel hidden md:flex flex-col fixed left-4 top-4 bottom-4 w-[17rem] rounded-[28px] p-5 z-20 overflow-y-auto scrollbar-thin" data-testid="sidebar">
+      <aside className="glass-panel hidden lg:flex flex-col fixed left-4 top-4 bottom-4 w-[17rem] rounded-[28px] p-5 z-20 overflow-y-auto scrollbar-thin" data-testid="sidebar">
         <button onClick={() => nav("/")} className="mb-8 text-left px-1" data-testid="brand-home">
           <BrandMark />
         </button>
@@ -67,9 +67,9 @@ export default function Layout() {
         <UserBox user={user} logout={logout} />
       </aside>
 
-      <main className="flex-1 min-w-0 md:ml-[18.5rem] h-full flex flex-col pt-[env(safe-area-inset-top)] md:pt-0 overflow-hidden">
+      <main className="flex-1 min-w-0 lg:ml-[18.5rem] h-full flex flex-col pt-[env(safe-area-inset-top)] lg:pt-0 overflow-hidden">
         {!isJarvisPage && <AppHeader />}
-        <div className="flex-1 min-h-0 overflow-y-auto w-full scrollbar-thin pb-28 md:pb-0">
+        <div className="flex-1 min-h-0 overflow-y-auto w-full scrollbar-thin pb-28 lg:pb-0">
           <FinishOrderProvider><Outlet /></FinishOrderProvider>
         </div>
       </main>

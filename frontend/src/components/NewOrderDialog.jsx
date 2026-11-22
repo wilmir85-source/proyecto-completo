@@ -11,7 +11,7 @@ import { SimpleSelect, UserSelect } from "@/components/Selects";
 const EMPTY = { cliente: "", telefono_cliente: "", descripcion: "", stage: "Ventas", precio: "", anticipo: "", fecha_entrega: "", notas: "", asignado_a: "", metal: "", peso_metal: "", piedra: "", tipo: "Fabricación" };
 const inp = "bg-zinc-900 border-zinc-800";
 
-export const NewOrderDialog = ({ users, onCreated, openSignal }) => {
+export const NewOrderDialog = ({ users, onCreated, openSignal, onClosed }) => {
   const [open, setOpen] = useState(false);
   useEffect(() => { if (openSignal) setOpen(true); }, [openSignal]);
   const [form, setForm] = useState(EMPTY);
@@ -48,14 +48,14 @@ export const NewOrderDialog = ({ users, onCreated, openSignal }) => {
         await api.post(`/orders/${data.id}/photos`, fd).catch(() => toast.error(`Error subiendo ${f.name}`));
       }
       toast.success("Pedido creado");
-      setOpen(false); setForm(EMPTY); setPhotos([]);
+      setOpen(false); onClosed?.(); setForm(EMPTY); setPhotos([]);
       onCreated();
     } catch (e) { toast.error(apiError(e, "Error al crear")); }
     setSaving(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) onClosed?.(); }}>
       <DialogTrigger asChild>
         <Button className="bg-amber-600 hover:bg-[#c5a572] text-black font-medium" data-testid="btn-new-order"><Plus className="w-4 h-4 mr-1" /> Nuevo pedido</Button>
       </DialogTrigger>
@@ -68,7 +68,7 @@ export const NewOrderDialog = ({ users, onCreated, openSignal }) => {
             <Input placeholder="Teléfono cliente" value={form.telefono_cliente} onChange={set("telefono_cliente")} className={inp} data-testid="input-order-telefono" />
           </div>
           <Input placeholder="Descripción (anillo oro 18k, grabado, etc.)" value={form.descripcion} onChange={set("descripcion")} className={inp} data-testid="input-order-descripcion" />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SimpleSelect value={form.stage} onChange={set("stage")} options={STAGES} testid="select-order-stage" />
             <SimpleSelect value={form.tipo} onChange={set("tipo")} options={ORDER_TYPES} testid="select-order-tipo" />
             <Input type="number" placeholder="Precio total" value={form.precio} onChange={set("precio")} className={inp} data-testid="input-order-precio" />

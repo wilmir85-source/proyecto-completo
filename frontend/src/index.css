@@ -15,6 +15,9 @@
   --glass-shadow: 0 1px 2px rgba(120, 85, 30, 0.06), 0 18px 40px -20px rgba(120, 85, 30, 0.28);
   --gold-text: #7a5717;
   --scroll-thumb: #cdb991;
+  --m-text: #1c1917; --m-muted: #57534e; --m-gold: #7a5717; --m-danger: #b91c1c;
+  --m-surface: rgba(255, 252, 246, 0.78); --m-surface-2: #f1e7d6; --m-inset: #fbf6ee; --m-border: rgba(120, 85, 30, 0.16);
+  --m-overlay: rgba(41, 30, 15, 0.45);
 }
 .dark {
   color-scheme: dark;
@@ -26,6 +29,9 @@
   --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 20px 44px -22px rgba(0, 0, 0, 0.85);
   --gold-text: #e3c993;
   --scroll-thumb: #52525b;
+  --m-text: #f4f4f5; --m-muted: #a1a1aa; --m-gold: #e3c993; --m-danger: #fca5a5;
+  --m-surface: rgba(24, 24, 28, 0.7); --m-surface-2: #222; --m-inset: #0d0d0f; --m-border: rgba(255, 255, 255, 0.1);
+  --m-overlay: rgba(0, 0, 0, 0.85);
 }
 
 ::selection { background: rgba(197, 165, 114, 0.35); }

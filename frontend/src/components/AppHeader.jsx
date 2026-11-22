@@ -10,8 +10,8 @@ export const AppHeader = () => {
   return (
     <header className="shrink-0 z-30 px-3 pt-3 md:px-8 md:pt-4" data-testid="app-header">
       <div className="glass-panel flex items-center justify-between gap-3 h-[68px] px-3 md:px-5 rounded-2xl">
-        <div className="md:hidden min-w-0"><BrandMark /></div>
-        <div className="hidden md:block text-sm text-stone-600 dark:text-zinc-400">
+        <div className="lg:hidden min-w-0"><BrandMark /></div>
+        <div className="hidden lg:block text-sm text-stone-600 dark:text-zinc-400">
           Hola, <span className="text-stone-900 dark:text-zinc-100 font-semibold">{user?.name}</span>
         </div>
         <div className="flex items-center gap-2 md:gap-3">

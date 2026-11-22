@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { FileText, Trash2, FolderOpen, Loader2, Camera, Images, PenLine, Pencil } from "lucide-react";
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
@@ -223,39 +224,39 @@ export default function Moldes() {
   }, [molds, search, filterType]);
 
   const s = {
-    page: { minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "20px", fontFamily: "sans-serif", paddingBottom: "100px" },
-    title: { fontSize: "28px", fontFamily: "serif", color: "#fff", margin: "0 0 5px 0" },
-    searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #333", background: "#151515", color: "#fff", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
-    btnPrimary: { background: "#d4af37", color: "#000", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
-    btnSecondary: { background: "#222", color: "#fff", border: "1px solid #444", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
+    page: { minHeight: "100vh", background: "transparent", color: "var(--m-text)", padding: "20px", fontFamily: "inherit", paddingBottom: "100px" },
+    title: { fontSize: "28px", fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, color: "var(--m-text)", margin: "0 0 5px 0" },
+    searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-border)", background: "var(--m-surface)", color: "var(--m-text)", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
+    btnPrimary: { background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", color: "#23180a", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
+    btnSecondary: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px solid var(--m-border)", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
     listContainer: { display: "flex", flexDirection: "column", gap: "10px" },
-    listCard: { background: "#151515", border: "1px solid #333", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
-    listBadge: { background: "#333", color: "#d4af37", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
+    listCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
+    listBadge: { background: "var(--m-border)", color: "var(--m-gold)", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
     listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
-    listTitle: { fontSize: "14px", fontWeight: "bold", color: "#fff", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
-    listSub: { fontSize: "13px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
-    listAction: { background: "none", border: "none", color: "#f0b0b0", fontSize: "18px", cursor: "pointer" },
-    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.95)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "#151515", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid #333", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
-    readContainer: { background: "#0a0a0a", border: "1px solid #222", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
-    readLabel: { fontSize: "12px", color: "#d4af37", textTransform: "uppercase", marginBottom: "5px", display: "block" },
-    readValue: { fontSize: "16px", color: "#fff", whiteSpace: "pre-wrap" },
-    label: { fontSize: "12px", color: "#aaa", marginBottom: "6px", display: "block", marginTop: "10px", fontWeight: "bold" },
-    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px" },
-    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", background: "#0a0a0a", color: "#fff", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
+    listTitle: { fontSize: "14px", fontWeight: "bold", color: "var(--m-text)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+    listSub: { fontSize: "13px", color: "var(--m-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
+    listAction: { background: "none", border: "none", color: "var(--m-danger)", fontSize: "18px", cursor: "pointer" },
+    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "var(--m-overlay)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
+    modal: { background: "var(--m-surface)", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid var(--m-border)", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
+    readContainer: { background: "var(--m-inset)", border: "1px solid var(--m-border)", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
+    readLabel: { fontSize: "12px", color: "var(--m-gold)", textTransform: "uppercase", marginBottom: "5px", display: "block" },
+    readValue: { fontSize: "16px", color: "var(--m-text)", whiteSpace: "pre-wrap" },
+    label: { fontSize: "12px", color: "var(--m-muted)", marginBottom: "6px", display: "block", marginTop: "10px", fontWeight: "bold" },
+    input: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", background: "var(--m-inset)", color: "var(--m-text)", boxSizing: "border-box", fontSize: "15px" },
+    textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", background: "var(--m-inset)", color: "var(--m-text)", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
     row: { display: "flex", gap: "10px" },
     col: { flex: 1, minWidth: 0 },
-    btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
-    btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed #d4af37", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "#d4af37", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
-    progressBar: { width: "100%", height: "6px", background: "#333", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
-    progressFill: { height: "100%", background: "#d4af37", width: `${progress}%`, transition: "width 0.3s ease" },
-    folderCard: { background: "#151515", border: "1px solid #333", borderRadius: "12px", padding: "20px", cursor: "pointer", textAlign: "center", position: "relative" },
-    folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "#f0b0b0", fontSize: "14px", cursor: "pointer" },
-    batchCard: { background: "#0a0a0a", padding: "12px", borderRadius: "8px", border: "1px solid #333", marginBottom: "10px" },
-    btnAddLib: { background: "transparent", color: "#d4af37", border: "1px dashed #d4af37", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
-    inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid #d4af37", background: "#151515", color: "#fff", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
-    photoPreview: { width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "8px", marginTop: "10px", border: "1px solid #333" },
-    btnPhoto: { background: "#222", color: "#fff", border: "1px dashed #d4af37", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" }
+    btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    progressBar: { width: "100%", height: "6px", background: "var(--m-border)", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
+    progressFill: { height: "100%", background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", width: `${progress}%`, transition: "width 0.3s ease" },
+    folderCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "22px", padding: "24px 20px", cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "var(--glass-shadow)" },
+    folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--m-danger)", fontSize: "14px", cursor: "pointer" },
+    batchCard: { background: "var(--m-inset)", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", marginBottom: "10px" },
+    btnAddLib: { background: "transparent", color: "var(--m-gold)", border: "1px dashed var(--m-gold)", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
+    inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-gold)", background: "var(--m-surface)", color: "var(--m-text)", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
+    photoPreview: { width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "8px", marginTop: "10px", border: "1px solid var(--m-border)" },
+    btnPhoto: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px dashed var(--m-gold)", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" }
   };
 
   return (
@@ -263,11 +264,11 @@ export default function Moldes() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
-          <p style={{ color: "#888", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona o crea una carpeta"}</p>
+          <p style={{ color: "var(--m-muted)", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona o crea una carpeta"}</p>
         </div>
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
-            <button style={s.btnSecondary} onClick={() => window.print()}>📄 PDF</button>
+            <button style={s.btnSecondary} onClick={() => window.print()}><FileText className="inline w-4 h-4 mr-1.5 -mt-0.5" />PDF</button>
             <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo</button>
           </div>
         )}
@@ -276,7 +277,7 @@ export default function Moldes() {
       <input style={s.searchBar} placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
 
       {selectedLib && (
-        <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "#d4af37", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
+        <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "var(--m-gold)", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
           ← Volver a Colecciones
         </button>
       )}
@@ -300,13 +301,13 @@ export default function Moldes() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "15px" }}>
             {libraries.map((lib) => (
               <div key={lib.id} style={s.folderCard} onClick={() => setSelectedLib(lib)}>
-                <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)}>🗑️</button>
-                <div style={{ fontSize: "30px", marginBottom: "10px" }}>📁</div>
+                <button style={s.folderDeleteBtn} onClick={(e) => handleDeleteLibrary(e, lib)}><Trash2 className="w-4 h-4" /></button>
+                <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}><span className="nav-icon w-14 h-14 rounded-2xl flex items-center justify-center"><FolderOpen className="w-7 h-7" /></span></div>
                 <div style={{ fontWeight: "bold" }}>{lib.nombre}</div>
               </div>
             ))}
             {libraries.length === 0 && !showNewLib && (
-              <p style={{ color: "#666", gridColumn: "1 / -1", textAlign: "center", marginTop: "20px" }}>No hay carpetas creadas. Crea la primera arriba.</p>
+              <p style={{ color: "var(--m-muted)", gridColumn: "1 / -1", textAlign: "center", marginTop: "20px" }}>No hay carpetas creadas. Crea la primera arriba.</p>
             )}
           </div>
         </>
@@ -315,18 +316,18 @@ export default function Moldes() {
       {selectedLib && (
         <div style={s.listContainer}>
           {scanning ? (
-            <div style={{ background: "#151515", padding: "15px", borderRadius: "10px", border: "1px solid #333", textAlign: "center", marginBottom: "20px" }}>
-              <span style={{ color: "#d4af37", fontWeight: "bold" }}>⏳ Procesando hoja {currentSheet} de {totalSheets}...</span>
+            <div style={{ background: "var(--m-surface)", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-border)", textAlign: "center", marginBottom: "20px" }}>
+              <span style={{ color: "var(--m-gold)", fontWeight: "bold" }}><Loader2 className="inline animate-spin w-4 h-4 mr-1.5 -mt-0.5" />Procesando hoja {currentSheet} de {totalSheets}...</span>
               <div style={s.progressBar}><div style={s.progressFill}></div></div>
             </div>
           ) : (
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <div style={s.btnScanSingle} onClick={() => singleFileRef.current?.click()}>
-                📷 1 Hoja
+                <Camera className="inline w-4 h-4 mr-1.5 -mt-0.5" />1 Hoja
                 <input type="file" accept="image/*" ref={singleFileRef} style={{ display: "none" }} onChange={handleSingleFile} />
               </div>
               <div style={s.btnScanMulti} onClick={() => multipleFileRef.current?.click()}>
-                📸 Varias Hojas
+                <Images className="inline w-4 h-4 mr-1.5 -mt-0.5" />Varias Hojas
                 <input type="file" accept="image/*" multiple ref={multipleFileRef} style={{ display: "none" }} onChange={handleMultipleFiles} />
               </div>
             </div>
@@ -334,7 +335,7 @@ export default function Moldes() {
 
           <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
             {["TODOS", "ANILLO", "DIJE", "PLANCHA"].map(f => (
-               <button key={f} onClick={() => setFilterType(f)} style={{ background: filterType === f ? "#d4af37" : "#151515", color: filterType === f ? "#000" : "#fff", border: "1px solid #333", padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
+               <button key={f} onClick={() => setFilterType(f)} style={{ background: filterType === f ? "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)" : "var(--m-surface)", color: filterType === f ? "#23180a" : "var(--m-text)", border: "1px solid var(--m-border)", padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
                  {f}
                </button>
             ))}
@@ -346,13 +347,13 @@ export default function Moldes() {
               <div style={s.listContent}>
                 <div style={s.listTitle}>{m.tipo || "Sin tipo"} {m.medida ? `(${m.medida})` : ""}</div>
                 <div style={s.listSub}>{m.carrera || "Sin diseño"}</div>
-                {m.notas && <div style={{ fontSize: "11px", color: "#d4af37", marginTop: "2px" }}>✍️ {m.notas}</div>}
+                {m.notas && <div style={{ fontSize: "11px", color: "var(--m-gold)", marginTop: "2px" }}><PenLine className="inline w-4 h-4 mr-1.5 -mt-0.5" />{m.notas}</div>}
               </div>
-              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDeleteMold(m.id); }}>🗑️</button>
+              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDeleteMold(m.id); }}><Trash2 className="w-4 h-4" /></button>
             </div>
           ))}
           {filteredMolds.length === 0 && (
-            <p style={{ color: "#666", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja o crea un molde a mano.</p>
+            <p style={{ color: "var(--m-muted)", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja o crea un molde a mano.</p>
           )}
         </div>
       )}
@@ -360,19 +361,19 @@ export default function Moldes() {
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
-            <div style={{ background: "#222", padding: "15px", borderRadius: "8px", marginBottom: "15px", borderLeft: "4px solid #d4af37" }}>
+            <div style={{ background: "var(--m-surface-2)", padding: "15px", borderRadius: "8px", marginBottom: "15px", borderLeft: "4px solid var(--m-gold)" }}>
               <label style={{ ...s.label, marginTop: 0 }}>Título General de la Hoja</label>
               <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación de Mujer" />
             </div>
 
-            <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
+            <p style={{ color: "var(--m-muted)", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
             
             <div style={{ display: "flex", flexDirection: "column" }}>
               {batchMoldes.map((m, idx) => (
                 <div key={idx} style={s.batchCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <span style={{ color: "#d4af37", fontWeight: "bold", fontSize: "12px" }}>MOLDE {idx + 1}</span>
-                    <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "#f0b0b0", cursor: "pointer", fontSize: "16px" }}>❌ Borrar</button>
+                    <span style={{ color: "var(--m-gold)", fontWeight: "bold", fontSize: "12px" }}>MOLDE {idx + 1}</span>
+                    <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "var(--m-danger)", cursor: "pointer", fontSize: "16px" }}>❌ Borrar</button>
                   </div>
 
                   <div style={s.row}>
@@ -392,9 +393,9 @@ export default function Moldes() {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "15px", position: "sticky", bottom: 0, background: "#151515", paddingTop: "10px", borderTop: "1px solid #333" }}>
+            <div style={{ display: "flex", gap: "10px", marginTop: "15px", position: "sticky", bottom: 0, background: "var(--m-surface)", paddingTop: "10px", borderTop: "1px solid var(--m-border)" }}>
               <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 2, padding: "15px" }}>
-                {saving ? "Guardando..." : `💾 Guardar los ${batchMoldes.length} Moldes`}
+                {saving ? "Guardando..." : `Guardar los ${batchMoldes.length} Moldes`}
               </button>
               <button onClick={() => setBatchOpen(false)} style={{ ...s.btnSecondary, flex: 1 }}>Cancelar</button>
             </div>
@@ -406,9 +407,9 @@ export default function Moldes() {
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ color: "#d4af37", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
+              <h2 style={{ color: "var(--m-gold)", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
               {editing && !isEditMode && (
-                <button style={{ ...s.btnPrimary, padding: "8px 12px", fontSize: "12px" }} onClick={() => setIsEditMode(true)}>✏️ Editar</button>
+                <button style={{ ...s.btnPrimary, padding: "8px 12px", fontSize: "12px" }} onClick={() => setIsEditMode(true)}><Pencil className="inline w-4 h-4 mr-1.5 -mt-0.5" />Editar</button>
               )}
             </div>
             
@@ -420,7 +421,7 @@ export default function Moldes() {
 
                 <div style={{...s.readContainer, marginTop: formData.foto_url ? "15px" : "0"}}>
                   <span style={s.readLabel}>Número</span>
-                  <div style={{ ...s.readValue, fontSize: "24px", color: "#d4af37", fontWeight: "bold" }}>{formData.numero}</div>
+                  <div style={{ ...s.readValue, fontSize: "24px", color: "var(--m-gold)", fontWeight: "bold" }}>{formData.numero}</div>
                 </div>
                 <div style={s.readContainer}><span style={s.readLabel}>Tipo</span><div style={s.readValue}>{formData.tipo || "-"}</div></div>
                 <div style={s.readContainer}><span style={s.readLabel}>Carrera / Diseño</span><div style={s.readValue}>{formData.carrera || "-"}</div></div>
@@ -437,7 +438,7 @@ export default function Moldes() {
                   <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
                 )}
                 <button type="button" style={s.btnPhoto} onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
-                  {uploadingPhoto ? "⏳ Subiendo foto..." : "📷 Subir / Cambiar Foto"}
+                  {uploadingPhoto ? "Subiendo foto..." : "Subir / Cambiar foto"}
                 </button>
                 <input type="file" accept="image/*" ref={photoInputRef} style={{ display: "none" }} onChange={handlePhotoUpload} disabled={uploadingPhoto} />
 
@@ -452,7 +453,7 @@ export default function Moldes() {
                   <div style={s.col}><label style={s.label}>Notas</label><input style={s.input} value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} /></div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || uploadingPhoto}>{saving ? "..." : "💾 Guardar"}</button>
+                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || uploadingPhoto}>{saving ? "..." : "Guardar"}</button>
                   <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => editing ? setIsEditMode(false) : setModalOpen(false)}>Cancelar</button>
                 </div>
               </form>

@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "sonner";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
-const ThemedToaster = () => <Toaster theme={useTheme().applied} position="bottom-center" richColors />;
+const ThemedToaster = () => <Toaster theme={useTheme().applied} position="top-center" richColors />;
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Layout from "@/components/Layout";

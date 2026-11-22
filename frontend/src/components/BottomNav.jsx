@@ -26,7 +26,7 @@ const TabInner = ({ icon: Icon, label, active }) => (
 const tabCls = "flex-1 flex flex-col items-center justify-center gap-1.5 min-h-[60px] rounded-full text-stone-600 dark:text-zinc-400 active:scale-95 transition-transform";
 
 const MoreSheet = ({ items, onClose, logout }) => (
-  <div className="md:hidden fixed inset-0 z-[55] bg-stone-900/30 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} data-testid="more-sheet">
+  <div className="lg:hidden fixed inset-0 z-[55] bg-stone-900/30 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose} data-testid="more-sheet">
     <div className="glass-panel absolute bottom-[104px] left-3 right-3 rounded-[28px] p-5 max-h-[68vh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between mb-4">
         <span className="font-display text-2xl text-stone-900 dark:text-white">Más opciones</span>
@@ -61,11 +61,11 @@ export const BottomNav = () => {
 
   return (
     <>
-      <nav className="md:hidden fixed inset-x-3 z-[60] bottom-[calc(12px+env(safe-area-inset-bottom))]" data-testid="bottom-nav">
+      <nav className="lg:hidden fixed inset-x-3 z-[60] bottom-[calc(12px+env(safe-area-inset-bottom))]" data-testid="bottom-nav">
         <div className="glass-panel flex items-stretch h-[80px] px-2 py-2 gap-1 rounded-full">
           {TABS.map((t) => (
-            <Link key={t.path} to={t.path} onClick={() => { vibrate(); setShowMore(false); }} data-testid={`tab-${t.name.toLowerCase()}`} className={tabCls} aria-current={isActive(t.path) ? "page" : undefined}>
-              <TabInner icon={t.icon} label={t.name} active={isActive(t.path)} />
+            <Link key={t.path} to={t.path} onClick={() => { vibrate(); setShowMore(false); }} data-testid={`tab-${t.name.toLowerCase()}`} className={tabCls} aria-current={!showMore && isActive(t.path) ? "page" : undefined}>
+              <TabInner icon={t.icon} label={t.name} active={!showMore && isActive(t.path)} />
             </Link>
           ))}
           <button onClick={() => { vibrate(); setShowMore(!showMore); }} data-testid="tab-more" aria-expanded={showMore} className={tabCls}>

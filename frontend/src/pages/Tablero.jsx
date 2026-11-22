@@ -19,7 +19,8 @@ export default function Tablero() {
   const { users } = useUsers();
   const staff = ["admin", "ventas"].includes(user?.role);
   
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const clearParam = (k) => { if (searchParams.has(k)) { const n = new URLSearchParams(searchParams); n.delete(k); setSearchParams(n, { replace: true }); } };
   const [orders, setOrders] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -101,7 +102,7 @@ export default function Tablero() {
             </div>
             <h1 className="font-display text-2xl md:text-4xl font-light">Pedidos</h1>
           </div>
-          {staff && <NewOrderDialog users={users} onCreated={load} openSignal={searchParams.get("nuevo")} />}
+          {staff && <NewOrderDialog users={users} onCreated={load} openSignal={searchParams.get("nuevo")} onClosed={() => clearParam("nuevo")} />}
         </div>
 
         <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-2">
@@ -188,7 +189,7 @@ export default function Tablero() {
         </div>
       </div>
       
-      <OrderDetail order={orders.find((o) => o.id === selectedId)} users={users} onClose={() => setSelectedId(null)} onChange={load} />
+      <OrderDetail order={orders.find((o) => o.id === selectedId)} users={users} onClose={() => { setSelectedId(null); clearParam("pedido"); }} onChange={load} />
     </div>
   );
 }
