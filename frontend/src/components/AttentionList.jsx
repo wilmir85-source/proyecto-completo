@@ -17,7 +17,7 @@ export const AttentionList = ({ orders }) => {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {urgent.slice(0, 8).map((o) => (
-          <Link to="/pedidos" key={o.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 hover:bg-white/5 transition-colors ${DUE_STYLES[o.estado_entrega].card}`} data-testid={`attention-${o.id}`}>
+          <Link to={`/pedidos?pedido=${o.id}`} key={o.id} className={`flex items-center gap-3 rounded-2xl border px-3 min-h-[56px] py-2.5 hover:bg-white/5 transition-colors ${DUE_STYLES[o.estado_entrega].card}`} data-testid={`attention-${o.id}`}>
             <span className={`w-2 h-2 rounded-full shrink-0 ${DUE_STYLES[o.estado_entrega].dot}`} />
             <div className="flex-1 min-w-0">
               <div className="text-sm truncate">{o.cliente} <span className="text-zinc-400">· {o.descripcion}</span></div>

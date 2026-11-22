@@ -1,0 +1,148 @@
+/* Modo Día: adapta las clases oscuras existentes al tema crema (solo apariencia) */
+html:not(.dark) .bg-\[\#09090b\],
+html:not(.dark) .bg-\[\#050505\],
+html:not(.dark) .bg-black { background-color: var(--app-bg) !important; }
+html:not(.dark) .bg-zinc-950,
+html:not(.dark) .bg-\[\#111\] { background-color: #fffdf9 !important; }
+html:not(.dark) .bg-zinc-950\/95,
+html:not(.dark) .bg-\[\#09090b\]\/95 { background-color: rgba(255,252,246,0.94) !important; }
+html:not(.dark) .bg-zinc-950\/80,
+html:not(.dark) .bg-\[\#09090b\]\/80,
+html:not(.dark) .bg-zinc-950\/60 { background-color: rgba(255,252,246,0.82) !important; }
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) .bg-zinc-900\/90,
+html:not(.dark) .bg-zinc-900\/80 { background-color: #f4ecdf !important; }
+html:not(.dark) .bg-zinc-900\/60,
+html:not(.dark) .bg-zinc-900\/50,
+html:not(.dark) .bg-zinc-900\/20,
+html:not(.dark) .bg-black\/40,
+html:not(.dark) .bg-black\/20,
+html:not(.dark) .bg-white\/\[0\.04\],
+html:not(.dark) .bg-white\/5 { background-color: rgba(120,85,30,0.055) !important; }
+html:not(.dark) .bg-zinc-800,
+html:not(.dark) .bg-white\/10,
+html:not(.dark) .bg-white\/20,
+html:not(.dark) .hover\:bg-zinc-900:hover,
+html:not(.dark) .hover\:bg-zinc-900\/80:hover,
+html:not(.dark) .hover\:bg-white\/5:hover,
+html:not(.dark) .active\:bg-white\/10:active { background-color: rgba(120,85,30,0.1) !important; }
+html:not(.dark) .hover\:bg-zinc-800:hover,
+html:not(.dark) .hover\:bg-zinc-700:hover,
+html:not(.dark) .hover\:bg-white\/10:hover,
+html:not(.dark) .active\:bg-white\/20:active { background-color: rgba(120,85,30,0.16) !important; }
+html:not(.dark) .bg-black\/80,
+html:not(.dark) .bg-black\/70,
+html:not(.dark) .bg-black\/60 { background-color: rgba(41,30,15,0.42) !important; }
+html:not(.dark) .bg-red-950\/30,
+html:not(.dark) .bg-red-950\/40,
+html:not(.dark) .bg-red-950\/60,
+html:not(.dark) .hover\:bg-red-950\/40:hover { background-color: rgba(220,38,38,0.08) !important; }
+html:not(.dark) .bg-yellow-950\/20 { background-color: rgba(202,138,4,0.08) !important; }
+html:not(.dark) .bg-blue-950\/50,
+html:not(.dark) .bg-blue-950\/20,
+html:not(.dark) .hover\:bg-cyan-900\/30:hover { background-color: rgba(14,116,144,0.08) !important; }
+html:not(.dark) .text-white:not([class*="bg-red-5"]):not([class*="bg-red-6"]):not([class*="bg-emerald-5"]):not([class*="bg-emerald-6"]):not([class*="bg-cyan-5"]):not([class*="bg-cyan-6"]):not([class*="bg-blue-5"]):not([class*="bg-blue-6"]):not([class*="bg-green-5"]):not([class*="bg-green-6"]):not([class*="bg-sky-5"]):not([class*="bg-sky-6"]):not([class*="bg-violet-5"]):not([class*="bg-violet-6"]):not(.btn-gold):not([class*='from-']), html:not(.dark) .text-zinc-50, html:not(.dark) .text-zinc-100, html:not(.dark) .hover\:text-zinc-100:hover { color: #1c1917 !important; }
+html:not(.dark) .text-zinc-200,
+html:not(.dark) .hover\:text-zinc-200:hover { color: #292524 !important; }
+html:not(.dark) .text-zinc-300,
+html:not(.dark) .hover\:text-zinc-300:hover { color: #44403c !important; }
+html:not(.dark) .text-zinc-400,
+html:not(.dark) .text-zinc-500,
+html:not(.dark) .text-zinc-600 { color: #57534e !important; }
+html:not(.dark) .text-zinc-700 { color: #78716c !important; }
+html:not(.dark) .text-\[\#e3c993\],
+html:not(.dark) .text-\[\#c5a572\],
+html:not(.dark) .text-\[\#c5a572\]\/60,
+html:not(.dark) .hover\:text-\[\#e3c993\]:hover,
+html:not(.dark) .hover\:text-\[\#c5a572\]:hover,
+html:not(.dark) .hover\:text-\[\#d4b88a\]:hover,
+html:not(.dark) .focus\:text-\[\#c5a572\]:focus { color: #7a5717 !important; }
+html:not(.dark) .text-red-200,
+html:not(.dark) .text-red-300,
+html:not(.dark) .text-red-400,
+html:not(.dark) .text-red-500,
+html:not(.dark) .text-red-200\/70,
+html:not(.dark) .hover\:text-red-400:hover,
+html:not(.dark) .hover\:text-red-300:hover { color: #b91c1c !important; }
+html:not(.dark) .text-amber-200,
+html:not(.dark) .text-amber-300,
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-300\/80,
+html:not(.dark) .hover\:text-amber-400:hover,
+html:not(.dark) .hover\:text-amber-300:hover { color: #a16207 !important; }
+html:not(.dark) .text-yellow-300,
+html:not(.dark) .text-yellow-400,
+html:not(.dark) .hover\:text-yellow-400:hover,
+html:not(.dark) .hover\:text-yellow-300:hover { color: #a16207 !important; }
+html:not(.dark) .text-emerald-300,
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .hover\:text-emerald-400:hover,
+html:not(.dark) .hover\:text-emerald-300:hover { color: #047857 !important; }
+html:not(.dark) .text-green-300,
+html:not(.dark) .text-green-400,
+html:not(.dark) .hover\:text-green-400:hover,
+html:not(.dark) .hover\:text-green-300:hover { color: #047857 !important; }
+html:not(.dark) .text-teal-300,
+html:not(.dark) .text-teal-400,
+html:not(.dark) .hover\:text-teal-400:hover,
+html:not(.dark) .hover\:text-teal-300:hover { color: #0f766e !important; }
+html:not(.dark) .text-cyan-50,
+html:not(.dark) .text-cyan-100,
+html:not(.dark) .text-cyan-200,
+html:not(.dark) .text-cyan-300,
+html:not(.dark) .text-cyan-400,
+html:not(.dark) .text-cyan-400\/80,
+html:not(.dark) .hover\:text-cyan-400:hover,
+html:not(.dark) .hover\:text-cyan-300:hover { color: #0e7490 !important; }
+html:not(.dark) .text-sky-300,
+html:not(.dark) .text-sky-400,
+html:not(.dark) .hover\:text-sky-400:hover,
+html:not(.dark) .hover\:text-sky-300:hover { color: #0369a1 !important; }
+html:not(.dark) .text-blue-200,
+html:not(.dark) .text-blue-300,
+html:not(.dark) .text-blue-400,
+html:not(.dark) .text-blue-400\/70,
+html:not(.dark) .hover\:text-blue-400:hover,
+html:not(.dark) .hover\:text-blue-300:hover { color: #1d4ed8 !important; }
+html:not(.dark) .text-violet-300,
+html:not(.dark) .text-violet-400,
+html:not(.dark) .hover\:text-violet-400:hover,
+html:not(.dark) .hover\:text-violet-300:hover { color: #6d28d9 !important; }
+html:not(.dark) .text-purple-300,
+html:not(.dark) .text-purple-400,
+html:not(.dark) .hover\:text-purple-400:hover,
+html:not(.dark) .hover\:text-purple-300:hover { color: #7e22ce !important; }
+html:not(.dark) .text-pink-300,
+html:not(.dark) .text-pink-400,
+html:not(.dark) .hover\:text-pink-400:hover,
+html:not(.dark) .hover\:text-pink-300:hover { color: #be185d !important; }
+html:not(.dark) .text-rose-300,
+html:not(.dark) .text-rose-400,
+html:not(.dark) .hover\:text-rose-400:hover,
+html:not(.dark) .hover\:text-rose-300:hover { color: #be123c !important; }
+html:not(.dark) .text-orange-300,
+html:not(.dark) .text-orange-400,
+html:not(.dark) .hover\:text-orange-400:hover,
+html:not(.dark) .hover\:text-orange-300:hover { color: #c2410c !important; }
+html:not(.dark) .text-lime-300,
+html:not(.dark) .text-lime-400,
+html:not(.dark) .hover\:text-lime-400:hover,
+html:not(.dark) .hover\:text-lime-300:hover { color: #4d7c0f !important; }
+html:not(.dark) .hover\:text-red-50:hover { color: #fff !important; }
+html:not(.dark) .border-white\/5,
+html:not(.dark) .border-zinc-800\/50,
+html:not(.dark) .divide-white\/5 { border-color: rgba(120,85,30,0.12) !important; }
+html:not(.dark) .border-white\/10,
+html:not(.dark) .border-white\/15,
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-700 { border-color: rgba(120,85,30,0.18) !important; }
+html:not(.dark) .border-zinc-600,
+html:not(.dark) .border-white\/20,
+html:not(.dark) .hover\:border-zinc-700:hover,
+html:not(.dark) .hover\:border-zinc-600:hover,
+html:not(.dark) .hover\:border-white\/20:hover { border-color: rgba(120,85,30,0.3) !important; }
+html:not(.dark) .border-red-900\/50,
+html:not(.dark) .border-blue-900\/50,
+html:not(.dark) .border-cyan-900\/50,
+html:not(.dark) .border-blue-800 { border-color: rgba(120,85,30,0.2) !important; }
+html:not(.dark) .divide-white\/5 > :not([hidden]) ~ :not([hidden]) { border-color: rgba(120,85,30,0.12) !important; }

@@ -2,6 +2,9 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "sonner";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+
+const ThemedToaster = () => <Toaster theme={useTheme().applied} position="bottom-center" richColors />;
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Layout from "@/components/Layout";
@@ -64,9 +67,10 @@ function PublicOnly({ children }) {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <BrowserRouter>
-        <Toaster theme="dark" position="bottom-center" richColors />
+        <ThemedToaster />
         <Routes>
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/seguimiento/:token" element={<Seguimiento />} />
@@ -95,5 +99,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ThemeProvider>
   );
 }

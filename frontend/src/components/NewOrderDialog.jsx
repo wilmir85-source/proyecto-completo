@@ -11,8 +11,9 @@ import { SimpleSelect, UserSelect } from "@/components/Selects";
 const EMPTY = { cliente: "", telefono_cliente: "", descripcion: "", stage: "Ventas", precio: "", anticipo: "", fecha_entrega: "", notas: "", asignado_a: "", metal: "", peso_metal: "", piedra: "", tipo: "Fabricación" };
 const inp = "bg-zinc-900 border-zinc-800";
 
-export const NewOrderDialog = ({ users, onCreated }) => {
+export const NewOrderDialog = ({ users, onCreated, openSignal }) => {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (openSignal) setOpen(true); }, [openSignal]);
   const [form, setForm] = useState(EMPTY);
   const [photos, setPhotos] = useState([]);
   const previews = useMemo(() => photos.map((f) => URL.createObjectURL(f)), [photos]);

@@ -33,6 +33,8 @@ export default function Tablero() {
   useEffect(() => {
     const filterParam = searchParams.get("filter");
     const stageParam = searchParams.get("stage");
+    const pedidoParam = searchParams.get("pedido");
+    if (pedidoParam) setSelectedId(pedidoParam);
 
     if (filterParam === "atrasados") setFilterMode("late");
     else if (filterParam === "por_vencer") setFilterMode("soon");
@@ -99,7 +101,7 @@ export default function Tablero() {
             </div>
             <h1 className="font-display text-2xl md:text-4xl font-light">Pedidos</h1>
           </div>
-          {staff && <NewOrderDialog users={users} onCreated={load} />}
+          {staff && <NewOrderDialog users={users} onCreated={load} openSignal={searchParams.get("nuevo")} />}
         </div>
 
         <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-2">
