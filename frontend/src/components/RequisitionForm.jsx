@@ -12,10 +12,10 @@ const EMPTY = { categoria: "Piedras", item: "", cantidad: "1", unidad: "pz", urg
 const field = "bg-zinc-950 border-zinc-700 text-base";
 
 const CategoryPicker = ({ value, onChange }) => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Tipo de material">
+  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Tipo de material">
     {CATEGORIAS.map(({ value: v, icon: Icon }) => (
       <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} data-testid={`req-cat-${v}`}
-        className={`min-h-[52px] px-3 rounded-xl border flex items-center gap-2 text-sm transition-colors ${value === v ? "bg-[#c5a572]/15 border-[#c5a572]/60 text-[#e3c993] font-semibold" : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-600"}`}>
+        className={`min-h-[52px] px-3 rounded-xl border flex items-center gap-2 text-sm text-left leading-tight transition-colors ${value === v ? "bg-[#c5a572]/15 border-[#c5a572]/60 text-[#e3c993] font-semibold" : "bg-zinc-950 border-zinc-800 text-zinc-300 hover:border-zinc-600"}`}>
         <Icon className="w-5 h-5 shrink-0" /> {v}
       </button>
     ))}

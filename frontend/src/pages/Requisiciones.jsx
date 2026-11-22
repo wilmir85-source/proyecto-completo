@@ -33,7 +33,7 @@ export default function Requisiciones() {
   const [opened, setOpened] = useState(null);
 
   const load = useCallback(() => api.get("/requisitions").then((r) => setItems(r.data)).catch((e) => toast.error(apiError(e))), []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); }, [load, id]);
 
   useEffect(() => {
     if (!id) return setOpened(null);

@@ -33,7 +33,7 @@ const StaffActions = ({ r, onSaved }) => {
         <div className="flex gap-3">
           <Input type="number" min="0" step="any" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="Costo (opcional)" className="bg-zinc-950 border-zinc-700" data-testid="req-cost-input" />
           <button disabled={saving || costo === ""} onClick={() => save({ costo: parseFloat(costo) }, "Costo guardado")} data-testid="req-cost-save"
-            className="min-h-[48px] px-5 rounded-xl border border-[#c5a572]/50 text-[#e3c993] text-sm hover:bg-[#c5a572]/10 disabled:opacity-50">Guardar costo</button>
+            className="shrink-0 whitespace-nowrap min-h-[48px] px-5 rounded-xl border border-[#c5a572]/50 text-[#e3c993] text-sm hover:bg-[#c5a572]/10 disabled:opacity-50">Guardar costo</button>
         </div>
       </MoneyGate>
       <div className="grid grid-cols-2 gap-3">
