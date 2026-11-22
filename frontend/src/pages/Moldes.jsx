@@ -1,14 +1,19 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { FileText, Trash2, FolderOpen, Loader2, Camera, Images, PenLine, Pencil } from "lucide-react";
+import { FileText, Trash2, FolderOpen, Loader2, Camera, Images, PenLine, Pencil, Plus, Search, LayoutGrid, X } from "lucide-react";
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
   const [selectedLib, setSelectedLib] = useState(null);
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("TODOS");
+  
+  // --- NUEVOS ESTADOS PARA CATEGORÍAS DINÁMICAS ---
+  const [customCategories, setCustomCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("TODOS");
+  const [showNewCat, setShowNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
 
   const [newLibName, setNewLibName] = useState("");
   const [showNewLib, setShowNewLib] = useState(false);
@@ -52,6 +57,33 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
+  // --- LÓGICA DE CATEGORÍAS DINÁMICAS ---
+  const dynamicCategories = useMemo(() => {
+    // Sacamos los tipos de molde que vienen de la base de datos
+    const tiposDeMoldes = molds.map(m => m.tipo?.toUpperCase()).filter(Boolean);
+    // Los unimos con las categorías que el usuario cree manualmente
+    const combinadas = new Set(["TODOS", ...tiposDeMoldes, ...customCategories.map(c => c.toUpperCase())]);
+    return Array.from(combinadas);
+  }, [molds, customCategories]);
+
+  const handleCreateCategory = () => {
+    if (!newCatName.trim()) return;
+    setCustomCategories([...customCategories, newCatName.trim()]);
+    setNewCatName("");
+    setShowNewCat(false);
+    toast.success("Categoría agregada");
+  };
+
+  const removeCategory = (cat, e) => {
+    e.stopPropagation();
+    if (cat === "TODOS") return;
+    if (window.confirm(`¿Quitar la categoría "${cat}"? (Los moldes no se borrarán)`)) {
+      setCustomCategories(customCategories.filter(c => c !== cat));
+      if (selectedCategory === cat) setSelectedCategory("TODOS");
+    }
+  };
+  // --------------------------------------
+
   const handleCreateLibrary = async () => {
     if (!newLibName.trim()) return toast.error("Escribe un nombre");
     try {
@@ -75,7 +107,7 @@ export default function Moldes() {
 
   const openNewModal = () => {
     setEditing(null);
-    setFormData({ numero: "", tipo: "", carrera: "", medida: "", notas: "", foto_url: "" });
+    setFormData({ numero: "", tipo: selectedCategory !== "TODOS" ? selectedCategory : "", carrera: "", medida: "", notas: "", foto_url: "" });
     setIsEditMode(true);
     setModalOpen(true);
   };
@@ -152,7 +184,6 @@ export default function Moldes() {
       setBatchOpen(true);
       toast.success(`¡Se extrajeron ${allExtractedMolds.length} moldes!`);
     } else {
-      // Si no se extrajo ninguno, abrimos el modal de creación manual
       toast.info("Ninguna foto arrojó resultados. Escribe uno a mano.");
       openNewModal();
     }
@@ -161,15 +192,12 @@ export default function Moldes() {
     if (multipleFileRef.current) multipleFileRef.current.value = "";
   };
 
-  const handleSingleFile = (e) => processFiles(Array.from(e.target.files));
-  const handleMultipleFiles = (e) => processFiles(Array.from(e.target.files));
-
   const saveBatch = async () => {
     setSaving(true);
     try {
       for (const molde of batchMoldes) {
         if (molde.numero.trim()) {
-          const tipoFinal = molde.tipo || "Anillo"; 
+          const tipoFinal = molde.tipo || "General"; 
           await api.post("/molds", { libreria_id: selectedLib.id, ...molde, tipo: tipoFinal });
         }
       }
@@ -188,10 +216,6 @@ export default function Moldes() {
     setBatchMoldes(nuevos);
   };
 
-  const removeBatchItem = (index) => {
-    setBatchMoldes(batchMoldes.filter((_, i) => i !== index));
-  };
-
   const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.numero.trim()) return toast.error("El número es obligatorio");
@@ -206,7 +230,8 @@ export default function Moldes() {
     finally { setSaving(false); }
   };
 
-  const handleDeleteMold = async (id) => {
+  const handleDeleteMold = async (id, e) => {
+    if (e) e.stopPropagation();
     if (!window.confirm("¿Borrar este molde?")) return;
     try {
       await api.delete(`/molds/${id}`);
@@ -214,28 +239,55 @@ export default function Moldes() {
     } catch { toast.error("Error al borrar"); }
   };
 
+  // FILTRADO POR TEXTO Y CATEGORÍA
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
     return molds.filter(m => {
       const matchSearch = (m.numero || "").toLowerCase().includes(q) || (m.tipo || "").toLowerCase().includes(q) || (m.carrera || "").toLowerCase().includes(q);
-      let matchType = filterType === "TODOS" || (m.tipo || "").toUpperCase().includes(filterType);
+      const matchType = selectedCategory === "TODOS" || (m.tipo || "").toUpperCase() === selectedCategory;
       return matchSearch && matchType;
     });
-  }, [molds, search, filterType]);
+  }, [molds, search, selectedCategory]);
 
   const s = {
     page: { minHeight: "100vh", background: "transparent", color: "var(--m-text)", padding: "20px", fontFamily: "inherit", paddingBottom: "100px" },
     title: { fontSize: "28px", fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, color: "var(--m-text)", margin: "0 0 5px 0" },
-    searchBar: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-border)", background: "var(--m-surface)", color: "var(--m-text)", marginBottom: "20px", boxSizing: "border-box", fontSize: "16px" },
+    
+    // Buscador Estilo Tienda
+    searchBox: { display: "flex", alignItems: "center", background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "25px", padding: "10px 15px", gap: "10px", marginBottom: "20px" },
+    searchInput: { flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--m-text)", fontSize: "16px" },
+
+    // Botones
     btnPrimary: { background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", color: "#23180a", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
     btnSecondary: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px solid var(--m-border)", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
-    listContainer: { display: "flex", flexDirection: "column", gap: "10px" },
-    listCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "10px", padding: "15px", display: "flex", alignItems: "center", gap: "15px", cursor: "pointer" },
-    listBadge: { background: "var(--m-border)", color: "var(--m-gold)", fontWeight: "bold", fontSize: "16px", padding: "8px 12px", borderRadius: "8px", minWidth: "50px", textAlign: "center" },
-    listContent: { flex: 1, display: "flex", flexDirection: "column", gap: "4px" },
-    listTitle: { fontSize: "14px", fontWeight: "bold", color: "var(--m-text)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
-    listSub: { fontSize: "13px", color: "var(--m-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" },
-    listAction: { background: "none", border: "none", color: "var(--m-danger)", fontSize: "18px", cursor: "pointer" },
+    
+    // Carpetas
+    folderCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "22px", padding: "24px 20px", cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "var(--glass-shadow)" },
+    folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--m-danger)", fontSize: "14px", cursor: "pointer" },
+
+    // NUEVO: Carrusel de Categorías (Bolitas)
+    catCarousel: { display: "flex", gap: "15px", overflowX: "auto", paddingBottom: "15px", marginBottom: "10px", scrollbarWidth: "none" },
+    catItem: { display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", cursor: "pointer" },
+    catCircle: (isActive) => ({
+      width: "60px", height: "60px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+      background: isActive ? "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)" : "var(--m-surface)",
+      color: isActive ? "#23180a" : "var(--m-gold)",
+      border: isActive ? "2px solid var(--m-gold)" : "1px solid var(--m-border)",
+      transition: "all 0.2s", position: "relative"
+    }),
+    catName: { fontSize: "11px", fontWeight: "bold", textAlign: "center", maxWidth: "65px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    
+    // NUEVO: Grid de Moldes (Tipo Tienda)
+    grid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" },
+    productCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "12px", overflow: "hidden", display: "flex", flexDirection: "column", cursor: "pointer", position: "relative" },
+    productImg: { width: "100%", aspectRatio: "1", objectFit: "cover", background: "var(--m-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "bold", color: "var(--m-muted)" },
+    productInfo: { padding: "10px", display: "flex", flexDirection: "column", gap: "3px" },
+    productNum: { color: "var(--m-gold)", fontWeight: "bold", fontSize: "14px" },
+    productTitle: { fontSize: "12px", fontWeight: "bold", color: "var(--m-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    productSub: { fontSize: "11px", color: "var(--m-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+    deleteBtn: { position: "absolute", top: "5px", right: "5px", background: "rgba(0,0,0,0.5)", borderRadius: "50%", padding: "4px", border: "none", color: "#fff", zIndex: 2 },
+
+    // Modales y formularios
     modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "var(--m-overlay)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
     modal: { background: "var(--m-surface)", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid var(--m-border)", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
     readContainer: { background: "var(--m-inset)", border: "1px solid var(--m-border)", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
@@ -246,22 +298,26 @@ export default function Moldes() {
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", background: "var(--m-inset)", color: "var(--m-text)", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
     row: { display: "flex", gap: "10px" },
     col: { flex: 1, minWidth: 0 },
-    btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
-    btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "rgba(212,175,55,0.05)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    
+    // Escaneo
+    btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "var(--m-surface)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "var(--m-surface)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     progressBar: { width: "100%", height: "6px", background: "var(--m-border)", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
     progressFill: { height: "100%", background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", width: `${progress}%`, transition: "width 0.3s ease" },
-    folderCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "22px", padding: "24px 20px", cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "var(--glass-shadow)" },
-    folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--m-danger)", fontSize: "14px", cursor: "pointer" },
+    
     batchCard: { background: "var(--m-inset)", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", marginBottom: "10px" },
     btnAddLib: { background: "transparent", color: "var(--m-gold)", border: "1px dashed var(--m-gold)", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
     inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-gold)", background: "var(--m-surface)", color: "var(--m-text)", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
     photoPreview: { width: "100%", maxHeight: "200px", objectFit: "cover", borderRadius: "8px", marginTop: "10px", border: "1px solid var(--m-border)" },
-    btnPhoto: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px dashed var(--m-gold)", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" }
+    btnPhoto: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px dashed var(--m-gold)", padding: "10px", borderRadius: "8px", cursor: "pointer", width: "100%", marginTop: "10px", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
+    fab: { position: "fixed", bottom: "85px", right: "20px", background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", color: "#23180a", width: "55px", height: "55px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 15px rgba(212,175,55,0.4)", zIndex: 50, border: "none" },
   };
 
   return (
     <div style={s.page}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      
+      {/* HEADER Y BUSCADOR */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
           <p style={{ color: "var(--m-muted)", fontSize: "14px", margin: 0 }}>{selectedLib ? "Catálogo de Moldes" : "Selecciona o crea una carpeta"}</p>
@@ -269,19 +325,22 @@ export default function Moldes() {
         {selectedLib && (
           <div style={{ display: "flex", gap: "10px" }}>
             <button style={s.btnSecondary} onClick={() => window.print()}><FileText className="inline w-4 h-4 mr-1.5 -mt-0.5" />PDF</button>
-            <button style={s.btnPrimary} onClick={openNewModal}>+ Nuevo</button>
           </div>
         )}
       </div>
 
-      <input style={s.searchBar} placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      <div style={s.searchBox}>
+        <Search className="w-5 h-5" style={{ color: "var(--m-muted)" }} />
+        <input style={s.searchInput} placeholder="Buscar molde..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
 
       {selectedLib && (
-        <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "var(--m-gold)", fontSize: "16px", padding: 0, marginBottom: "20px", cursor: "pointer" }}>
+        <button onClick={() => { setSelectedLib(null); setSearch(""); }} style={{ background: "none", border: "none", color: "var(--m-gold)", fontSize: "15px", padding: 0, marginBottom: "20px", cursor: "pointer", fontWeight: "bold" }}>
           ← Volver a Colecciones
         </button>
       )}
 
+      {/* VISTA 1: CARPETAS */}
       {!selectedLib && (
         <>
           {!showNewLib ? (
@@ -313,89 +372,125 @@ export default function Moldes() {
         </>
       )}
 
+      {/* VISTA 2: CATÁLOGO DENTRO DE LA CARPETA */}
       {selectedLib && (
-        <div style={s.listContainer}>
+        <>
+          {/* BOTONES DE ESCANEO CON BARRA DE PROGRESO */}
           {scanning ? (
             <div style={{ background: "var(--m-surface)", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-border)", textAlign: "center", marginBottom: "20px" }}>
-              <span style={{ color: "var(--m-gold)", fontWeight: "bold" }}><Loader2 className="inline animate-spin w-4 h-4 mr-1.5 -mt-0.5" />Procesando hoja {currentSheet} de {totalSheets}...</span>
+              <span style={{ color: "var(--m-gold)", fontWeight: "bold" }}><Loader2 className="inline animate-spin w-4 h-4 mr-1.5 -mt-0.5" />Procesando hoja {currentSheet} de {totalSheets} ({progress}%)</span>
               <div style={s.progressBar}><div style={s.progressFill}></div></div>
             </div>
           ) : (
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <div style={s.btnScanSingle} onClick={() => singleFileRef.current?.click()}>
                 <Camera className="inline w-4 h-4 mr-1.5 -mt-0.5" />1 Hoja
-                <input type="file" accept="image/*" ref={singleFileRef} style={{ display: "none" }} onChange={handleSingleFile} />
+                <input type="file" accept="image/*" ref={singleFileRef} style={{ display: "none" }} onChange={(e) => processFiles(Array.from(e.target.files))} />
               </div>
               <div style={s.btnScanMulti} onClick={() => multipleFileRef.current?.click()}>
                 <Images className="inline w-4 h-4 mr-1.5 -mt-0.5" />Varias Hojas
-                <input type="file" accept="image/*" multiple ref={multipleFileRef} style={{ display: "none" }} onChange={handleMultipleFiles} />
+                <input type="file" accept="image/*" multiple ref={multipleFileRef} style={{ display: "none" }} onChange={(e) => processFiles(Array.from(e.target.files))} />
               </div>
             </div>
           )}
 
-          <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "10px" }}>
-            {["TODOS", "ANILLO", "DIJE", "PLANCHA"].map(f => (
-               <button key={f} onClick={() => setFilterType(f)} style={{ background: filterType === f ? "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)" : "var(--m-surface)", color: filterType === f ? "#23180a" : "var(--m-text)", border: "1px solid var(--m-border)", padding: "8px 16px", borderRadius: "20px", fontSize: "12px", fontWeight: "bold", cursor: "pointer", whiteSpace: "nowrap" }}>
-                 {f}
-               </button>
+          {/* CARRUSEL DE CATEGORÍAS (Bolitas) */}
+          <div style={s.catCarousel}>
+            {dynamicCategories.map(cat => (
+              <div key={cat} style={s.catItem} onClick={() => setSelectedCategory(cat)}>
+                <div style={s.catCircle(selectedCategory === cat)}>
+                  <LayoutGrid className="w-6 h-6" />
+                  {cat !== "TODOS" && selectedCategory !== cat && (
+                     <div onClick={(e) => removeCategory(cat, e)} style={{ position: "absolute", top: 0, right: 0, background: "var(--m-surface-2)", borderRadius: "50%", padding: "2px" }}>
+                        <X className="w-3 h-3 text-red-500" />
+                     </div>
+                  )}
+                </div>
+                <span style={s.catName}>{cat}</span>
+              </div>
             ))}
+            
+            {/* Botón para agregar nueva categoría */}
+            <div style={s.catItem} onClick={() => setShowNewCat(true)}>
+              <div style={{...s.catCircle(false), borderStyle: "dashed"}}>
+                <Plus className="w-6 h-6" />
+              </div>
+              <span style={s.catName}>Nueva</span>
+            </div>
           </div>
 
-          {filteredMolds.map((m) => (
-            <div key={m.id} style={s.listCard} onClick={() => openViewModal(m)}>
-              <div style={s.listBadge}>{m.numero}</div>
-              <div style={s.listContent}>
-                <div style={s.listTitle}>{m.tipo || "Sin tipo"} {m.medida ? `(${m.medida})` : ""}</div>
-                <div style={s.listSub}>{m.carrera || "Sin diseño"}</div>
-                {m.notas && <div style={{ fontSize: "11px", color: "var(--m-gold)", marginTop: "2px" }}><PenLine className="inline w-4 h-4 mr-1.5 -mt-0.5" />{m.notas}</div>}
-              </div>
-              <button style={s.listAction} onClick={(e) => { e.stopPropagation(); handleDeleteMold(m.id); }}><Trash2 className="w-4 h-4" /></button>
+          {/* INPUT PARA NUEVA CATEGORÍA */}
+          {showNewCat && (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+              <input autoFocus style={s.input} placeholder="Ej. Plancha, Dije..." value={newCatName} onChange={(e) => setNewCatName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()} />
+              <button onClick={handleCreateCategory} style={s.btnPrimary}>OK</button>
+              <button onClick={() => setShowNewCat(false)} style={s.btnSecondary}>X</button>
             </div>
-          ))}
-          {filteredMolds.length === 0 && (
-            <p style={{ color: "var(--m-muted)", textAlign: "center", marginTop: "20px" }}>Esta carpeta está vacía. Escanea una hoja o crea un molde a mano.</p>
           )}
-        </div>
+
+          {/* GRID DE MOLDES (TIPO TIENDA) */}
+          <div style={s.grid}>
+            {filteredMolds.map((m) => (
+              <div key={m.id} style={s.productCard} onClick={() => openViewModal(m)}>
+                <button style={s.deleteBtn} onClick={(e) => handleDeleteMold(m.id, e)}><Trash2 className="w-4 h-4" /></button>
+                
+                {m.foto_url ? (
+                  <img src={m.foto_url} alt={m.numero} style={s.productImg} />
+                ) : (
+                  <div style={s.productImg}>{m.numero}</div>
+                )}
+                
+                <div style={s.productInfo}>
+                  <span style={s.productNum}>#{m.numero} {m.medida ? `• ${m.medida}` : ""}</span>
+                  <span style={s.productTitle}>{m.tipo || "Sin tipo"}</span>
+                  <span style={s.productSub}>{m.carrera || "Sin diseño"}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {filteredMolds.length === 0 && (
+            <p style={{ color: "var(--m-muted)", textAlign: "center", marginTop: "30px" }}>No hay moldes en esta categoría.</p>
+          )}
+
+          {/* BOTÓN FLOTANTE PARA CREAR MOLDE A MANO */}
+          <button style={s.fab} onClick={openNewModal}><Plus className="w-6 h-6" /></button>
+        </>
       )}
 
+      {/* MODAL REVISIÓN LOTE (Se mantiene igual) */}
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
             <div style={{ background: "var(--m-surface-2)", padding: "15px", borderRadius: "8px", marginBottom: "15px", borderLeft: "4px solid var(--m-gold)" }}>
               <label style={{ ...s.label, marginTop: 0 }}>Título General de la Hoja</label>
-              <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación de Mujer" />
+              <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación" />
             </div>
 
             <p style={{ color: "var(--m-muted)", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
             
-            <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", maxHeight: "50vh", overflowY: "auto" }}>
               {batchMoldes.map((m, idx) => (
                 <div key={idx} style={s.batchCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                     <span style={{ color: "var(--m-gold)", fontWeight: "bold", fontSize: "12px" }}>MOLDE {idx + 1}</span>
-                    <button onClick={() => removeBatchItem(idx)} style={{ background: "none", border: "none", color: "var(--m-danger)", cursor: "pointer", fontSize: "16px" }}>❌ Borrar</button>
+                    <button onClick={() => setBatchMoldes(batchMoldes.filter((_, i) => i !== idx))} style={{ background: "none", border: "none", color: "var(--m-danger)", cursor: "pointer", fontSize: "14px", fontWeight: "bold" }}>Quitar</button>
                   </div>
-
                   <div style={s.row}>
-                    <div style={s.col}><label style={s.label}>N° Molde</label><input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} /></div>
+                    <div style={s.col}><label style={s.label}>N°</label><input style={s.input} value={m.numero} onChange={(e) => updateBatchItem(idx, 'numero', e.target.value)} /></div>
                     <div style={s.col}><label style={s.label}>Medida</label><input style={s.input} value={m.medida} onChange={(e) => updateBatchItem(idx, 'medida', e.target.value)} placeholder="Ej. 10x8" /></div>
                   </div>
-
-                  <label style={s.label}>Tipo de Joya</label>
+                  <label style={s.label}>Tipo</label>
                   <input style={s.input} value={m.tipo} onChange={(e) => updateBatchItem(idx, 'tipo', e.target.value)} placeholder="Ej. Anillo..." />
-
-                  <label style={s.label}>Carrera / Diseño Completo</label>
+                  <label style={s.label}>Carrera / Diseño</label>
                   <textarea style={{...s.textarea, minHeight: "60px"}} value={m.carrera} onChange={(e) => updateBatchItem(idx, 'carrera', e.target.value)} />
-                  
-                  <label style={s.label}>Notas (Opcional)</label>
-                  <input style={s.input} value={m.notas} onChange={(e) => updateBatchItem(idx, 'notas', e.target.value)} />
                 </div>
               ))}
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "15px", position: "sticky", bottom: 0, background: "var(--m-surface)", paddingTop: "10px", borderTop: "1px solid var(--m-border)" }}>
               <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 2, padding: "15px" }}>
-                {saving ? "Guardando..." : `Guardar los ${batchMoldes.length} Moldes`}
+                {saving ? "Guardando..." : `Guardar ${batchMoldes.length} Moldes`}
               </button>
               <button onClick={() => setBatchOpen(false)} style={{ ...s.btnSecondary, flex: 1 }}>Cancelar</button>
             </div>
@@ -403,6 +498,7 @@ export default function Moldes() {
         </div>
       )}
 
+      {/* MODAL INDIVIDUAL (Se mantiene igual) */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
           <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
@@ -415,10 +511,7 @@ export default function Moldes() {
             
             {!isEditMode && editing ? (
               <div>
-                {formData.foto_url && (
-                  <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
-                )}
-
+                {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
                 <div style={{...s.readContainer, marginTop: formData.foto_url ? "15px" : "0"}}>
                   <span style={s.readLabel}>Número</span>
                   <div style={{ ...s.readValue, fontSize: "24px", color: "var(--m-gold)", fontWeight: "bold" }}>{formData.numero}</div>
@@ -434,9 +527,7 @@ export default function Moldes() {
             ) : (
               <form onSubmit={handleSave}>
                 <label style={s.label}>Foto del Molde (Opcional)</label>
-                {formData.foto_url && (
-                  <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />
-                )}
+                {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
                 <button type="button" style={s.btnPhoto} onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
                   {uploadingPhoto ? "Subiendo foto..." : "Subir / Cambiar foto"}
                 </button>
@@ -444,7 +535,7 @@ export default function Moldes() {
 
                 <div style={s.row}>
                   <div style={s.col}><label style={s.label}>Número</label><input style={s.input} required value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} /></div>
-                  <div style={s.col}><label style={s.label}>Tipo</label><input style={s.input} value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} /></div>
+                  <div style={s.col}><label style={s.label}>Tipo</label><input style={s.input} value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} placeholder="Anillo, Dije..." /></div>
                 </div>
                 <label style={s.label}>Carrera / Diseño</label>
                 <textarea style={s.textarea} value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
