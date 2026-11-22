@@ -1,0 +1,64 @@
+.arc-reactor {
+  --size: clamp(160px, 52vw, 230px);
+  --spin: 1;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 9999px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+  transition: transform 0.4s ease;
+}
+.arc-reactor:active { transform: scale(0.96); }
+.arc-reactor.is-active { --spin: 0.25; }
+
+.arc-glow {
+  position: absolute;
+  inset: -14%;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.45) 0%, rgba(34, 211, 238, 0.12) 45%, transparent 68%);
+  filter: blur(8px);
+  opacity: 0.6;
+  animation: arc-breathe 4s ease-in-out infinite;
+  transition: opacity 0.6s ease;
+}
+.is-active .arc-glow { opacity: 1; animation-duration: 1.2s; }
+
+.jr-svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.45));
+  transition: filter 0.5s ease;
+}
+.is-active .jr-svg { filter: drop-shadow(0 0 14px rgba(34, 211, 238, 0.85)); }
+
+.jr-text { fill: #1f2937; font-family: "Futura", "Century Gothic", "Trebuchet MS", sans-serif; }
+
+.jr-spin { transform-box: view-box; transform-origin: 100px 100px; }
+.jr-spin-coils { animation: arc-spin calc(24s * var(--spin)) linear infinite; }
+.jr-spin-bumps { animation: arc-spin calc(16s * var(--spin)) linear infinite reverse; }
+
+.jr-lightband { opacity: 0.75; transition: opacity 0.5s ease; }
+.is-active .jr-lightband { opacity: 1; }
+
+.jr-core { opacity: 0.8; animation: arc-breathe 4s ease-in-out infinite; transition: opacity 0.4s ease; }
+.is-active .jr-core { opacity: 1; animation: arc-flicker 0.15s steps(2) infinite; }
+
+.arc-canvas { position: absolute; inset: -12%; width: 124%; height: 124%; z-index: 2; pointer-events: none; }
+
+@keyframes arc-spin { to { transform: rotate(360deg); } }
+@keyframes arc-breathe { 0%, 100% { filter: brightness(0.9); } 50% { filter: brightness(1.2); } }
+@keyframes arc-flicker { 0% { filter: brightness(1.1); } 100% { filter: brightness(1.4); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-reactor * { animation: none !important; }
+}

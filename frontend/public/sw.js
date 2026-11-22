@@ -19,7 +19,7 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(windowClients => {
+    self.clients.matchAll({ type: 'window' }).then(windowClients => {
       // Si la app ya está abierta, solo la enfoca
       for (var i = 0; i < windowClients.length; i++) {
         var client = windowClients[i];
@@ -28,8 +28,8 @@ self.addEventListener('notificationclick', function(event) {
         }
       }
       // Si está cerrada, abre una nueva ventana
-      if (clients.openWindow) {
-        return clients.openWindow(event.notification.data.url);
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(event.notification.data.url);
       }
     })
   );
