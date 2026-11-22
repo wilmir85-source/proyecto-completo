@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Send, Mic, Volume2, Image as ImageIcon, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { api, API } from "@/lib/api";
+import JarvisReactor from "@/components/JarvisReactor";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition"; 
 
 export default function JarvisHUD() {
@@ -143,23 +144,6 @@ export default function JarvisHUD() {
 
   const isActive = speech.listening || state === "thinking" || state === "speaking";
 
-  const IronManReactor = () => {
-    return (
-      <div className="relative flex items-center justify-center cursor-pointer group" onClick={listen}>
-        <div className={`absolute w-28 h-28 md:w-40 md:h-40 rounded-full blur-2xl transition-all duration-700 ${isActive ? 'bg-cyan-500/40' : 'bg-cyan-900/10'}`} />
-        <div className={`absolute w-28 h-28 md:w-40 md:h-40 rounded-full border-[2px] border-transparent border-t-cyan-400 border-b-cyan-400 transition-all duration-500 ${isActive ? 'animate-[spin_2s_linear_infinite] opacity-100' : 'animate-[spin_10s_linear_infinite] opacity-40'}`} />
-        <div className={`absolute w-20 h-20 md:w-32 md:h-32 rounded-full border-[3px] border-zinc-800 shadow-[inset_0_0_15px_rgba(0,0,0,0.8)] ${isActive ? 'animate-[spin_3s_linear_infinite_reverse]' : 'animate-[spin_15s_linear_infinite_reverse]'}`}>
-           <div className="absolute inset-0 rounded-full border-[1px] border-cyan-600/20 m-1" />
-        </div>
-        <div className={`relative w-14 h-14 md:w-20 md:h-20 rounded-full flex items-center justify-center bg-zinc-900 border-2 border-zinc-700 shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all duration-300 ${isActive ? 'shadow-[0_0_50px_rgba(34,211,238,0.8)] scale-110' : ''}`}>
-           <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center transition-all duration-500 ${isActive ? 'bg-cyan-300 shadow-[0_0_30px_rgba(255,255,255,0.9)]' : 'bg-cyan-800/50'} `}>
-              <div className="w-5 h-5 md:w-8 md:h-8 bg-white rounded-full opacity-90 blur-[1px]" />
-           </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="flex flex-col h-full bg-[#050505] overflow-hidden font-sans">
       
@@ -185,8 +169,8 @@ export default function JarvisHUD() {
       </div>
 
       {/* ZONA DEL REACTOR */}
-      <div className="flex flex-col items-center pt-6 pb-4 border-b border-white/5 shrink-0 bg-gradient-to-b from-zinc-950 to-[#050505]">
-        <IronManReactor />
+      <div className="flex flex-col items-center pt-8 pb-4 border-b border-white/5 shrink-0 bg-gradient-to-b from-zinc-950 to-[#050505]">
+        <JarvisReactor active={isActive} onClick={listen} />
         
         <div className="flex flex-row gap-3 mt-6 w-[90%] max-w-[320px] bg-zinc-900/50 p-2 rounded-xl border border-white/5">
           <label className="flex-1 flex items-center justify-between cursor-pointer bg-black/40 px-2 py-1.5 rounded-lg border border-white/5">

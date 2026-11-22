@@ -87,14 +87,14 @@ async def morning_reminders():
                 fecha = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
                 if fecha < hoy: atrasados += 1
                 elif (fecha - hoy).total_seconds() < 86400: inminentes += 1
-            except: pass
+            except Exception: pass
         
         updated_str = o.get("updated_at")
         if updated_str and o.get("stage") not in ["Ventas", "Terminado", "Entregado"]:
             try:
                 updated = datetime.fromisoformat(updated_str.replace("Z", "+00:00"))
                 if (hoy - updated).days >= 3: estancados += 1
-            except: pass
+            except Exception: pass
 
     stock_bajo = sum(1 for m in materials if float(m.get("cantidad", 0)) <= float(m.get("minimo", 0)))
     
@@ -127,7 +127,7 @@ async def evening_summary():
                 fecha = datetime.fromisoformat(fecha_str.replace("Z", "+00:00"))
                 if fecha < hoy: atrasados += 1
                 elif (fecha - hoy).total_seconds() < 86400: inminentes += 1
-            except: pass
+            except Exception: pass
 
     if atrasados == 0 and inminentes == 0:
         return {"ok": True, "message": "Sin urgencias nocturnas. No se envió notificación."}
