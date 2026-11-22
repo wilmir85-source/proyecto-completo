@@ -3,7 +3,6 @@ import { PackagePlus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { BrandMark } from "@/components/BrandMark";
 import { NotificationBell } from "@/components/NotificationBell";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const AppHeader = () => {
   const { user } = useAuth();
@@ -19,7 +18,6 @@ export const AppHeader = () => {
             className="hidden lg:inline-flex items-center gap-2 min-h-[48px] px-5 rounded-xl text-sm font-semibold btn-soft">
             <PackagePlus className="w-5 h-5" /> Pedir material
           </Link>
-          <ThemeToggle />
           <NotificationBell />
         </div>
       </div>
