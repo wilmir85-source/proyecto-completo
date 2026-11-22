@@ -3,7 +3,7 @@ from datetime import timedelta, datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel
-from core import (db, STAGES, now_iso, new_id, parse_dt, enrich_order, current_user, require_roles, is_staff)
+from core import (db, STAGES, now_iso, new_id, parse_dt, enrich_order, current_user, require_roles, is_staff, hide_money)
 
 router = APIRouter(prefix="/api")
 
@@ -166,7 +166,7 @@ async def stats_charts(user=Depends(current_user)):
 
 @router.get("/production")
 async def production(user=Depends(current_user)):
-    orders = [o for o in await all_orders() if o.get("stage") != "Terminado"]
+    orders = [hide_money(o, user) for o in await all_orders() if o.get("stage") != "Terminado"]
     users = await db.users.find({"activo": {"$ne": False}}, {"_id": 0, "password": 0}).to_list(500)
     departamentos = []
     for s in STAGES[:-1]:

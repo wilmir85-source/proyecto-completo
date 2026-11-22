@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 from datetime import datetime, timezone, timedelta
 from core import (db, logger, APP_NAME, ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, put_object, get_object, now_iso, shrink_image,
-                  new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token)
+                  new_id, check_stage, check_tipo, enrich_order, current_user, require_roles, is_staff, can_work_on, decode_token, hide_money)
 from routes_notifications import send_push_notification
 
 router = APIRouter(prefix="/api")
@@ -204,13 +204,7 @@ async def list_orders(mine: bool = False, user=Depends(current_user)):
         orders = [o for o in orders if o.get("asignado_a") == user["id"] or
                   (user.get("departamento") and o.get("stage") == user.get("departamento"))]
     
-    is_staff_user = user.get("role") in ["admin", "ventas"]
-    if not is_staff_user:
-        for o in orders:
-            o["precio"] = 0
-            o["abonos"] = []
-            
-    return [enrich_order(o) for o in orders]
+    return [hide_money(enrich_order(o), user) for o in orders]
 
 
 @router.get("/orders/archived")
@@ -262,7 +256,7 @@ async def create_order(payload: OrderIn, user=Depends(STAFF)):
 async def update_order(order_id: str, payload: OrderUpdate, user=Depends(current_user)):
     update = payload.model_dump(exclude_unset=True)
     update = {k: v for k, v in update.items() if v is not None or k in ("asignado_a", "peso_metal", "fecha_entrega")}
-    return await op_update_order(order_id, update, user)
+    return hide_money(await op_update_order(order_id, update, user), user)
 
 
 @router.delete("/orders/{order_id}")
@@ -299,7 +293,7 @@ async def add_note(order_id: str, payload: NotaIn, user=Depends(current_user)):
     
     await db.orders.update_one({"id": order_id}, {"$push": {"historial": log_entry(user, payload.texto)},
                                                   "$set": {"updated_at": now_iso()}})
-    return enrich_order(await get_order_or_404(order_id))
+    return hide_money(enrich_order(await get_order_or_404(order_id)), user)
 
 
 @router.post("/orders/{order_id}/photos")

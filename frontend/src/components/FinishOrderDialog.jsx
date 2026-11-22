@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { MoneyGate } from "@/lib/permissions";
 import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -44,15 +45,15 @@ const ConsumeForm = ({ order, onDone }) => {
     setSaving(false);
   };
 
-  if (materials && !materials.length) return <div className="text-xs text-zinc-500">No hay materiales en inventario.</div>;
+  if (materials && !materials.length) return <div className="text-xs text-zinc-400">No hay materiales en inventario.</div>;
   return (
     <div className="space-y-2" data-testid="finish-consume-form">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 flex items-center gap-2"><PackageMinus className="w-4 h-4" />¿Descontar material usado?</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 flex items-center gap-2"><PackageMinus className="w-4 h-4" />¿Descontar material usado?</div>
       {rows.map((r, i) => (
         <div key={r.key} className="flex gap-2">
           <SimpleSelect value={r.material_id} onChange={(v) => setRow(i, "material_id", v)} options={opts} placeholder="Material" className="flex-1" testid={`consume-material-${i}`} />
           <Input type="number" step="0.01" placeholder="Cant." value={r.cantidad} onChange={(e) => setRow(i, "cantidad", e.target.value)} className="w-24 bg-zinc-900 border-zinc-800" data-testid={`consume-qty-${i}`} />
-          {rows.length > 1 && <button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>}
+          {rows.length > 1 && <button onClick={() => setRows(rows.filter((_, j) => j !== i))} className="text-zinc-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>}
         </div>
       ))}
       <button onClick={() => setRows([...rows, newRow()])} className="text-xs text-[#c5a572] hover:text-amber-400 flex items-center gap-1" data-testid="consume-add-row"><Plus className="w-3 h-3" />Otro material</button>
@@ -74,7 +75,7 @@ export const FinishOrderProvider = ({ children }) => {
           <DialogHeader><DialogTitle className="font-display">Pedido terminado · {order?.cliente}</DialogTitle></DialogHeader>
           {order && (
             <div className="space-y-5">
-              {order.saldo > 0 && <SaldoAlert order={order} />}
+              {order.saldo > 0 && <MoneyGate><SaldoAlert order={order} /></MoneyGate>}
               <ConsumeForm order={order} onDone={() => setOrder(null)} />
             </div>
           )}

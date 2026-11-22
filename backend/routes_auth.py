@@ -44,7 +44,7 @@ async def register(payload: RegisterIn):
     if payload.departamento and payload.departamento not in STAGES:
         raise HTTPException(400, "Departamento inválido")
     is_first = await db.users.count_documents({}) == 0
-    role = "admin" if is_first else ("ventas" if payload.departamento == "Ventas" else "trabajador")
+    role = "admin" if is_first else "trabajador"
     user = {"id": new_id(), "email": email, "name": payload.name, "password": hash_password(payload.password),
             "role": role, "departamento": payload.departamento, "telefono": payload.telefono or "",
             "activo": True, "calendar_token": new_id(), "created_at": now_iso()}

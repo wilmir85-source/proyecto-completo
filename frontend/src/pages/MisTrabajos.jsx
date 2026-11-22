@@ -24,13 +24,13 @@ export default function MisTrabajos() {
   return (
     <div className="p-5 md:p-12 max-w-4xl">
       <header className="mb-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">{user?.departamento || "Sin departamento"}</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">{user?.departamento || "Sin departamento"}</div>
         <h1 className="font-display text-4xl font-light">Mis trabajos</h1>
-        <p className="text-sm text-zinc-500 mt-2">Pedidos asignados a ti o que están en tu departamento. Toca uno para actualizar etapa, progreso y bitácora.</p>
+        <p className="text-sm text-zinc-400 mt-2">Pedidos asignados a ti o que están en tu departamento. Toca uno para actualizar etapa, progreso y bitácora.</p>
       </header>
       {active.length === 0 && (
-        <div className="card-glass rounded-2xl p-10 text-center text-zinc-500" data-testid="my-work-empty">
-          <Hammer className="w-8 h-8 mx-auto mb-3 text-zinc-600" />No tienes trabajos pendientes.
+        <div className="card-glass rounded-2xl p-10 text-center text-zinc-400" data-testid="my-work-empty">
+          <Hammer className="w-8 h-8 mx-auto mb-3 text-zinc-400" />No tienes trabajos pendientes.
         </div>
       )}
       <div className="space-y-3" data-testid="my-work-list">
@@ -50,8 +50,8 @@ export default function MisTrabajos() {
               <div className="text-xs text-zinc-400 truncate">{o.descripcion}</div>
               <div className="flex items-center gap-3 mt-2">
                 <div className="flex-1"><ProgressBar value={o.progreso} /></div>
-                <span className="text-[10px] font-mono text-zinc-500">{o.progreso}%</span>
-                <span className="text-[10px] text-zinc-500">{fmtDate(o.fecha_entrega)}</span>
+                <span className="text-xs font-mono text-zinc-400">{o.progreso}%</span>
+                <span className="text-xs text-zinc-400">{fmtDate(o.fecha_entrega)}</span>
               </div>
             </div>
           </button>

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { MoneyGate } from "@/lib/permissions";
+import { useTheme } from "@/context/ThemeContext";
 import { api } from "@/lib/api";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import { STAGE_HEX, money } from "@/lib/stages";
@@ -40,35 +42,40 @@ const tooltipStyle = {
   boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
 };
 
-const RevenueChart = ({ data }) => (
+const RevenueChart = ({ data }) => {
+  const dark = useTheme().applied === "dark";
+  const c = dark ? { grid: "rgba(255,255,255,0.06)", cobrado: "#e4e4e7", ventas: "#c5a572", tip: tooltipStyle, item: ITEM_STYLE }
+    : { grid: "rgba(120,85,30,0.14)", cobrado: "#57534e", ventas: "#a67c2e", tip: { ...tooltipStyle, background: "rgba(255,252,246,0.95)", boxShadow: "0 8px 24px rgba(120,85,30,0.2)" }, item: { color: "#1c1917" } };
+  return (
   <div className="lg:col-span-2 card-glass rounded-2xl p-6" data-testid="chart-revenue">
-    <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Últimos 12 meses</div>
+    <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Últimos 12 meses</div>
     <h2 className="font-display text-xl mb-5">Ingresos por mes</h2>
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data.map((d) => ({ ...d, label: monthLabel(d.mes) }))} margin={LINE_MARGIN}>
-          <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" vertical={false} />
+          <CartesianGrid stroke={c.grid} strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} />
           <YAxis stroke="#71717a" fontSize={11} tickLine={false} axisLine={false} tickFormatter={yTick} width={48} />
-          <Tooltip contentStyle={tooltipStyle} formatter={(v) => money(v)} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} />
+          <Tooltip contentStyle={c.tip} formatter={(v) => money(v)} labelStyle={LABEL_STYLE} itemStyle={c.item} />
           <Legend wrapperStyle={LEGEND_STYLE} />
           
           {/* Línea Vendido: ORO */}
-          <Line type="monotone" dataKey="ventas" name="Vendido" stroke="#c5a572" strokeWidth={3} dot={DOT} activeDot={ACTIVE_DOT} />
+          <Line type="monotone" dataKey="ventas" name="Vendido" stroke={c.ventas} strokeWidth={3} dot={DOT} activeDot={ACTIVE_DOT} />
           
           {/* Línea Cobrado: PLATA */}
-          <Line type="monotone" dataKey="cobrado" name="Cobrado" stroke="#e4e4e7" strokeWidth={3} dot={DOT} activeDot={ACTIVE_DOT} />
+          <Line type="monotone" dataKey="cobrado" name="Cobrado" stroke={c.cobrado} strokeWidth={3} dot={DOT} activeDot={ACTIVE_DOT} />
         </LineChart>
       </ResponsiveContainer>
     </div>
   </div>
-);
+  );
+};
 
 const StagePie = ({ data }) => {
   const total = data.reduce((s, d) => s + d.total, 0);
   return (
     <div className="card-glass rounded-2xl p-6" data-testid="chart-stages">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Distribución</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Distribución</div>
       <h2 className="font-display text-xl mb-2">Pedidos por etapa</h2>
       
       <div className="h-56 relative">
@@ -96,13 +103,13 @@ const StagePie = ({ data }) => {
         {/* Texto central con degradado dorado */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="font-display text-4xl text-gold-gradient">{total}</span>
-          <span className="text-[10px] uppercase tracking-widest text-[#c5a572] mt-1">pedidos</span>
+          <span className="text-xs uppercase tracking-widest text-[#c5a572] mt-1">pedidos</span>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-2 mt-4">
         {data.map((d) => (
-          <span key={d.stage} className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+          <span key={d.stage} className="flex items-center gap-1.5 text-xs text-zinc-400">
             <span className="w-2.5 h-2.5 rounded-full border border-[#c5a572]/50" style={{ background: JEWEL_COLORS[d.stage] || STAGE_HEX[d.stage] }} />
             {d.stage} <span className="text-zinc-200 font-medium">{d.total}</span>
           </span>
@@ -118,7 +125,7 @@ export const DashboardCharts = () => {
   if (!data) return null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-      {data.ingresos && <RevenueChart data={data.ingresos} />}
+      {data.ingresos && <MoneyGate><RevenueChart data={data.ingresos} /></MoneyGate>}
       <StagePie data={data.etapas} />
     </div>
   );

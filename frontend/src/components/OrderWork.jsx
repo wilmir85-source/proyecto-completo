@@ -7,7 +7,7 @@ import { STAGES, ORDER_TYPES, toISO, toLocalInput, apiError } from "@/lib/stages
 import { useFinishOrder } from "@/components/FinishOrderDialog";
 import { DeadlineProgressBar } from "@/components/DeadlineProgressBar";
 
-const Label = ({ children }) => <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{children}</div>;
+const Label = ({ children }) => <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1.5">{children}</div>;
 
 // ESTADOS INTERNOS PARA LAS IMPORTACIONES
 const IMPORT_STAGES = [
@@ -62,7 +62,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           >
             {IMPORT_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          <p className="text-[10px] text-blue-400/70 mt-1.5">* Esta información es privada y no se muestra al cliente en el PDF ni en el seguimiento.</p>
+          <p className="text-xs text-blue-400/70 mt-1.5">* Esta información es privada y no se muestra al cliente en el PDF ni en el seguimiento.</p>
         </div>
       )}
 

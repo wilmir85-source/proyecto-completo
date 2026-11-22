@@ -53,7 +53,7 @@ export default function Tareas() {
     <div className="p-5 md:p-12">
       <header className="flex items-end justify-between mb-10">
         <div>
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Agenda</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Agenda</div>
           <h1 className="font-display text-4xl font-light">Tareas</h1>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -82,19 +82,19 @@ export default function Tareas() {
       </header>
 
       <div className="space-y-3 max-w-3xl">
-        {tasks.length === 0 && <div className="text-sm text-zinc-500">No hay tareas aún</div>}
+        {tasks.length === 0 && <div className="text-sm text-zinc-400">No hay tareas aún</div>}
         {tasks.map((t) => (
           <div key={t.id} className={`card-glass rounded-xl p-4 flex items-center gap-4 group ${t.completada ? "opacity-50" : ""}`} data-testid={`task-${t.id}`}>
             <Checkbox checked={t.completada} onCheckedChange={() => toggle(t)} data-testid={`check-${t.id}`} />
             <div className="flex-1 min-w-0">
               <div className={`text-sm font-medium ${t.completada ? "line-through" : ""}`}>{t.titulo}</div>
-              {t.descripcion && <div className="text-xs text-zinc-500 mt-0.5">{t.descripcion}</div>}
-              {t.fecha && <div className={`text-xs mt-1 flex items-center gap-1 ${!t.completada && new Date(t.fecha) < new Date() ? "text-red-400" : "text-zinc-500"}`}><CalendarClock className="w-3 h-3" />{fmtDate(t.fecha)}</div>}
-              {(t.asignado_nombre || t.creado_por) && <div className="text-[10px] text-zinc-600 mt-1">{t.asignado_nombre ? `Para ${t.asignado_nombre}` : ""}{t.creado_por ? ` · de ${t.creado_por}` : ""}</div>}
+              {t.descripcion && <div className="text-xs text-zinc-400 mt-0.5">{t.descripcion}</div>}
+              {t.fecha && <div className={`text-xs mt-1 flex items-center gap-1 ${!t.completada && new Date(t.fecha) < new Date() ? "text-red-400" : "text-zinc-400"}`}><CalendarClock className="w-3 h-3" />{fmtDate(t.fecha)}</div>}
+              {(t.asignado_nombre || t.creado_por) && <div className="text-xs text-zinc-400 mt-1">{t.asignado_nombre ? `Para ${t.asignado_nombre}` : ""}{t.creado_por ? ` · de ${t.creado_por}` : ""}</div>}
             </div>
             {t.asignado_nombre && <Avatar name={t.asignado_nombre} />}
-            <span className={`text-[10px] uppercase tracking-wider px-2 py-1 rounded border ${prioColor[t.prioridad]}`}>{t.prioridad}</span>
-            <button onClick={() => remove(t.id)} className="text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`del-task-${t.id}`}>
+            <span className={`text-xs uppercase tracking-wider px-2 py-1 rounded border ${prioColor[t.prioridad]}`}>{t.prioridad}</span>
+            <button onClick={() => remove(t.id)} className="text-zinc-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`del-task-${t.id}`}>
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

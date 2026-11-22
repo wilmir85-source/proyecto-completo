@@ -29,13 +29,13 @@ export const OrderPayments = ({ order, onChange }) => {
   return (
     <div data-testid="order-payments">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-xs uppercase tracking-widest text-zinc-500">Pagos</div>
+        <div className="text-xs uppercase tracking-widest text-zinc-400">Pagos</div>
         <PayBadge status={order.estado_pago} testid="detail-pay-status" />
       </div>
       <div className="grid grid-cols-3 gap-2 mb-3 text-center">
         {[["Total", order.precio], ["Abonado", order.abonado], ["Saldo", order.saldo]].map(([l, v]) => (
           <div key={l} className="rounded-lg bg-zinc-900 border border-white/5 py-2">
-            <div className="text-[10px] uppercase tracking-widest text-zinc-500">{l}</div>
+            <div className="text-xs uppercase tracking-widest text-zinc-400">{l}</div>
             <div className={`font-display text-lg ${l === "Saldo" && v > 0 ? "text-red-400" : "text-zinc-100"}`} data-testid={`detail-${l.toLowerCase()}`}>{money(v)}</div>
           </div>
         ))}
@@ -44,8 +44,8 @@ export const OrderPayments = ({ order, onChange }) => {
         {order.abonos.map((a) => (
           <div key={a.id} className="flex items-center justify-between text-xs bg-zinc-900/60 rounded-md px-3 py-2 group">
             <span className="text-emerald-400 font-mono">{money(a.monto)}</span>
-            <span className="text-zinc-500 truncate mx-2 flex-1">{a.nota || "—"} · {a.registrado_por} · {fmtDate(a.fecha)}</span>
-            <button onClick={() => remove(a.id)} className="text-zinc-600 hover:text-red-400" data-testid={`btn-del-abono-${a.id}`}><Trash2 className="w-3 h-3" /></button>
+            <span className="text-zinc-400 truncate mx-2 flex-1">{a.nota || "—"} · {a.registrado_por} · {fmtDate(a.fecha)}</span>
+            <button onClick={() => remove(a.id)} className="text-zinc-400 hover:text-red-400" data-testid={`btn-del-abono-${a.id}`}><Trash2 className="w-3 h-3" /></button>
           </div>
         ))}
       </div>

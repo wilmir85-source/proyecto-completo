@@ -20,7 +20,7 @@ const TEMPLATES = [
 const waLink = (phone, text, cc) => `https://wa.me/${waPhone(phone, cc)}?text=${encodeURIComponent(text)}`;
 
 const Field = ({ label, children }) => (
-  <div><div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1.5">{label}</div>{children}</div>
+  <div><div className="text-xs uppercase tracking-widest text-zinc-400 mb-1.5">{label}</div>{children}</div>
 );
 
 const Notes = ({ c, onChange }) => {
@@ -35,7 +35,7 @@ const Notes = ({ c, onChange }) => {
   };
   return (
     <div data-testid="client-notes">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3 flex items-center gap-2"><StickyNote className="w-3.5 h-3.5" />Notas importantes</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-3 flex items-center gap-2"><StickyNote className="w-3.5 h-3.5" />Notas importantes</div>
       <div className="flex flex-wrap gap-2 mb-3">
         {c.notas_importantes.map((n) => (
           <span key={n.id} className="group inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-[#c5a572]/30 bg-[#c5a572]/10 text-amber-200" data-testid="client-note-chip">
@@ -43,7 +43,7 @@ const Notes = ({ c, onChange }) => {
             <button onClick={() => del(n.id)} className="text-[#c5a572]/60 hover:text-red-400" data-testid={`del-note-${n.id}`}><Trash2 className="w-3 h-3" /></button>
           </span>
         ))}
-        {!c.notas_importantes.length && <span className="text-xs text-zinc-600">Sin notas. Ej: alergia al níquel, estilo minimalista, talla 7.</span>}
+        {!c.notas_importantes.length && <span className="text-xs text-zinc-400">Sin notas. Ej: alergia al níquel, estilo minimalista, talla 7.</span>}
       </div>
       <form onSubmit={add} className="flex gap-2">
         <Input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Agregar nota importante" className="bg-zinc-900 border-zinc-800" data-testid="input-client-note" />
@@ -57,7 +57,7 @@ const WhatsApp = ({ c }) => {
   const brand = useBrand();
   const [tpl, setTpl] = useState(TEMPLATES[0].id);
   const t = TEMPLATES.find((x) => x.id === tpl);
-  if (!c.telefono) return <div className="text-xs text-zinc-500">Agrega un teléfono (con código de país, ej. +52...) para enviar WhatsApp.</div>;
+  if (!c.telefono) return <div className="text-xs text-zinc-400">Agrega un teléfono (con código de país, ej. +52...) para enviar WhatsApp.</div>;
   return (
     <div data-testid="client-whatsapp">
       <div className="flex flex-wrap gap-2 mb-3">
@@ -92,7 +92,7 @@ export const ClientProfile = ({ clientId, onClose, onChanged }) => {
               <DialogTitle className="font-display text-2xl flex flex-wrap items-center gap-3">
                 {c.nombre}
                 <button onClick={() => patch("vip", !c.vip)} data-testid="client-vip-toggle"
-                  className={`text-xs font-sans px-2.5 py-1 rounded-full border flex items-center gap-1 transition-colors ${c.vip ? "bg-[#c5a572]/20 border-[#c5a572]/50 text-amber-300" : "border-zinc-700 text-zinc-500 hover:text-amber-300"}`}>
+                  className={`text-xs font-sans px-2.5 py-1 rounded-full border flex items-center gap-1 transition-colors ${c.vip ? "bg-[#c5a572]/20 border-[#c5a572]/50 text-amber-300" : "border-zinc-700 text-zinc-400 hover:text-amber-300"}`}>
                   <Crown className="w-3 h-3" />{c.vip ? "Cliente VIP" : "Marcar VIP"}
                 </button>
                 {c.dias_cumpleanos !== null && c.dias_cumpleanos <= 14 && (
@@ -106,7 +106,7 @@ export const ClientProfile = ({ clientId, onClose, onChanged }) => {
               <div className="grid grid-cols-3 gap-2 text-center">
                 {[["Pedidos", c.pedidos.length], ["Total", money(c.total_gastado)], ["Saldo", money(c.saldo_pendiente)]].map(([l, v]) => (
                   <div key={l} className="rounded-xl bg-zinc-900 border border-white/5 py-3">
-                    <div className="text-[10px] uppercase tracking-widest text-zinc-500">{l}</div>
+                    <div className="text-xs uppercase tracking-widest text-zinc-400">{l}</div>
                     <div className={`font-display text-xl ${l === "Saldo" && c.saldo_pendiente > 0 ? "text-red-400" : ""}`} data-testid={`client-stat-${l.toLowerCase()}`}>{v}</div>
                   </div>
                 ))}
@@ -119,8 +119,8 @@ export const ClientProfile = ({ clientId, onClose, onChanged }) => {
               <Notes c={c} onChange={update} />
               <div className="border-t border-white/5 pt-5"><WhatsApp c={c} /></div>
               <div className="border-t border-white/5 pt-5" data-testid="client-orders">
-                <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Historial de pedidos</div>
-                {!c.pedidos.length && <div className="text-xs text-zinc-600">Sin pedidos aún.</div>}
+                <div className="text-xs uppercase tracking-widest text-zinc-400 mb-3">Historial de pedidos</div>
+                {!c.pedidos.length && <div className="text-xs text-zinc-400">Sin pedidos aún.</div>}
                 <div className="space-y-2">
                   {c.pedidos.map((o) => (
                     <div key={o.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-zinc-900/60 border border-white/5 px-3 py-2.5 text-sm" data-testid={`client-order-${o.id}`}>
@@ -129,7 +129,7 @@ export const ClientProfile = ({ clientId, onClose, onChanged }) => {
                       {["atrasado", "por_vencer"].includes(o.estado_entrega) && <DueBadge status={o.estado_entrega} />}
                       <PayBadge status={o.estado_pago} />
                       <span className="text-xs font-mono text-zinc-400">{money(o.precio)}</span>
-                      <span className="text-[10px] text-zinc-600 w-full">{fmtDate(o.created_at, { day: "numeric", month: "short", year: "numeric" })}</span>
+                      <span className="text-xs text-zinc-400 w-full">{fmtDate(o.created_at, { day: "numeric", month: "short", year: "numeric" })}</span>
                     </div>
                   ))}
                 </div>

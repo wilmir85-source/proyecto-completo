@@ -41,7 +41,7 @@ export default function Clientes() {
     <div className="p-5 md:p-12">
       <header className="flex items-end justify-between mb-10">
         <div>
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Directorio</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Directorio</div>
           <h1 className="font-display text-4xl font-light">Clientes</h1>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -54,7 +54,7 @@ export default function Clientes() {
               <Input placeholder="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} className="bg-zinc-900 border-zinc-800" data-testid="input-client-nombre" />
               <Input placeholder="Teléfono con código de país (+52...)" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} className="bg-zinc-900 border-zinc-800" data-testid="input-client-telefono" />
               <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="bg-zinc-900 border-zinc-800" data-testid="input-client-email" />
-              <label className="block text-xs text-zinc-500">Cumpleaños
+              <label className="block text-xs text-zinc-400">Cumpleaños
                 <Input type="date" value={form.cumpleanos} onChange={(e) => setForm({ ...form, cumpleanos: e.target.value })} className="bg-zinc-900 border-zinc-800 mt-1" data-testid="input-client-cumpleanos" />
               </label>
               <Input placeholder="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} className="bg-zinc-900 border-zinc-800" data-testid="input-client-notas" />
@@ -66,7 +66,7 @@ export default function Clientes() {
 
       <Input placeholder="Buscar por nombre o teléfono" value={q} onChange={(e) => setQ(e.target.value)} className="bg-zinc-950 border-zinc-800 max-w-sm mb-6" data-testid="client-search" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="clients-grid">
-        {clients.length === 0 && <div className="text-sm text-zinc-500">Aún no hay clientes</div>}
+        {clients.length === 0 && <div className="text-sm text-zinc-400">Aún no hay clientes</div>}
         {list.map((c) => (
           <div key={c.id} onClick={() => setSelected(c.id)} className="card-glass rounded-2xl p-5 relative group cursor-pointer hover:border-[#c5a572]/30 transition-colors" data-testid={`client-${c.id}`}>
             <div className="flex items-center gap-3 mb-3">
@@ -75,17 +75,17 @@ export default function Clientes() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate flex items-center gap-1.5">{c.nombre}{c.vip && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" data-testid={`client-vip-${c.id}`} />}</div>
-                {c.telefono && <div className="text-xs text-zinc-500">{c.telefono}</div>}
+                {c.telefono && <div className="text-xs text-zinc-400">{c.telefono}</div>}
               </div>
-              <button onClick={(e) => { e.stopPropagation(); remove(c.id); }} className="text-zinc-600 hover:text-red-400 md:opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`del-client-${c.id}`}>
+              <button onClick={(e) => { e.stopPropagation(); remove(c.id); }} className="text-zinc-400 hover:text-red-400 md:opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`del-client-${c.id}`}>
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex flex-wrap gap-2 text-[11px] text-zinc-500">
+            <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
               {c.cumpleanos && <span className="flex items-center gap-1"><Cake className="w-3 h-3 text-pink-400" />{new Date(`${c.cumpleanos}T12:00:00`).toLocaleDateString("es", { day: "numeric", month: "long" })}</span>}
               {c.notas_importantes?.length > 0 && <span className="flex items-center gap-1 text-amber-300/80"><StickyNote className="w-3 h-3" />{c.notas_importantes[0].texto}{c.notas_importantes.length > 1 ? ` +${c.notas_importantes.length - 1}` : ""}</span>}
             </div>
-            {c.notas && <div className="text-xs text-zinc-500 mt-2 line-clamp-2">{c.notas}</div>}
+            {c.notas && <div className="text-xs text-zinc-400 mt-2 line-clamp-2">{c.notas}</div>}
           </div>
         ))}
       </div>

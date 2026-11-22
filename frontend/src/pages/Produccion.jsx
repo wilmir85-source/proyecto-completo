@@ -19,20 +19,20 @@ const DeptCard = ({ d, onOpen }) => {
         <span className="font-display text-3xl font-light">{d.total}</span>
       </div>
       <div className="flex gap-3 text-xs mb-4">
-        <span className={d.atrasados ? "text-red-400" : "text-zinc-600"} data-testid={`dept-late-${d.stage}`}>{d.atrasados} atrasados</span>
-        <span className={d.por_vencer ? "text-yellow-400" : "text-zinc-600"}>{d.por_vencer} por vencer</span>
+        <span className={d.atrasados ? "text-red-400" : "text-zinc-400"} data-testid={`dept-late-${d.stage}`}>{d.atrasados} atrasados</span>
+        <span className={d.por_vencer ? "text-yellow-400" : "text-zinc-400"}>{d.por_vencer} por vencer</span>
       </div>
       <div className="space-y-1.5 mb-4">
         {d.pedidos.slice(0, 4).map((o) => (
           <button key={o.id} onClick={() => onOpen(o.id)} className="w-full flex items-center gap-2 text-left text-xs px-2 py-1.5 rounded-md hover:bg-white/5 transition-colors" data-testid={`dept-order-${o.id}`}>
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${DUE_STYLES[o.estado_entrega].dot}`} />
             <span className="truncate flex-1 text-zinc-300">{o.cliente}</span>
-            <span className="text-zinc-500 shrink-0">{fmtDate(o.fecha_entrega, { day: "numeric", month: "short" })}</span>
+            <span className="text-zinc-400 shrink-0">{fmtDate(o.fecha_entrega, { day: "numeric", month: "short" })}</span>
           </button>
         ))}
-        {d.pedidos.length > 4 && <div className="text-[10px] text-zinc-600 px-2">+{d.pedidos.length - 4} más</div>}
+        {d.pedidos.length > 4 && <div className="text-xs text-zinc-400 px-2">+{d.pedidos.length - 4} más</div>}
       </div>
-      <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 border-t border-white/5 pt-3">
+      <div className="flex items-center gap-1.5 text-xs text-zinc-400 border-t border-white/5 pt-3">
         <Users className="w-3 h-3" /> {d.trabajadores.length ? d.trabajadores.join(", ") : "Sin trabajadores"}
       </div>
     </div>
@@ -45,7 +45,7 @@ const WorkerRow = ({ w }) => (
       <Avatar name={w.name} />
       <div className="min-w-0">
         <div className="truncate">{w.name}</div>
-        <div className="text-[10px] text-zinc-500">{ROLE_LABELS[w.role]} · {w.departamento || "—"}</div>
+        <div className="text-xs text-zinc-400">{ROLE_LABELS[w.role]} · {w.departamento || "—"}</div>
       </div>
     </div>
     <div className="col-span-2 text-center font-mono">{w.asignados}</div>
@@ -53,7 +53,7 @@ const WorkerRow = ({ w }) => (
       {w.atrasados > 0 && <DueBadge status="atrasado" />}
       {w.atrasados === 0 && w.por_vencer > 0 && <DueBadge status="por_vencer" />}
     </div>
-    <div className="col-span-3"><ProgressBar value={w.progreso_promedio} /><div className="text-[10px] text-zinc-500 mt-1">{w.progreso_promedio}% prom.</div></div>
+    <div className="col-span-3"><ProgressBar value={w.progreso_promedio} /><div className="text-xs text-zinc-400 mt-1">{w.progreso_promedio}% prom.</div></div>
   </div>
 );
 
@@ -72,7 +72,7 @@ export default function Produccion() {
   return (
     <div className="p-5 md:p-12 max-w-[1600px]">
       <header className="mb-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Control de planta</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Control de planta</div>
         <h1 className="font-display text-4xl font-light">Producción por departamento</h1>
         <div className="flex gap-4 mt-3 text-xs text-zinc-400">
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500" />Atrasado</span>
@@ -85,7 +85,7 @@ export default function Produccion() {
       </div>
       <div className="card-glass rounded-2xl p-6" data-testid="workers-table">
         <h2 className="font-display text-xl mb-4">Carga por trabajador</h2>
-        <div className="grid grid-cols-12 gap-3 text-[10px] uppercase tracking-widest text-zinc-500 pb-2 border-b border-white/10">
+        <div className="grid grid-cols-12 gap-3 text-xs uppercase tracking-widest text-zinc-400 pb-2 border-b border-white/10">
           <div className="col-span-5">Trabajador</div><div className="col-span-2 text-center">Asignados</div>
           <div className="col-span-2 text-center">Estado</div><div className="col-span-3">Avance</div>
         </div>

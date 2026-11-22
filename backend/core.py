@@ -5,6 +5,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 import os
+import re
 import uuid
 import logging
 import requests
@@ -165,6 +166,17 @@ def enrich_order(o: dict) -> dict:
 
 def is_staff(user) -> bool:
     return user.get("role") in STAFF_ROLES
+
+
+MONEY_RX = re.compile(r"Q\s?\d|abono|saldo", re.I)
+
+
+def hide_money(order: dict, user) -> dict:
+    if is_staff(user):
+        return order
+    order.update({"precio": 0, "abonos": [], "abonado": 0, "saldo": 0, "estado_pago": "sin_precio"})
+    order["historial"] = [h for h in order.get("historial") or [] if not MONEY_RX.search(h.get("accion") or "")]
+    return order
 
 
 def can_work_on(user, order) -> bool:

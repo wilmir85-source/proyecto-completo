@@ -9,6 +9,11 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontSize: {
+        xs: ['0.875rem', { lineHeight: '1.3rem' }],
+        sm: ['1rem', { lineHeight: '1.55rem' }],
+        base: ['1.0625rem', { lineHeight: '1.7rem' }],
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

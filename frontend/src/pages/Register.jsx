@@ -41,24 +41,24 @@ export default function Register() {
           <p className="text-sm text-zinc-400 mb-8">Únete al taller. Tu rol se asigna según tu departamento (el admin puede cambiarlo).</p>
           <form onSubmit={submit} className="space-y-4" data-testid="register-form">
             <div>
-              <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Nombre</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Nombre</label>
               <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-zinc-950 border-zinc-800 h-11" placeholder="Tu nombre" data-testid="register-name" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Email</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Email</label>
               <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="bg-zinc-950 border-zinc-800 h-11" placeholder="tu@joyeria.com" data-testid="register-email" />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Contraseña</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Contraseña</label>
               <Input type="password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="bg-zinc-950 border-zinc-800 h-11" placeholder="Mínimo 6 caracteres" data-testid="register-password" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Departamento</label>
+                <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Departamento</label>
                 <SimpleSelect value={form.departamento} onChange={(v) => setForm({ ...form, departamento: v })} options={DEPARTMENTS} placeholder="Elige..." testid="register-departamento" className="bg-zinc-950 h-11" />
               </div>
               <div>
-                <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Teléfono</label>
+                <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Teléfono</label>
                 <Input value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} className="bg-zinc-950 border-zinc-800 h-11" placeholder="Opcional" data-testid="register-telefono" />
               </div>
             </div>
@@ -66,7 +66,7 @@ export default function Register() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Crear cuenta"}
             </Button>
           </form>
-          <div className="mt-6 text-sm text-zinc-500 text-center">
+          <div className="mt-6 text-sm text-zinc-400 text-center">
             ¿Ya tienes cuenta?{" "}
             <Link to="/login" className="text-[#c5a572] hover:text-amber-400" data-testid="link-login">Ingresar</Link>
           </div>

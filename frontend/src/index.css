@@ -1,48 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import './theme-light.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  --app-bg: #f6efe3;
+  --app-text: #1c1917;
+  --glass-bg: rgba(255, 252, 246, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.85);
+  --glass-edge: rgba(120, 85, 30, 0.12);
+  --glass-shadow: 0 1px 2px rgba(120, 85, 30, 0.06), 0 18px 40px -20px rgba(120, 85, 30, 0.28);
+  --gold-text: #7a5717;
+  --scroll-thumb: #cdb991;
+  --m-text: #1c1917; --m-muted: #57534e; --m-gold: #7a5717; --m-danger: #b91c1c;
+  --m-surface: rgba(255, 252, 246, 0.78); --m-surface-2: #f1e7d6; --m-inset: #fbf6ee; --m-border: rgba(120, 85, 30, 0.16);
+  --m-overlay: rgba(41, 30, 15, 0.45);
+}
+.dark {
   color-scheme: dark;
+  --app-bg: #08080a;
+  --app-text: #ececee;
+  --glass-bg: rgba(24, 24, 28, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-edge: rgba(255, 255, 255, 0.06);
+  --glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 20px 44px -22px rgba(0, 0, 0, 0.85);
+  --gold-text: #e3c993;
+  --scroll-thumb: #52525b;
+  --m-text: #f4f4f5; --m-muted: #a1a1aa; --m-gold: #e3c993; --m-danger: #fca5a5;
+  --m-surface: rgba(24, 24, 28, 0.7); --m-surface-2: #222; --m-inset: #0d0d0f; --m-border: rgba(255, 255, 255, 0.1);
+  --m-overlay: rgba(0, 0, 0, 0.85);
 }
 
-html, body, #root {
-  background-color: #09090b;
-  color: #e4e4e7;
-  min-height: 100vh;
-}
+::selection { background: rgba(197, 165, 114, 0.35); }
+:focus-visible { outline: 3px solid #c5a572; outline-offset: 2px; border-radius: 10px; }
+
+html, body, #root { background-color: var(--app-bg); color: var(--app-text); min-height: 100vh; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  font-family: 'Manrope', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
-  /* FONDO DE LUJO: Destellos de oro y zafiro para que el cristal resalte */
-  background-color: #09090b;
-  background-image: 
-    radial-gradient(circle at 15% 10%, rgba(197, 165, 114, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(14, 116, 144, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 50% 50%, rgba(24, 24, 27, 1) 0%, #09090b 100%);
-  background-attachment: fixed;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* La fuente de los títulos ahora es Serif de lujo */
-.font-display { font-family: 'Playfair Display', serif; letter-spacing: 0.02em; font-weight: 600; }
+/* Fondo con destellos suaves de oro */
+.app-shell, body {
+  background-color: var(--app-bg);
+  background-image:
+    radial-gradient(900px 600px at 0% 0%, rgba(214, 178, 108, 0.22), transparent 60%),
+    radial-gradient(800px 600px at 100% 100%, rgba(197, 165, 114, 0.14), transparent 60%);
+  background-attachment: fixed;
+}
+.dark .app-shell, .dark body {
+  background-image:
+    radial-gradient(900px 600px at 0% 0%, rgba(197, 165, 114, 0.10), transparent 60%),
+    radial-gradient(800px 600px at 100% 100%, rgba(14, 116, 144, 0.08), transparent 60%);
+}
+
+.font-display { font-family: 'Cormorant Garamond', 'Playfair Display', serif; letter-spacing: 0.01em; font-weight: 600; font-variant-numeric: lining-nums; }
 .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* Iconos finos y elegantes */
+svg.lucide { stroke-width: 1.5; }
 
 @layer base {
   :root {
+    --background: 38 50% 93%;
+    --foreground: 24 10% 10%;
+    --card: 40 60% 98%;
+    --card-foreground: 24 10% 10%;
+    --popover: 40 60% 98%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 38 50% 45%;
+    --primary-foreground: 40 60% 98%;
+    --secondary: 36 30% 88%;
+    --secondary-foreground: 24 10% 10%;
+    --muted: 36 30% 88%;
+    --muted-foreground: 25 6% 34%;
+    --accent: 36 30% 88%;
+    --accent-foreground: 24 10% 10%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 34 25% 82%;
+    --input: 34 25% 80%;
+    --ring: 38 50% 45%;
+    --radius: 0.875rem;
+  }
+  .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 6% 10%;
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 38 34% 61%; 
-    --primary-foreground: 0 0% 100%;
+    --primary: 38 34% 61%;
+    --primary-foreground: 24 30% 8%;
     --secondary: 240 4% 16%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 4% 16%;
@@ -54,7 +113,6 @@ body {
     --border: 240 4% 16%;
     --input: 240 4% 16%;
     --ring: 38 34% 61%;
-    --radius: 0.75rem;
   }
 }
 
@@ -63,45 +121,96 @@ body {
 }
 
 /* Scrollbar elegante */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #09090b; }
-::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 10px; border: 2px solid var(--app-bg); }
 ::-webkit-scrollbar-thumb:hover { background: #c5a572; }
 
-/* =========================================
-   TARJETAS DE LUJO (Glassmorphism + Borde Metálico)
-   ========================================= */
-.card-glass {
-  background: rgba(24, 24, 27, 0.55);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid rgba(197, 165, 114, 0.4); 
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5),
-    0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  border-radius: 1rem;
-  position: relative;
-  overflow: hidden;
+@layer utilities {
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; -webkit-overflow-scrolling: touch; }
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 9999px; border: 0; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #c5a572; }
+  .scrollbar-visible { scrollbar-color: #c5a572 var(--glass-edge); }
+  .scrollbar-visible::-webkit-scrollbar { height: 12px; }
+  .scrollbar-visible::-webkit-scrollbar-track { background: var(--glass-edge); border-radius: 9999px; margin: 0 16px; }
+  .scrollbar-visible::-webkit-scrollbar-thumb { background: rgba(197, 165, 114, 0.75); border-radius: 9999px; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
 }
 
-/* Efecto de doble marco (como una vitrina de joyas) */
+/* =========================================
+   CRISTAL (glassmorphism suave)
+   ========================================= */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 0 0 1px var(--glass-edge), var(--glass-shadow);
+}
+.card-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 0 0 1px var(--glass-edge), var(--glass-shadow);
+  border-radius: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
 .card-glass::before {
   content: "";
   position: absolute;
-  inset: 4px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(197, 165, 114, 0.15);
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197, 165, 114, 0.55), transparent);
   pointer-events: none;
 }
-
 .card-glass:hover {
-  border-color: rgba(197, 165, 114, 0.7);
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), 
-    0 8px 32px 0 rgba(197, 165, 114, 0.15);
-  transition: all 0.3s ease;
+  box-shadow: 0 0 0 1px rgba(197, 165, 114, 0.35), 0 22px 48px -22px rgba(160, 120, 50, 0.35);
 }
+
+/* =========================================
+   MENÚ: estado activo e iconos
+   ========================================= */
+.nav-active {
+  background: linear-gradient(135deg, #f1d79c 0%, #d2ab62 55%, #b8893b 100%);
+  color: #2b1d06 !important;
+  box-shadow: 0 8px 20px -10px rgba(184, 137, 59, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.nav-icon { background: rgba(197, 165, 114, 0.12); color: var(--gold-text); }
+.nav-active .nav-icon { background: rgba(255, 255, 255, 0.35); color: #2b1d06; }
+.dark .nav-active .nav-icon { background: rgba(0, 0, 0, 0.12); }
+
+/* =========================================
+   BOTONES con degradado suave
+   ========================================= */
+.btn-gold,
+button.bg-\[\#c5a572\], a.bg-\[\#c5a572\],
+button.bg-amber-600, a.bg-amber-600 {
+  background-image: linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%) !important;
+  color: #23180a !important;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 10px 24px -12px rgba(176, 128, 51, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.btn-gold:hover,
+button.bg-\[\#c5a572\]:hover, a.bg-\[\#c5a572\]:hover,
+button.bg-amber-600:hover, a.bg-amber-600:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -12px rgba(176, 128, 51, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.btn-soft {
+  background: linear-gradient(135deg, rgba(241, 215, 156, 0.35), rgba(197, 165, 114, 0.15));
+  color: var(--gold-text);
+  border: 1px solid rgba(197, 165, 114, 0.45);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.btn-soft:hover { background: linear-gradient(135deg, rgba(241, 215, 156, 0.55), rgba(197, 165, 114, 0.25)); transform: translateY(-1px); }
+button:not(:disabled):active, a:active { transform: scale(0.98); }
 
 /* =========================================
    TEXTO DORADO BRILLANTE (Para los números)
@@ -112,8 +221,8 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
-  text-shadow: 0px 2px 4px rgba(0,0,0,0.3);
 }
+html:not(.dark) .text-gold-gradient { background: linear-gradient(120deg, #8a6420, #c9a058 45%, #7a5717 100%); -webkit-background-clip: text; background-clip: text; }
 
 /* =========================================
    ARC REACTOR (JARVIS) - Animaciones intactas

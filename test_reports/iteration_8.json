@@ -1,0 +1,51 @@
+{
+  "summary": "Frontend-only testing of the Day/Night redesign (backend skipped). Checked: theme toggle, saved choice and system-theme fallback; Jarvis stays dark; contrast on 17 pages at 1920px (automated WCAG scan of every text element plus screenshots); order detail, new order and notification panels in day mode; Dashboard direct navigation; mobile 390px pill nav, Más sheet and FAB; desktop sidebar; Kanban and Equipo horizontal scroll; regressions (login in both themes, creating an order as admin, sending a requisition, notification bell). Almost everything passes. Two real visual problems in day mode: the Moldes page is still fully dark, and the 'Cobrado' line and legend in the Dashboard revenue chart are almost invisible.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Moldes page (pages/Moldes.jsx)", "issue": "In DAY mode the whole page is a leftover dark block (#0a0a0a background, #151515 search bar, white text, sans-serif font). The page uses inline style={{...}} objects (styles at lines ~226-255), so neither theme-light.css nor dark: classes reach it. Its modals (modalBg rgba(0,0,0,0.95), modal #151515) and folder cards are dark as well.", "selector": "/moldes main content", "priority": "HIGH"},
+      {"component": "DashboardCharts revenue line chart", "issue": "In DAY mode the 'Cobrado' line and legend use #e4e4e7 on a cream card (contrast 1.20:1, almost invisible). The 'Vendido' legend #c5a572 is 2.21:1. The CartesianGrid rgba(255,255,255,0.05) cannot be seen on cream. The axis colour #71717a is fine. The tooltip stays dark (rgba(18,18,20,.85)) in day mode: readable but off-theme. All of these are hardcoded hex values in DashboardCharts.jsx lines 25-61, so they need to depend on the theme (useTheme().applied).", "selector": "[data-testid=chart-revenue] .recharts-legend-item-text", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Deep-link dialogs", "issue": "Closing the order detail opened by ?pedido=<id> (or the new order dialog opened by ?nuevo=<ts>) leaves the query param in the URL. A reload, or going back in history, opens the dialog again. Clear the param on close (setSearchParams).", "affected_selectors": ["[role=dialog]", "[data-testid=fab-new-order]"]}
+    ],
+    "design_issues": [
+      {"screen": "Nuevo pedido dialog (desktop)", "issues": ["The 4-column row squeezes the fields: placeholders are cut off ('Precio tc', 'Fabricaci', 'Peso metal (g', 'Metal (oro 18k...')", "The delivery date uses the browser's native datetime-local picker, not the shadcn calendar (the order detail dialog does the same). Several fields are native <select>s."]},
+      {"screen": "Mobile 'Más' sheet", "issues": ["While the sheet is open, the current tab (e.g. Inicio) and 'Más' are both highlighted with the gold pill"]},
+      {"screen": "Mobile toasts", "issues": ["The Sonner toast ('Bienvenido de vuelta') appears at the bottom and covers the floating bottom nav at 390px. Use position top-center or a bottom offset of about 110px on mobile."]},
+      {"screen": "Tablet 768-1024px", "issues": ["The floating sidebar (18.5rem) appears from 768px, so content gets only about 416px at 800px width. Equipo rows must be scrolled sideways to see names (it scrolls correctly, but it is cramped). Consider showing the sidebar from lg and the bottom nav below that."]},
+      {"screen": "Login", "issues": ["There is no theme toggle on the login page. It follows the system theme or the saved choice, which is acceptable."]}
+    ]
+  },
+  "passed_checks": [
+    "theme-toggle switches the html.dark class and writes jarvis_theme=dark/light. The choice survives a reload. A saved 'light' beats a system dark preference. With no saved value, prefers-color-scheme light gives day mode and dark gives night mode (inline script in index.html, so no flash)",
+    "Day mode: body is cream, night mode body is rgb(8,8,10). The contrast scan found 0 text elements below 3:1 on /, /pedidos, /produccion, /equipo, /requisiciones, /ventas, /clientes, /inventario, /tareas, /mis-trabajos, /historial, /mi-joyeria and /iphone, and in the order detail dialog, new order dialog and notification panel (the only failures were the chart legend). Night mode scan: 0 failures",
+    "/jarvis forces dark while localStorage stays 'light'. Navigating away restores day mode",
+    "Stat cards go to /pedidos, ?filter=atrasados, ?filter=por_vencer, /mis-trabajos and /tareas. order-row-<id> goes to /pedidos?pedido=<id> and opens that order's detail. attention-<id> opens that order. task-item goes to /tareas",
+    "fab-new-order from the Dashboard opens 'Nuevo pedido' on /pedidos. It also opens again on /pedidos, twice in a row",
+    "Mobile 390px: bottom-nav sits 12px from the left, right and bottom edges. All 5 tabs are 66x62px. The FAB is 32px above the nav with no overlap. The brand text does not wrap (nowrap, 136px). The page does not scroll sideways. The Más sheet opens and all 11 items navigate and close it",
+    "Desktop sidebar: the active item has the gold gradient. All 15 nav links are present and navigate",
+    "kanban-scroll: scrollWidth 4168 vs clientWidth 1624 on desktop and 4230 vs 390 on mobile; scrollLeft changes. team-scroll at 800px: 928 vs 416; scrolls; touch-action pan-x pan-y",
+    "Regression: login renders well in both themes. Admin order creation through the UI worked (dialog closed and the card appeared). The requisition form submitted (success toast, item listed). The notification bell panel opens and lists the requisition notice. No page errors"
+  ],
+  "test_report_links": ["/app/tests/contrast_scan.js"],
+  "action_items": [
+    "HIGH: Theme Moldes.jsx. Replace the inline style objects with Tailwind classes (card-glass, btn-gold, dark: variants), or switch them on useTheme().applied. This covers the page, the modals and the folder cards.",
+    "MEDIUM: Make the DashboardCharts colours depend on the theme. In day mode use a dark stone colour for the 'Cobrado' stroke and legend (e.g. #57534e), a darker gold for 'Vendido' (#7a5717), a grid like rgba(120,85,30,0.12) and a light tooltip.",
+    "LOW: Clear the ?pedido / ?nuevo query params when the dialog closes, so a reload does not reopen it.",
+    "LOW: New order dialog: give the precio/anticipo/stage/tipo row 2 columns (or more width) so placeholders are not cut off. Consider the shadcn calendar for the delivery date.",
+    "LOW: Mobile: don't highlight the current tab while the Más sheet is open. Move toasts so they don't cover the floating nav."
+  ],
+  "critical_code_review_comments": [
+    "Moldes.jsx (464 lines) uses only inline styles and ignores the design system and theme. It is the only page outside the redesign.",
+    "DashboardCharts.jsx hardcodes dark-only hex colours for grid, lines, legend and tooltip.",
+    "Tablero.jsx reads ?pedido and ?nuevo but never removes them. NewOrderDialog opens on every openSignal change, which is fine because the FAB uses Date.now().",
+    "theme-light.css works by overriding many legacy dark utility classes with !important. Any new arbitrary dark class (e.g. bg-[#0a0a0a], bg-neutral-900) will not be covered. Prefer dark: variants in new code."
+  ],
+  "updated_files": ["/app/tests/contrast_scan.js (new helper, test only)"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "92%"},
+  "seed_data_creation": "Created test data as admin: orders 3aab7f96..., 61ef87de... and 202458c4... (UI), task 247e6dcf..., requisition ed4fa8aa... and 1 inbox notification. All were hard-deleted by id afterwards. The order folio counter moved forward (MJ-0005 to MJ-0007), which can't be undone.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use /app/tests/contrast_scan.js with page.evaluate(open(...).read()) to list text elements below 3:1 contrast. It skips gradient backgrounds and cannot see dark blocks that have readable white text (Moldes was found by screenshot). Day mode = localStorage jarvis_theme='light'. The preview DB had 0 orders, 0 tasks and 0 clients before testing; create TEST_ data when needed. The server date is Nov 2026."
+}

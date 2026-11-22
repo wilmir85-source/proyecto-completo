@@ -1,15 +1,16 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
 
 export const FloatingActionButton = () => {
+  const nav = useNavigate();
   return (
-    <Link
-      to="/pedidos"
-      className="fixed right-5 md:right-10 z-40 bg-amber-600 hover:bg-[#c5a572] text-black p-4 rounded-full shadow-xl shadow-amber-900/40 transition-transform hover:scale-110 active:scale-95 flex items-center justify-center border-2 border-amber-400/50"
-      style={{ bottom: "150px" }} // <--- ESTO OBLIGA AL BOTÓN A SUBIR
-      aria-label="Nuevo Pedido"
+    <button
+      onClick={() => nav(`/pedidos?nuevo=${Date.now()}`)}
+      data-testid="fab-new-order"
+      aria-label="Nuevo pedido"
+      className="btn-gold fixed right-5 md:right-10 bottom-[124px] lg:bottom-10 z-40 w-16 h-16 rounded-2xl flex items-center justify-center shadow-xl transition-transform hover:scale-105 active:scale-95"
     >
-      <Plus className="w-6 h-6" strokeWidth={3} />
-    </Link>
+      <Plus className="w-7 h-7" strokeWidth={2} />
+    </button>
   );
 };

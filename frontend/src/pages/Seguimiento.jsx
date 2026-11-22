@@ -22,7 +22,7 @@ const Timeline = ({ flujo, stage }) => {
               </span>
               {i < flujo.length - 1 && <span className={`w-px h-6 ${done ? "bg-[#c5a572]" : "bg-zinc-800"}`} />}
             </div>
-            <span className={`text-sm pt-0.5 ${current ? "text-amber-300 font-medium" : done ? "text-zinc-300" : "text-zinc-600"}`}>{s}{current && " · en proceso"}</span>
+            <span className={`text-sm pt-0.5 ${current ? "text-amber-300 font-medium" : done ? "text-zinc-300" : "text-zinc-400"}`}>{s}{current && " · en proceso"}</span>
           </li>
         );
       })}
@@ -31,7 +31,7 @@ const Timeline = ({ flujo, stage }) => {
 };
 
 const Row = ({ label, children, testid }) => (
-  <div className="flex justify-between gap-4 py-2.5 border-b border-white/5 text-sm"><span className="text-zinc-500">{label}</span><span className="text-right text-zinc-200" data-testid={testid}>{children}</span></div>
+  <div className="flex justify-between gap-4 py-2.5 border-b border-white/5 text-sm"><span className="text-zinc-400">{label}</span><span className="text-right text-zinc-200" data-testid={testid}>{children}</span></div>
 );
 
 export default function Seguimiento() {
@@ -51,27 +51,27 @@ export default function Seguimiento() {
         <header className="text-center space-y-3">
           <img src={`${API}/public/logo?v=${n.logo_v}`} alt={n.nombre} className="w-20 h-20 rounded-2xl mx-auto object-cover border border-[#c5a572]/30" />
           <div className="font-display text-2xl">{n.nombre}</div>
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500">Seguimiento de tu pedido</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-zinc-400">Seguimiento de tu pedido</div>
         </header>
         <div className="card-glass rounded-2xl p-6">
           <div className="flex items-center justify-between mb-1">
             <span className="text-zinc-400 text-sm">Hola, {d.cliente}</span>
-            {d.vip && <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#c5a572]/15 border border-[#c5a572]/40 text-amber-300" data-testid="tracking-vip"><Crown className="w-3 h-3" />Cliente VIP</span>}
+            {d.vip && <span className="flex items-center gap-1 text-xs uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#c5a572]/15 border border-[#c5a572]/40 text-amber-300" data-testid="tracking-vip"><Crown className="w-3 h-3" />Cliente VIP</span>}
           </div>
           <h1 className="font-display text-2xl font-light mb-4" data-testid="tracking-description">{d.descripcion}</h1>
           <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-1"><div className="h-full bg-gradient-to-r from-amber-600 to-amber-400" style={{ width: `${d.stage === "Terminado" ? 100 : d.progreso}%` }} /></div>
-          <div className="text-xs text-zinc-500 mb-4" data-testid="tracking-progress">{d.stage === "Terminado" ? "¡Tu pieza está lista!" : `Avance ${d.progreso}%`}</div>
+          <div className="text-xs text-zinc-400 mb-4" data-testid="tracking-progress">{d.stage === "Terminado" ? "¡Tu pieza está lista!" : `Avance ${d.progreso}%`}</div>
           <Row label="Tipo de trabajo" testid="tracking-type">{d.tipo}</Row>
           <Row label="Etapa actual" testid="tracking-stage">{d.stage}</Row>
           {(d.metal || d.piedra) && <Row label="Material">{[d.metal, d.piedra].filter(Boolean).join(" · ")}</Row>}
           <Row label="Entrega estimada" testid="tracking-delivery">
-            <span className="inline-flex items-center gap-1">{d.estado_entrega === "atrasado" ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> : <Clock className="w-3.5 h-3.5 text-zinc-500" />}{fmtDate(d.fecha_entrega, { weekday: "short", day: "numeric", month: "long" })}</span>
+            <span className="inline-flex items-center gap-1">{d.estado_entrega === "atrasado" ? <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> : <Clock className="w-3.5 h-3.5 text-zinc-400" />}{fmtDate(d.fecha_entrega, { weekday: "short", day: "numeric", month: "long" })}</span>
           </Row>
         </div>
         <div className="card-glass rounded-2xl p-6" data-testid="tracking-payment">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs uppercase tracking-widest text-zinc-500">Pago</span>
-            <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${PAY_STYLES[d.estado_pago].chip}`} data-testid="tracking-pay-status">{PAY_TEXT[d.estado_pago]}</span>
+            <span className="text-xs uppercase tracking-widest text-zinc-400">Pago</span>
+            <span className={`text-xs uppercase tracking-wider px-2 py-0.5 rounded border ${PAY_STYLES[d.estado_pago].chip}`} data-testid="tracking-pay-status">{PAY_TEXT[d.estado_pago]}</span>
           </div>
           <Row label="Total">{money(d.precio)}</Row>
           <Row label="Abonado">{money(d.abonado)}</Row>
@@ -84,8 +84,8 @@ export default function Seguimiento() {
           </div>
         )}
         {wa && <a href={wa} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-black font-medium transition-colors" data-testid="tracking-whatsapp"><MessageCircle className="w-4 h-4" />Escribir a la joyería</a>}
-        <p className="text-center text-xs text-zinc-500">{n.mensaje}{n.direccion ? ` · ${n.direccion}` : ""}</p>
-        <p className="text-center text-[10px] text-zinc-600">Actualizado {fmtDate(d.actualizado)}</p>
+        <p className="text-center text-xs text-zinc-400">{n.mensaje}{n.direccion ? ` · ${n.direccion}` : ""}</p>
+        <p className="text-center text-xs text-zinc-400">Actualizado {fmtDate(d.actualizado)}</p>
       </div>
     </div>
   );

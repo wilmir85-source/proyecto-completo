@@ -28,7 +28,7 @@ export default function IPhone() {
     /* Agregamos pb-32 para que el menú de abajo no tape nada, y overflow-x-hidden para evitar que la pantalla se mueva a los lados */
     <div className="p-5 md:p-12 max-w-3xl mx-auto pb-32 overflow-x-hidden">
       <header className="mb-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Recordatorios</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Recordatorios</div>
         <h1 className="font-display text-4xl font-light">Jarvis en tu iPhone, Android y PC</h1>
       </header>
 
@@ -54,8 +54,8 @@ export default function IPhone() {
           </Button>
           <Button variant="outline" onClick={copy} disabled={!path} className="border-zinc-700" data-testid="btn-copy-calendar"><Copy className="w-4 h-4 mr-1" />Copiar enlace</Button>
         </div>
-        <code className="block text-[11px] text-zinc-500 break-all bg-zinc-950 rounded-lg p-3 border border-white/5" data-testid="calendar-url">{path ? httpsUrl : "Cargando enlace..."}</code>
-        <p className="text-xs text-zinc-600 mt-3">Si el botón no abre Calendario: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario suscrito → pega el enlace.</p>
+        <code className="block text-xs text-zinc-400 break-all bg-zinc-950 rounded-lg p-3 border border-white/5" data-testid="calendar-url">{path ? httpsUrl : "Cargando enlace..."}</code>
+        <p className="text-xs text-zinc-400 mt-3">Si el botón no abre Calendario: Ajustes → Calendario → Cuentas → Añadir cuenta → Otra → Añadir calendario suscrito → pega el enlace.</p>
       </div>
 
       <div className="card-glass rounded-2xl p-6" data-testid="pwa-card">

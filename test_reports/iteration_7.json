@@ -1,0 +1,42 @@
+{
+  "summary": "Tested Requisiciones + role-based bell notifications, money hiding for trabajador, plain-language nav and role filtering, the arc-reactor Jarvis icon, the mobile bottom nav and 'Más' sheet, horizontal scroll on Kanban and Equipo, and regression flows. Backend: 21/21 pytest pass. Frontend: every requested flow passed on desktop 1920, mobile 390 and tablet 800. No critical bugs. Found a few minor issues, some of them older than this change.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/stats, /api/stats/charts, /api/production, /api/sales/summary", "issue": "This bug was already in the code before this change. routes_misc.all_orders() runs db.orders.find({}) with no filter on is_archived. DELETE /orders/{id} only soft-archives (is_archived=True). Archived or deleted orders are still counted in dashboard stats, revenue charts and sales totals, and they show up in the /api/production Taller lists. Seen in the app: after an order was archived, the dashboard showed 'Pedidos activos 1' while GET /api/orders returned 0."},
+      {"endpoint": "/api/auth/register", "issue": "This was already in the code before this change. Self-registration with departamento='Ventas' automatically gives role 'ventas', so anyone can get access to money data. Consider making new accounts 'trabajador' until an admin promotes them."},
+      {"endpoint": "/api/requisitions", "issue": "There is no DELETE endpoint for requisitions. Test data had to be removed directly in Mongo by id."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "RequisitionForm CategoryPicker", "issue": "At desktop 1920 the form column is narrow (lg:col-span-2) and uses sm:grid-cols-3, so the 'Herramientas' chip label is cut off ('Herramien'). 'Insumos de taller' wraps onto 2 lines.", "selector": "[data-testid='req-cat-Herramientas']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Bell → requisition when already on /requisiciones", "issue": "Requisiciones.jsx loads the list only on mount. If a staff user is already on the page and a new requisition notification opens /requisiciones/<new id>, the dialog opens but the card is not in the list until a reload. The inbox also only polls every 30s.", "affected_selectors": ["[data-testid='req-list']"]}
+    ],
+    "design_issues": [
+      {"screen": "RequisitionDialog (staff)", "issues": ["The 'Guardar costo' button wraps onto 2 lines next to the cost input. Add whitespace-nowrap."]},
+      {"screen": "Order detail / NewOrderDialog", "issues": ["Dates use the browser's native datetime-local picker, which does not match the dark theme. This was there before this change."]},
+      {"screen": "FloatingActionButton", "issues": ["There is no data-testid on the FAB."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter7_requisitions_notifications.py", "/app/test_reports/pytest/pytest_iter7.xml"],
+  "action_items": [
+    "Exclude is_archived orders in routes_misc.all_orders() (used by stats, charts, production and sales summary)",
+    "Fix the 'Herramientas' chip text overflow in the RequisitionForm category grid (use grid-cols-2 at lg or allow wrapping)",
+    "Reload the requisition list in Requisiciones.jsx when the :id param changes, so the newly opened requisition appears",
+    "Optional: do not auto-give the 'ventas' role on self-registration; add whitespace-nowrap to 'Guardar costo'; add a data-testid to the FAB"
+  ],
+  "critical_code_review_comments": [
+    "routes_requisitions.notify_staff runs through asyncio.create_task with no reference kept. It works, but the task can be garbage-collected or lost if the server shuts down. Consider BackgroundTasks.",
+    "update_requisition calls req_or_404 twice. That is fine, but the PATCH has no check that the requisition actually changed state.",
+    "hide_money is applied correctly to /orders list, PATCH /orders, POST notas and /production. The PDF has its own is_staff gate. Client profile and the archive are STAFF-only. Requisition costo is removed for non-staff."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter7_requisitions_notifications.py"],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "100% of requested flows (one LOW layout issue)"},
+  "seed_data_creation": "Created TEST_ orders (TEST_UI Cliente, TEST_UI Regresion), the TEST_UI Lima fina requisition plus its inbox entries, and pytest TEST_ requisitions and orders. All were hard-deleted by id afterwards. Side effect on existing data: the ventas inbox notification for the existing 'Zirconias 3mm' requisition was marked read by the read-all test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with -n 0 (pytest.ini adds xdist). Run tests/test_iter7_requisitions_notifications.py with REACT_APP_BACKEND_URL=http://localhost:8001. DB had 0 orders initially, so the tests create their own TEST order and clean up by id directly in Mongo (DELETE /orders only archives). maria's user id is d44ee174-dfd6-4944-9f9a-382fa1cc1447. Valid stages: Ventas, Diseño 3D, Ceras, ... Web push was not verified (no VAPID keys)."
+}
