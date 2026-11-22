@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
+import ReactorSVG from "./ReactorSVG";
 import "./JarvisReactor.css";
 
-const COILS = Array.from({ length: 10 });
 
 function buildBolt(cx, cy, r0, r1) {
   const angle = Math.random() * Math.PI * 2;
@@ -55,7 +55,7 @@ function useLightning(canvasRef, active) {
     const tick = () => {
       ctx.clearRect(0, 0, w, h);
       const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
-      if (Math.random() < 0.35 && bolts.length < 9) bolts.push(buildBolt(cx, cy, r * 0.2, r * 0.98));
+      if (Math.random() < 0.35 && bolts.length < 9) bolts.push(buildBolt(cx, cy, r * 0.3, r * 0.98));
       ctx.globalCompositeOperation = "lighter";
       ctx.lineCap = "round"; ctx.lineJoin = "round";
       bolts.forEach((b) => {
@@ -92,15 +92,7 @@ export default function JarvisReactor({ active = false, onClick }) {
       className={`arc-reactor ${active ? "is-active" : ""}`}
     >
       <div className="arc-glow" />
-      <div className="arc-ring arc-ring-outer" />
-      <div className="arc-ring arc-ring-ticks" />
-      <div className="arc-ring arc-ring-mid">
-        {COILS.map((_, i) => (
-          <span key={i} className="arc-coil" style={{ transform: `rotate(${i * 36}deg) translateY(-150%)` }} />
-        ))}
-      </div>
-      <div className="arc-ring arc-ring-inner" />
-      <div className="arc-core"><div className="arc-core-hot" /></div>
+      <ReactorSVG />
       <canvas ref={canvasRef} className="arc-canvas" data-testid="jarvis-arc-canvas" />
     </button>
   );
