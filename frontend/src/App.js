@@ -20,6 +20,7 @@ import MiJoyeria from "@/pages/MiJoyeria";
 import Seguimiento from "@/pages/Seguimiento";
 import Historial from "@/pages/Historial";
 import Moldes from "@/pages/Moldes";
+import Requisiciones from "@/pages/Requisiciones";
 import { Loader2 } from "lucide-react";
 
 const ADMIN_VENTAS = ["admin", "ventas"];
@@ -85,6 +86,8 @@ export default function App() {
             <Route path="/mi-joyeria" element={<RoleGate roles={ADMIN_ONLY}><MiJoyeria /></RoleGate>} />
             <Route path="/jarvis" element={<JarvisHUD />} />
             <Route path="/historial" element={<RoleGate roles={ADMIN_VENTAS}><Historial /></RoleGate>} />
+            <Route path="/requisiciones" element={<Requisiciones />} />
+            <Route path="/requisiciones/:id" element={<Requisiciones />} />
             <Route path="/moldes" element={<MoldesGate><Moldes /></MoldesGate>} />
           </Route>
           

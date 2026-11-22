@@ -47,7 +47,7 @@ export const OrderPhotos = ({ order, onChange, readOnly }) => {
 
   return (
     <div data-testid="order-photos">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Fotos de referencia ({fotos.length})</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-3">Fotos de referencia ({fotos.length})</div>
       <div className="grid grid-cols-3 gap-3">
         {fotos.map((f) => (
           <div key={f.path} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10 bg-zinc-900">
@@ -58,7 +58,7 @@ export const OrderPhotos = ({ order, onChange, readOnly }) => {
           </div>
         ))}
         {!readOnly && <button onClick={() => inputRef.current?.click()} disabled={uploading}
-          className="aspect-square rounded-lg border border-dashed border-white/15 hover:border-[#c5a572]/50 hover:text-amber-400 text-zinc-500 flex flex-col items-center justify-center gap-1 text-xs transition-colors"
+          className="aspect-square rounded-lg border border-dashed border-white/15 hover:border-[#c5a572]/50 hover:text-amber-400 text-zinc-400 flex flex-col items-center justify-center gap-1 text-xs transition-colors"
           data-testid="btn-add-photo">
           {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
           {uploading ? "Subiendo..." : "Subir fotos"}

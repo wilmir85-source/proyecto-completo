@@ -56,7 +56,7 @@ export const DeadlineProgressBar = ({ fecha_entrega, progreso, stage }) => {
           {showUrgentIcon ? <AlertTriangle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
           {mensaje}
         </span>
-        <span className="text-zinc-500 font-mono text-[10px] uppercase tracking-wider">Progreso: {progreso}%</span>
+        <span className="text-zinc-400 font-mono text-xs uppercase tracking-wider">Progreso: {progreso}%</span>
       </div>
       <div className="h-2 w-full bg-zinc-950 rounded-full overflow-hidden border border-white/10">
         <div

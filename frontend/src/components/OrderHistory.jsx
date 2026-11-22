@@ -22,7 +22,7 @@ export const OrderHistory = ({ order, onChange, readOnly }) => {
 
   return (
     <div data-testid="order-history">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-3">Bitácora de trabajo</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-3">Bitácora de trabajo</div>
       {!readOnly && <form onSubmit={add} className="flex gap-2 mb-3">
         <Input placeholder="Agregar actualización (ej. pieza pulida, falta engaste)" value={texto} onChange={(e) => setTexto(e.target.value)} className="bg-zinc-900 border-zinc-800" data-testid="input-order-note" />
         <Button type="submit" size="icon" className="bg-cyan-600 hover:bg-cyan-500 text-black shrink-0" data-testid="btn-add-note"><Send className="w-4 h-4" /></Button>
@@ -33,7 +33,7 @@ export const OrderHistory = ({ order, onChange, readOnly }) => {
             <Avatar name={h.usuario} className="shrink-0" />
             <div className="min-w-0">
               <span className="text-zinc-300">{h.accion}</span>
-              <div className="text-zinc-600">{h.usuario} · {fmtDate(h.fecha)}</div>
+              <div className="text-zinc-400">{h.usuario} · {fmtDate(h.fecha)}</div>
             </div>
           </div>
         ))}

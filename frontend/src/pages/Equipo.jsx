@@ -32,12 +32,12 @@ const DeptMultiSelect = ({ value, onChange, testid }) => {
         type="button"
         onClick={() => setOpen(!open)}
         data-testid={testid}
-        className="w-full h-10 px-3 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-left flex items-center justify-between text-zinc-300 hover:border-zinc-700 transition-colors"
+        className="w-full h-12 px-4 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-left flex items-center justify-between text-zinc-300 hover:border-zinc-700 transition-colors"
       >
         <span className="truncate pr-2">
           {selected.length > 0 ? selected.join(", ") : "Sin departamento"}
         </span>
-        <ChevronsUpDown className="w-4 h-4 text-zinc-500 shrink-0" />
+        <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0" />
       </button>
 
       {open && (
@@ -50,7 +50,7 @@ const DeptMultiSelect = ({ value, onChange, testid }) => {
               <div
                 key={d}
                 onClick={() => toggle(d)}
-                className="flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-900 rounded-md cursor-pointer text-sm text-zinc-300 transition-colors"
+                className="flex items-center gap-3 px-3 min-h-[48px] hover:bg-zinc-900 rounded-md cursor-pointer text-sm text-zinc-300 transition-colors"
               >
                 <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${selected.includes(d) ? 'bg-[#c5a572] border-[#c5a572]' : 'border-zinc-600'}`}>
                   {selected.includes(d) && <Check className="w-3 h-3 text-black" strokeWidth={3} />}
@@ -59,7 +59,7 @@ const DeptMultiSelect = ({ value, onChange, testid }) => {
               </div>
             ))}
             <div className="p-1.5 border-t border-zinc-800/50 mt-1">
-              <button onClick={() => setOpen(false)} className="w-full py-2 text-xs bg-zinc-900 hover:bg-zinc-800 rounded-md font-medium text-zinc-300">
+              <button onClick={() => setOpen(false)} className="w-full min-h-[44px] text-sm bg-zinc-900 hover:bg-zinc-800 rounded-md font-medium text-zinc-300">
                 Listo
               </button>
             </div>
@@ -85,20 +85,21 @@ export default function Equipo() {
   return (
     <div className="p-5 md:p-12 max-w-5xl">
       <header className="mb-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Administración</div>
-        <h1 className="font-display text-4xl font-light">Equipo</h1>
-        <p className="text-sm text-zinc-500 mt-2">Los trabajadores se registran solos en /register. Aquí defines su rol y departamento.</p>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Administración</div>
+        <h1 className="font-display text-4xl font-light">Mi equipo</h1>
+        <p className="text-base text-zinc-300 mt-2">Cada persona crea su cuenta desde la página de registro. Aquí eliges qué puede hacer y en qué área trabaja.</p>
       </header>
-      <div className="space-y-3" data-testid="team-list">
+      <div className="overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin scrollbar-visible pb-3 -mx-1 px-1" data-testid="team-scroll">
+      <div className="space-y-4 md:min-w-[920px]" data-testid="team-list">
         {users.map((u) => (
-          <div key={u.id} className={`card-glass rounded-2xl p-4 grid grid-cols-1 md:grid-cols-12 gap-3 items-center ${u.activo === false ? "opacity-50" : ""}`} data-testid={`team-${u.id}`}>
+          <div key={u.id} className={`card-glass rounded-2xl p-5 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-center ${u.activo === false ? "opacity-50" : ""}`} data-testid={`team-${u.id}`}>
             
             {/* Nombre y Correo */}
             <div className="md:col-span-3 flex items-center gap-3 min-w-0">
               <Avatar name={u.name} className="w-9 h-9 text-xs" />
               <div className="min-w-0">
                 <div className="truncate">{u.name}</div>
-                <div className="text-xs text-zinc-500 truncate">{u.email}{u.telefono ? ` · ${u.telefono}` : ""}</div>
+                <div className="text-xs text-zinc-400 truncate">{u.email}{u.telefono ? ` · ${u.telefono}` : ""}</div>
               </div>
             </div>
 
@@ -117,12 +118,13 @@ export default function Equipo() {
             </div>
 
             {/* Switch de Activo */}
-            <div className="md:col-span-2 flex items-center gap-2 justify-end text-xs text-zinc-500">
+            <div className="md:col-span-2 flex items-center gap-2 justify-end text-xs text-zinc-400">
               Activo
               <Switch checked={u.activo !== false} disabled={u.id === me?.id} onCheckedChange={(v) => update(u.id, { activo: v })} data-testid={`team-active-${u.id}`} />
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

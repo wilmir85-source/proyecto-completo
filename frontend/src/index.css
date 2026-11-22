@@ -8,14 +8,22 @@
   color-scheme: dark;
 }
 
+::selection { background: rgba(197, 165, 114, 0.35); color: #fff; }
+
+:focus-visible { outline: 3px solid #c5a572; outline-offset: 2px; border-radius: 10px; }
+
 html, body, #root {
   background-color: #09090b;
   color: #e4e4e7;
   min-height: 100vh;
 }
 
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+
 body {
   margin: 0;
+  font-size: 1rem;
+  line-height: 1.6;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -63,44 +71,49 @@ body {
 }
 
 /* Scrollbar elegante */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #09090b; }
-::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; border: 2px solid #09090b; }
 ::-webkit-scrollbar-thumb:hover { background: #c5a572; }
 
-/* =========================================
-   TARJETAS DE LUJO (Glassmorphism + Borde Metálico)
-   ========================================= */
-.card-glass {
-  background: rgba(24, 24, 27, 0.55);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid rgba(197, 165, 114, 0.4); 
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.5),
-    0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  border-radius: 1rem;
-  position: relative;
-  overflow: hidden;
+@layer utilities {
+  .scrollbar-thin { scrollbar-width: thin; scrollbar-color: #52525b transparent; -webkit-overflow-scrolling: touch; }
+  .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: #52525b; border-radius: 9999px; border: 0; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #c5a572; }
+  .scrollbar-visible { scrollbar-color: #c5a572 rgba(255, 255, 255, 0.06); }
+  .scrollbar-visible::-webkit-scrollbar { height: 12px; }
+  .scrollbar-visible::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); border-radius: 9999px; margin: 0 16px; }
+  .scrollbar-visible::-webkit-scrollbar-thumb { background: rgba(197, 165, 114, 0.7); border-radius: 9999px; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
 }
 
-/* Efecto de doble marco (como una vitrina de joyas) */
+/* =========================================
+   TARJETAS MODERNAS (sombra suave, bordes redondeados)
+   ========================================= */
+.card-glass {
+  background: linear-gradient(180deg, rgba(31, 31, 35, 0.78) 0%, rgba(20, 20, 23, 0.78) 100%);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 32px -16px rgba(0, 0, 0, 0.7);
+  border-radius: 1.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
 .card-glass::before {
   content: "";
   position: absolute;
-  inset: 4px;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(197, 165, 114, 0.15);
+  top: 0; left: 12%; right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197, 165, 114, 0.45), transparent);
   pointer-events: none;
 }
-
 .card-glass:hover {
-  border-color: rgba(197, 165, 114, 0.7);
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), 
-    0 8px 32px 0 rgba(197, 165, 114, 0.15);
-  transition: all 0.3s ease;
+  border-color: rgba(197, 165, 114, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 16px 40px -16px rgba(197, 165, 114, 0.18);
 }
 
 /* =========================================

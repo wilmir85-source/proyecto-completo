@@ -76,12 +76,12 @@ const AdjustDialog = ({ material, onClose, onSaved }) => {
           <Input type="number" step="0.01" placeholder={`Cantidad (${material?.unidad})`} value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={inp} data-testid="input-adjust-cantidad" />
           <Input placeholder="Motivo (compra, merma, fundición...)" value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inp} data-testid="input-adjust-motivo" />
           <Button onClick={save} className="w-full bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-save-adjust">Registrar</Button>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 pt-2">Movimientos</div>
+          <div className="text-xs uppercase tracking-widest text-zinc-400 pt-2">Movimientos</div>
           <div className="space-y-1 max-h-48 overflow-y-auto">
             {moves.map((m) => (
               <div key={m.id} className="flex justify-between text-xs bg-zinc-900/60 rounded px-3 py-1.5">
                 <span className={m.delta >= 0 ? "text-emerald-400 font-mono" : "text-red-400 font-mono"}>{m.delta >= 0 ? "+" : ""}{m.delta} {m.unidad}</span>
-                <span className="text-zinc-500 truncate mx-2 flex-1 text-right">{m.motivo} · {m.usuario} · {fmtDate(m.fecha)}</span>
+                <span className="text-zinc-400 truncate mx-2 flex-1 text-right">{m.motivo} · {m.usuario} · {fmtDate(m.fecha)}</span>
               </div>
             ))}
           </div>
@@ -96,14 +96,14 @@ const MaterialCard = ({ m, staff, onEdit, onAdjust, onDelete }) => (
     <div className="flex items-start justify-between mb-3">
       <div className="min-w-0">
         <div className="font-medium truncate">{m.nombre}</div>
-        {m.notas && <div className="text-[11px] text-zinc-500 truncate">{m.notas}</div>}
+        {m.notas && <div className="text-xs text-zinc-400 truncate">{m.notas}</div>}
       </div>
-      {m.bajo && <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-500/15 shrink-0" data-testid={`material-low-${m.id}`}><AlertTriangle className="w-3 h-3" />Bajo</span>}
+      {m.bajo && <span className="flex items-center gap-1 text-xs uppercase tracking-wider px-2 py-0.5 rounded border border-red-500/40 text-red-400 bg-red-500/15 shrink-0" data-testid={`material-low-${m.id}`}><AlertTriangle className="w-3 h-3" />Bajo</span>}
     </div>
     <div className={`font-display text-4xl font-light ${m.bajo ? "text-red-400" : "text-zinc-100"}`} data-testid={`material-qty-${m.id}`}>
-      {Number(m.cantidad).toLocaleString("es")}<span className="text-base text-zinc-500 ml-1">{m.unidad}</span>
+      {Number(m.cantidad).toLocaleString("es")}<span className="text-base text-zinc-400 ml-1">{m.unidad}</span>
     </div>
-    <div className="text-xs text-zinc-500 mt-1">Mínimo: {m.minimo} {m.unidad}</div>
+    <div className="text-xs text-zinc-400 mt-1">Mínimo: {m.minimo} {m.unidad}</div>
     {staff && (
       <div className="flex gap-2 mt-4 pt-4 border-t border-white/5">
         <Button size="sm" onClick={onAdjust} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-100" data-testid={`btn-adjust-${m.id}`}><ArrowDownUp className="w-3.5 h-3.5 mr-1" />Ajustar</Button>
@@ -133,14 +133,14 @@ export default function Inventario() {
     <div className="p-5 md:p-12 max-w-[1400px]">
       <header className="flex flex-wrap gap-4 items-end justify-between mb-8">
         <div>
-          <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Materiales</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Materiales</div>
           <h1 className="font-display text-4xl font-light">Inventario</h1>
           {low.length > 0 && <div className="text-sm text-red-400 mt-2 flex items-center gap-1.5" data-testid="inventory-low-count"><AlertTriangle className="w-4 h-4" />{low.length} material(es) bajo el mínimo</div>}
         </div>
         {staff && <Button onClick={() => setEditing({})} className="bg-amber-600 hover:bg-[#c5a572] text-black" data-testid="btn-new-material"><Plus className="w-4 h-4 mr-1" />Nuevo material</Button>}
       </header>
       {items.length === 0 && (
-        <div className="card-glass rounded-2xl p-10 text-center text-zinc-500"><Boxes className="w-8 h-8 mx-auto mb-3 text-zinc-600" />Registra tu oro, plata, ceras, piedras...</div>
+        <div className="card-glass rounded-2xl p-10 text-center text-zinc-400"><Boxes className="w-8 h-8 mx-auto mb-3 text-zinc-400" />Registra tu oro, plata, ceras, piedras...</div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="inventory-grid">
         {[...low, ...items.filter((m) => !m.bajo)].map((m) => (

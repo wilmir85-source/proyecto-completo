@@ -79,10 +79,10 @@ export const NewOrderDialog = ({ users, onCreated }) => {
             <Input placeholder="Tipo de piedra" value={form.piedra} onChange={set("piedra")} className={inp} data-testid="input-order-piedra" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <label className="text-[10px] uppercase tracking-widest text-zinc-500">Fecha de entrega estimada
+            <label className="text-xs uppercase tracking-widest text-zinc-400">Fecha de entrega estimada
               <Input type="datetime-local" value={form.fecha_entrega} onChange={set("fecha_entrega")} className={`${inp} mt-1`} data-testid="input-order-fecha" />
             </label>
-            <label className="text-[10px] uppercase tracking-widest text-zinc-500">Asignar joyero / trabajador
+            <label className="text-xs uppercase tracking-widest text-zinc-400">Asignar joyero / trabajador
               <UserSelect users={users} value={form.asignado_a} onChange={set("asignado_a")} testid="select-order-asignado" className="mt-1" />
             </label>
           </div>

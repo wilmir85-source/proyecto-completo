@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { MoneyGate } from "@/lib/permissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { money, fmtDate } from "@/lib/stages";
 import { useAuth } from "@/context/AuthContext";
@@ -51,11 +52,11 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
               
               <div className="text-xs text-zinc-400 flex flex-wrap gap-x-6 gap-y-2 bg-black/20 p-3 rounded-lg">
                 {order.telefono_cliente && <span>Teléfono: <span className="text-zinc-200">{order.telefono_cliente}</span></span>}
-                {staff && <span>Precio: <span className="text-gold-gradient font-bold text-sm">{money(order.precio)}</span></span>}
+                <MoneyGate><span>Precio: <span className="text-gold-gradient font-bold text-sm">{money(order.precio)}</span></span></MoneyGate>
                 {order.creado_por && <span>Creado por: <span className="text-zinc-200">{order.creado_por}</span></span>}
               </div>
               
-              {order.notas && <p className="text-xs text-zinc-500 italic">Nota: {order.notas}</p>}
+              {order.notas && <p className="text-xs text-zinc-400 italic">Nota: {order.notas}</p>}
               
               <div className="flex flex-col gap-2">
                 {canEdit && <PdfButton order={order} />}
@@ -110,8 +111,8 @@ export const OrderDetail = ({ order: current, users = [], onClose, onChange }) =
               {/* El componente OrderWork contiene los inputs (Departamento, Progreso, etc.) */}
               <Section>{canEdit
                 ? <OrderWork key={`${order.id}-${order.progreso}`} order={order} staff={staff} users={users} onChange={onChange} />
-                : <div className="text-xs text-zinc-500 bg-zinc-900/60 border border-white/5 rounded-lg p-3" data-testid="detail-readonly-hint">Solo lectura: este trabajo está en {order.stage}{order.asignado_nombre ? ` con ${order.asignado_nombre}` : ""}. Puedes actualizarlo cuando llegue a tu departamento o te lo asignen.</div>}</Section>
-              {staff && <Section><OrderPayments order={order} onChange={onChange} /></Section>}
+                : <div className="text-xs text-zinc-400 bg-zinc-900/60 border border-white/5 rounded-lg p-3" data-testid="detail-readonly-hint">Solo lectura: este trabajo está en {order.stage}{order.asignado_nombre ? ` con ${order.asignado_nombre}` : ""}. Puedes actualizarlo cuando llegue a tu departamento o te lo asignen.</div>}</Section>
+              <MoneyGate><Section><OrderPayments order={order} onChange={onChange} /></Section></MoneyGate>
               <Section><OrderHistory order={order} onChange={onChange} readOnly={!canEdit} /></Section>
               <Section><OrderPhotos order={order} onChange={onChange} readOnly={!canEdit} /></Section>
             </div>

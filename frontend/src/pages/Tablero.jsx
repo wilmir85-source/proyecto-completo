@@ -91,33 +91,33 @@ export default function Tablero() {
   return (
     <div className="h-full flex flex-col bg-[#09090b] overflow-hidden">
       
-      <header className="px-4 md:px-8 pt-4 pb-0 flex flex-col gap-2 bg-[#09090b] z-30 shrink-0 border-b border-white/5">
+      <header className="px-4 md:px-8 pt-6 pb-0 flex flex-col gap-2 bg-[#09090b] z-30 shrink-0 border-b border-white/5">
         <div className="flex flex-wrap gap-4 items-end justify-between">
           <div>
-            <div className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-zinc-500 mb-1 md:mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Tablero en vivo
+            <div className="text-xs md:text-xs uppercase tracking-[0.3em] text-zinc-400 mb-1 md:mb-2 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Se actualiza solo
             </div>
             <h1 className="font-display text-2xl md:text-4xl font-light">Pedidos</h1>
           </div>
           {staff && <NewOrderDialog users={users} onCreated={load} />}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-          <button onClick={() => setFilterMode("all")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-[#c5a572]/20 text-[#c5a572] border-[#c5a572]/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-2">
+          <button onClick={() => setFilterMode("all")} className={`min-h-[44px] px-4 rounded-full text-sm font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-[#c5a572]/20 text-[#c5a572] border-[#c5a572]/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             Todos
           </button>
-          <button onClick={() => setFilterMode("mine")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "mine" ? "bg-blue-500/20 text-blue-400 border-blue-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+          <button onClick={() => setFilterMode("mine")} className={`min-h-[44px] px-4 rounded-full text-sm font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "mine" ? "bg-blue-500/20 text-blue-400 border-blue-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             <User className="w-3 h-3" /> Mis pedidos
           </button>
-          <button onClick={() => setFilterMode("late")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "late" ? "bg-red-500/20 text-red-400 border-red-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+          <button onClick={() => setFilterMode("late")} className={`min-h-[44px] px-4 rounded-full text-sm font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "late" ? "bg-red-500/20 text-red-400 border-red-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             <AlertTriangle className="w-3 h-3" /> {lateOrders.length} Atrasados
           </button>
-          <button onClick={() => setFilterMode("soon")} className={`px-3 py-1.5 rounded-full text-xs font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "soon" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
+          <button onClick={() => setFilterMode("soon")} className={`min-h-[44px] px-4 rounded-full text-sm font-medium border whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterMode === "soon" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             <Clock className="w-3 h-3" /> {soonOrders.length} Por vencer
           </button>
         </div>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-2 no-scrollbar pt-1">
+        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-3 pt-1">
           {STAGES.map((stage) => {
             const count = displayOrders.filter((o) => o.stage === stage).length;
             const isActive = activeStage === stage;
@@ -126,16 +126,16 @@ export default function Tablero() {
               <button
                 key={stage}
                 onClick={() => scrollToStage(stage)}
-                className={`px-3 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   isActive 
                     ? `${stageStyle.chip} shadow-sm scale-105` 
-                    : "text-zinc-500 hover:text-zinc-300 bg-zinc-900/50"
+                    : "text-zinc-400 hover:text-zinc-300 bg-zinc-900/50"
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${isActive ? stageStyle.bar : "bg-zinc-600"}`} />
                 {stage}
                 {count > 0 && (
-                  <span className={`ml-1 px-1 rounded-full text-[9px] ${isActive ? "bg-white/20" : "bg-white/10"}`}>
+                  <span className={`ml-1 px-1 rounded-full text-xs ${isActive ? "bg-white/20" : "bg-white/10"}`}>
                     {count}
                   </span>
                 )}
@@ -146,8 +146,8 @@ export default function Tablero() {
       </header>
 
       {/* ARREGLO DE SCROLL: touch-pan-x para tablets, overflow-auto en compu */}
-      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x pb-20 md:pb-0">
-        <div className="flex gap-4 md:gap-5 px-4 md:px-8 pb-8 pt-2 h-full min-w-max">
+      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y overscroll-x-contain scrollbar-thin scrollbar-visible pb-4" data-testid="kanban-scroll">
+        <div className="flex gap-5 md:gap-6 px-4 md:px-8 pb-6 pt-4 h-full min-w-max">
           {STAGES.map((stage) => {
             const list = displayOrders.filter((o) => o.stage === stage);
             const a = STAGE_STYLES[stage];
@@ -168,14 +168,14 @@ export default function Tablero() {
                   <span className="text-xs bg-white/5 px-2 py-0.5 rounded-full text-zinc-400 font-mono">{list.length}</span>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto space-y-3 pt-3 pr-1 pb-10 no-scrollbar">
+                <div className="flex-1 overflow-y-auto touch-pan-y space-y-4 pt-4 pr-1 pb-10 scrollbar-thin">
                   {list.map((o) => (
                     <OrderCard key={o.id} order={o} canEdit={canWork(user, o)} canDelete={staff}
                       onOpen={() => setSelectedId(o.id)} onMove={(v) => moveTo(o.id, v)}
                       onDelete={() => remove(o.id)} onDragStart={() => setDragging(o.id)} />
                   ))}
                   {list.length === 0 && (
-                    <div className="text-xs text-zinc-600 py-6 text-center border border-dashed border-white/5 rounded-xl bg-zinc-900/20">
+                    <div className="text-xs text-zinc-400 py-6 text-center border border-dashed border-white/5 rounded-xl bg-zinc-900/20">
                       Sin pedidos en esta etapa
                     </div>
                   )}

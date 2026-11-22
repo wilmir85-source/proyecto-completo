@@ -13,6 +13,7 @@ import routes_pdf
 import routes_settings
 import routes_notifications
 import routes_molds  # <-- NUEVA IMPORTACIÓN AGREGADA AQUÍ
+import routes_requisitions
 
 app = FastAPI(title="Jarvis Joyería API")
 health = APIRouter(prefix="/api")
@@ -26,7 +27,7 @@ async def root():
 # AGREGAMOS LOS ROUTERS A LA LISTA (Incluyendo routes_molds)
 for r in (health, routes_auth.router, routes_orders.router, routes_misc.router, routes_jarvis.router,
           routes_inventory.router, routes_clients.router, routes_pdf.router, routes_settings.router,
-          routes_notifications.router, routes_molds.router): # <-- NUEVO ROUTER AGREGADO AQUÍ
+          routes_notifications.router, routes_molds.router, routes_requisitions.router): # <-- NUEVO ROUTER AGREGADO AQUÍ
     app.include_router(r)
 
 app.add_middleware(
@@ -46,11 +47,13 @@ async def startup():
     await routes_auth.seed_admin()
     await routes_settings.seed_settings()
     await db.orders.create_index("share_token", sparse=True)
-    for coll in ("orders", "tasks", "clients", "materials", "molds"): # <-- Agregué "molds" para crear el índice
+    for coll in ("orders", "tasks", "clients", "materials", "molds", "requisitions", "inbox"): # <-- Agregué "molds" para crear el índice
         await db[coll].create_index("id", unique=True)
     await db.users.create_index("siri_key", sparse=True)
     await db.orders.create_index("stage")
     await db.orders.create_index("asignado_a")
+    await db.inbox.create_index([("user_id", 1), ("created_at", -1)])
+    await db.requisitions.create_index("solicitante_id")
     await db.chat_messages.create_index([("user_id", 1), ("session_id", 1)])
     try:
         await asyncio.to_thread(init_storage)

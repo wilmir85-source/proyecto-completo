@@ -32,7 +32,7 @@ export default function Dashboard() {
   return (
     <div className="p-5 md:p-12 max-w-[1600px]">
       <header className="mb-10">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Panel · {new Date().toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Panel · {new Date().toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })}</div>
         <h1 className="font-display text-4xl lg:text-5xl font-light tracking-tight">
           {greeting()}, <span className="text-[#c5a572]">{user?.name?.split(" ")[0]}</span>
         </h1>
@@ -54,7 +54,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 card-glass rounded-2xl p-6 relative overflow-hidden">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Producción en vivo</div>
+              <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Producción en vivo</div>
               <h2 className="font-display text-xl">Pedidos por etapa</h2>
             </div>
             <Link to="/pedidos" className="text-sm text-[#c5a572] hover:text-[#d4b88a] flex items-center gap-1" data-testid="link-kanban">
@@ -72,16 +72,16 @@ export default function Dashboard() {
         </div>
 
         <div className="card-glass rounded-2xl p-6">
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Agenda</div>
+          <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Agenda</div>
           <h2 className="font-display text-xl mb-5">Próximas tareas</h2>
           <div className="space-y-3">
-            {tasks.length === 0 && <div className="text-sm text-zinc-500">Sin tareas pendientes</div>}
+            {tasks.length === 0 && <div className="text-sm text-zinc-400">Sin tareas pendientes</div>}
             {tasks.map((t) => (
               <div key={t.id} className="flex items-start gap-3 p-3 rounded-lg bg-zinc-900/50 border border-white/5" data-testid={`task-item-${t.id}`}>
                 <div className={`mt-1 w-2 h-2 rounded-full ${t.prioridad === "alta" ? "bg-red-500" : t.prioridad === "media" ? "bg-amber-500" : "bg-zinc-500"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{t.titulo}</div>
-                  {t.fecha && <div className="text-xs text-zinc-500 mt-0.5">{new Date(t.fecha).toLocaleString("es")}</div>}
+                  {t.fecha && <div className="text-xs text-zinc-400 mt-0.5">{new Date(t.fecha).toLocaleString("es")}</div>}
                 </div>
               </div>
             ))}
@@ -95,20 +95,20 @@ export default function Dashboard() {
       <div className="card-glass rounded-2xl p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Último movimiento</div>
+            <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Último movimiento</div>
             <h2 className="font-display text-xl">Pedidos recientes</h2>
           </div>
         </div>
         <div className="divide-y divide-white/5">
-          {recentOrders.length === 0 && <div className="text-sm text-zinc-500 py-6">Aún no hay pedidos. Crea el primero desde el tablero.</div>}
+          {recentOrders.length === 0 && <div className="text-sm text-zinc-400 py-6">Aún no hay pedidos. Crea el primero desde el tablero.</div>}
           {recentOrders.map((o) => (
             <div key={o.id} className="py-3 flex items-center gap-4" data-testid={`order-row-${o.id}`}>
               <span className={`text-xs px-2 py-1 rounded border ${stageColors[o.stage]}`}>{o.stage}</span>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{o.cliente}</div>
-                <div className="text-xs text-zinc-500 truncate">{o.descripcion}</div>
+                <div className="text-xs text-zinc-400 truncate">{o.descripcion}</div>
               </div>
-              <div className="text-xs text-zinc-500">{o.fecha_entrega ? new Date(o.fecha_entrega).toLocaleDateString("es") : "—"}</div>
+              <div className="text-xs text-zinc-400">{o.fecha_entrega ? new Date(o.fecha_entrega).toLocaleDateString("es") : "—"}</div>
             </div>
           ))}
         </div>
@@ -128,7 +128,7 @@ function StatCard({ to, icon: Icon, label, value, tone = "default", testid }) {
   return (
     <Link to={to} className="card-glass rounded-2xl p-5 relative hover:border-[#c5a572]/50 transition-all cursor-pointer block" data-testid={testid}>
       <Icon className={`w-5 h-5 ${tones[tone]} mb-4`} />
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">{label}</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">{label}</div>
       {/* AQUÍ APLICAMOS EL DEGRADADO DORADO Y LO HICIMOS MÁS GRANDE */}
       <div className="font-display text-5xl font-light text-gold-gradient tracking-tighter mt-1">{value}</div>
     </Link>

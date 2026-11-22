@@ -32,13 +32,13 @@ export default function Historial() {
   return (
     <div className="p-5 md:p-12 max-w-5xl mx-auto pb-32">
       <header className="mb-8">
-        <div className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Archivo Muerto</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-zinc-400 mb-3">Archivo Muerto</div>
         <h1 className="font-display text-4xl font-light">Historial de Pedidos</h1>
         <p className="text-sm text-zinc-400 mt-2">Pedidos eliminados que se guardan como evidencia para futuras consultas.</p>
       </header>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
         <input
           type="text"
           placeholder="Buscar por Folio (MJ-0001), cliente o descripción..."
@@ -49,9 +49,9 @@ export default function Historial() {
       </div>
 
       {loading ? (
-        <div className="text-zinc-500 text-center py-10">Buscando en los archivos...</div>
+        <div className="text-zinc-400 text-center py-10">Buscando en los archivos...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-zinc-500 text-center py-10 bg-zinc-900/50 rounded-xl border border-white/5">
+        <div className="text-zinc-400 text-center py-10 bg-zinc-900/50 rounded-xl border border-white/5">
           No se encontraron pedidos en el historial.
         </div>
       ) : (
@@ -70,13 +70,13 @@ export default function Historial() {
                 <div className="text-xs text-zinc-400">{o.descripcion}</div>
               </div>
               
-              <div className="flex items-center gap-6 text-xs text-zinc-500">
+              <div className="flex items-center gap-6 text-xs text-zinc-400">
                 <div>
-                  <div className="uppercase text-[10px] tracking-wider mb-1">Archivado</div>
+                  <div className="uppercase text-xs tracking-wider mb-1">Archivado</div>
                   <div>{fmtDate(o.archived_at)}</div>
                 </div>
                 <div>
-                  <div className="uppercase text-[10px] tracking-wider mb-1">Total</div>
+                  <div className="uppercase text-xs tracking-wider mb-1">Total</div>
                   <div className="text-zinc-300">{money(o.precio)}</div>
                 </div>
               </div>

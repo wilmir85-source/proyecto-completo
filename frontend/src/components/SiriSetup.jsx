@@ -16,9 +16,9 @@ const EXAMPLES = [
 
 const Copyable = ({ label, value, testid }) => (
   <div>
-    <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-1">{label}</div>
+    <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">{label}</div>
     <div className="flex gap-2">
-      <code className="flex-1 text-[11px] text-cyan-200 break-all bg-zinc-950 rounded-lg px-3 py-2 border border-white/5" data-testid={testid}>{value || "Cargando..."}</code>
+      <code className="flex-1 text-xs text-cyan-200 break-all bg-zinc-950 rounded-lg px-3 py-2 border border-white/5" data-testid={testid}>{value || "Cargando..."}</code>
       <Button size="icon" variant="outline" className="border-zinc-700 shrink-0" disabled={!value} data-testid={`${testid}-copy`}
         onClick={() => navigator.clipboard.writeText(value).then(() => toast.success(`${label} copiado`))}><Copy className="w-4 h-4" /></Button>
     </div>
@@ -47,7 +47,7 @@ const Tester = ({ siriKey, url }) => {
   };
   return (
     <div className="rounded-xl border border-white/5 bg-zinc-950/60 p-4 space-y-3" data-testid="siri-tester">
-      <div className="text-xs uppercase tracking-widest text-zinc-500">Probar como si fuera Siri</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400">Probar como si fuera Siri</div>
       <div className="flex gap-2">
         <Input value={texto} onChange={(e) => setTexto(e.target.value)} className="bg-zinc-900 border-zinc-800" data-testid="siri-test-input" />
         <Button onClick={run} disabled={loading || !siriKey} className="bg-cyan-600 hover:bg-cyan-500 text-black shrink-0" data-testid="siri-test-run">
@@ -79,7 +79,7 @@ export const SiriSetup = () => {
       <div className="space-y-3 mb-6">
         <Copyable label="URL" value={url} testid="siri-url" />
         <Copyable label="Tu clave personal" value={key} testid="siri-key" />
-        <button onClick={regenerate} className="text-xs text-zinc-500 hover:text-red-400 flex items-center gap-1" data-testid="siri-regenerate"><RefreshCw className="w-3 h-3" />Generar nueva clave (si la perdiste o alguien más la vio)</button>
+        <button onClick={regenerate} className="text-xs text-zinc-400 hover:text-red-400 flex items-center gap-1" data-testid="siri-regenerate"><RefreshCw className="w-3 h-3" />Generar nueva clave (si la perdiste o alguien más la vio)</button>
       </div>
       <ol className="space-y-5 mb-6">
         <Step n={1} title="Crea el atajo">Abre la app <b>Atajos</b> → pestaña <b>Atajos</b> → botón <b>+</b> arriba a la derecha.</Step>
@@ -98,12 +98,12 @@ export const SiriSetup = () => {
         <Step n={6} title="Pruébalo">Toca <b>OK</b>. Di <b>“Oye Siri, Jarvis”</b>, espera el tono y dicta tu orden. La primera vez iOS te pedirá permiso para conectarse: elige <b>Permitir siempre</b>.</Step>
       </ol>
       <div className="mb-5">
-        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Cosas que puedes decir</div>
+        <div className="text-xs uppercase tracking-widest text-zinc-400 mb-2">Cosas que puedes decir</div>
         <div className="space-y-2">
           {EXAMPLES.map(([t, e]) => (
             <div key={t} className="text-sm"><span className="text-cyan-300">{t}:</span> <span className="text-zinc-300 italic">“{e}”</span></div>
           ))}
-          <div className="text-xs text-zinc-500">También puedes pedir abonos, recordatorios, el informe del día o lo que sepas de un cliente.</div>
+          <div className="text-xs text-zinc-400">También puedes pedir abonos, recordatorios, el informe del día o lo que sepas de un cliente.</div>
         </div>
       </div>
       <Tester siriKey={key} url={url} />

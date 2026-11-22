@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MoneyGate } from "@/lib/permissions";
 import { api } from "@/lib/api";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import { STAGE_HEX, money } from "@/lib/stages";
@@ -42,7 +43,7 @@ const tooltipStyle = {
 
 const RevenueChart = ({ data }) => (
   <div className="lg:col-span-2 card-glass rounded-2xl p-6" data-testid="chart-revenue">
-    <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Últimos 12 meses</div>
+    <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Últimos 12 meses</div>
     <h2 className="font-display text-xl mb-5">Ingresos por mes</h2>
     <div className="h-72">
       <ResponsiveContainer width="100%" height="100%">
@@ -68,7 +69,7 @@ const StagePie = ({ data }) => {
   const total = data.reduce((s, d) => s + d.total, 0);
   return (
     <div className="card-glass rounded-2xl p-6" data-testid="chart-stages">
-      <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">Distribución</div>
+      <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1">Distribución</div>
       <h2 className="font-display text-xl mb-2">Pedidos por etapa</h2>
       
       <div className="h-56 relative">
@@ -96,13 +97,13 @@ const StagePie = ({ data }) => {
         {/* Texto central con degradado dorado */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span className="font-display text-4xl text-gold-gradient">{total}</span>
-          <span className="text-[10px] uppercase tracking-widest text-[#c5a572] mt-1">pedidos</span>
+          <span className="text-xs uppercase tracking-widest text-[#c5a572] mt-1">pedidos</span>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-2 mt-4">
         {data.map((d) => (
-          <span key={d.stage} className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+          <span key={d.stage} className="flex items-center gap-1.5 text-xs text-zinc-400">
             <span className="w-2.5 h-2.5 rounded-full border border-[#c5a572]/50" style={{ background: JEWEL_COLORS[d.stage] || STAGE_HEX[d.stage] }} />
             {d.stage} <span className="text-zinc-200 font-medium">{d.total}</span>
           </span>
@@ -118,7 +119,7 @@ export const DashboardCharts = () => {
   if (!data) return null;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-      {data.ingresos && <RevenueChart data={data.ingresos} />}
+      {data.ingresos && <MoneyGate><RevenueChart data={data.ingresos} /></MoneyGate>}
       <StagePie data={data.etapas} />
     </div>
   );

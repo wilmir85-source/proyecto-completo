@@ -42,7 +42,7 @@ export default function Login() {
 
           <form onSubmit={submit} className="space-y-4" data-testid="login-form">
             <div>
-              <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Email</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Email</label>
               <Input
                 type="email"
                 required
@@ -54,7 +54,7 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="text-xs uppercase tracking-widest text-zinc-500 mb-2 block">Contraseña</label>
+              <label className="text-xs uppercase tracking-widest text-zinc-400 mb-2 block">Contraseña</label>
               <Input
                 type="password"
                 required
@@ -76,7 +76,7 @@ export default function Login() {
             </Button>
           </form>
 
-          <div className="mt-6 text-sm text-zinc-500 text-center">
+          <div className="mt-6 text-sm text-zinc-400 text-center">
             ¿Primera vez?{" "}
             <Link to="/register" className="text-[#c5a572] hover:text-amber-400" data-testid="link-register">
               Crear cuenta

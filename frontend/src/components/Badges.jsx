@@ -1,7 +1,7 @@
 import { DUE_STYLES, PAY_STYLES, STAGE_STYLES } from "@/lib/stages";
 import { AlertTriangle, Clock } from "lucide-react";
 
-const base = "inline-flex items-center gap-1 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border whitespace-nowrap";
+const base = "inline-flex items-center gap-1 text-xs uppercase tracking-wider px-2 py-0.5 rounded border whitespace-nowrap";
 
 export const DueBadge = ({ status, testid }) => {
   const s = DUE_STYLES[status] || DUE_STYLES.sin_fecha;
@@ -19,7 +19,7 @@ export const StageBadge = ({ stage }) => (
 );
 
 export const Avatar = ({ name, className = "" }) => (
-  <span title={name} className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-[10px] font-semibold ${className}`}>
+  <span title={name} className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-xs font-semibold ${className}`}>
     {(name || "?").split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
   </span>
 );
