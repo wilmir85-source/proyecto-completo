@@ -6,15 +6,12 @@ import { toast } from "sonner";
 import { STAGES, ORDER_TYPES, toISO, toLocalInput, apiError } from "@/lib/stages";
 import { useFinishOrder } from "@/components/FinishOrderDialog";
 import { DeadlineProgressBar } from "@/components/DeadlineProgressBar";
-import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, PauseCircle, RotateCcw } from "lucide-react";
 
 const Label = ({ children }) => <div className="text-xs uppercase tracking-widest text-zinc-400 mb-1.5">{children}</div>;
 
-const IMPORT_STAGES = [
-  "Comprada (USA)", "En Bodega USA", "En Vuelo a GT", "En Aduana (GT)", "Lista en Taller", "Entregada al Cliente"
-];
+const IMPORT_STAGES = ["Comprada (USA)", "En Bodega USA", "En Vuelo a GT", "En Aduana (GT)", "Lista en Taller", "Entregada al Cliente"];
 
-// LÓGICA DE LA CADENA DE PRODUCCIÓN
 const getNextStage = (currentStage, orderType) => {
   if (orderType === "Diseño" || orderType === "Molde" || orderType === "Diseño 3D") return "Terminado";
   if (currentStage === "Ventas") return "Diseño 3D";
@@ -22,7 +19,7 @@ const getNextStage = (currentStage, orderType) => {
   if (currentStage === "Ceras" || currentStage === "Inyección") return "Casting";
   if (currentStage === "Casting" || currentStage === "Vulcanizado") return "Fabricación";
   if (currentStage === "Fabricación" || currentStage === "Grabado Láser" || currentStage === "Reparaciones") return "Terminado";
-  return null; // Si ya está en Terminado, no hay siguiente.
+  return null; 
 };
 
 export const OrderWork = ({ order, staff, users, onChange }) => {
@@ -41,29 +38,52 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
 
   const isImport = order.tipo === "Importación de máquinas";
   const isDigital = order.tipo === "Diseño" || order.tipo === "Molde" || order.tipo === "Diseño 3D";
-  
-  // La siguiente etapa lógica
   const nextStage = getNextStage(order.stage, order.tipo);
+
+  // --- FUNCIONES PARA LOS BOTONES DE PROBLEMAS ---
+  const handlePausar = () => {
+    const motivo = window.prompt("¿Por qué se pausa? (Ej. Falta piedra 2mm, esperando oro, etc.)");
+    if (motivo) {
+      patch({ notas: `${order.notas || ""}\n[PAUSADO en ${order.stage}]: ${motivo}` }, "Pedido pausado y motivo guardado");
+    }
+  };
+
+  const handleRepetir = () => {
+    const motivo = window.prompt("¿Qué pasó? (Ej. Se arruinó al pulir, falló la fundición, etc.)");
+    if (!motivo) return;
+
+    const isResin = isDigital || order.es_castable;
+    const msg = isResin 
+      ? "¿Regresar a Diseño 3D para imprimir de nuevo? (Cancelar = Regresar a Ceras/Inyección)" 
+      : "¿Regresar a Ceras/Inyección para buscar molde de nuevo?";
+      
+    const goTo3D = window.confirm(msg);
+    const targetStage = goTo3D ? "Diseño 3D" : "Ceras";
+    
+    patch({ 
+      stage: targetStage, 
+      progreso: 0, 
+      notas: `${order.notas || ""}\n[REPETIR]: ${motivo} (Regresó a ${targetStage})` 
+    }, `Repetido: Enviado a ${targetStage}`);
+  };
+  // -----------------------------------------------
 
   return (
     <div className="grid grid-cols-2 gap-3" data-testid="order-work">
       
-      {/* ETAPA / DEPARTAMENTO (Solo Admin/Ventas pueden mover libremente) */}
+      {/* ETAPA ACTUAL */}
       <div className={isImport ? "col-span-2" : ""}>
         <Label>Etapa actual</Label>
         {staff ? (
           <select 
             value={order.stage} 
             onChange={(e) => {
-              if (e.target.value === "Entregado" && !staff) {
-                return toast.error("Solo Admin o Ventas pueden entregar el pedido.");
-              }
+              if (e.target.value === "Entregado" && !staff) return toast.error("Solo Admin o Ventas pueden entregar.");
               patch({ stage: e.target.value }, `Movido a ${e.target.value}`);
             }}
-            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
+            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
           >
             {STAGES.map((s) => {
-              // Si no es staff, ocultamos "Entregado" para que no lo puedan cerrar
               if (s === "Entregado" && !staff) return null;
               return <option key={s} value={s}>{s}</option>;
             })}
@@ -75,32 +95,32 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         )}
       </div>
 
-      {/* BOTÓN DE AVANCE DE CADENA (Para los trabajadores) */}
+      {/* BOTÓN DE AVANCE DE CADENA */}
       {!staff && nextStage && (
         <div className="col-span-2 mt-1">
           <button 
             onClick={() => patch({ stage: nextStage, progreso: 100 }, `¡Trabajo terminado! Enviado a ${nextStage}`)}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
           >
-            <CheckCircle2 className="w-5 h-5" /> Terminar mi parte y enviar a {nextStage}
+            <CheckCircle2 className="w-5 h-5" /> Terminar y enviar a {nextStage}
           </button>
         </div>
       )}
 
-      {/* BOTÓN PARA REPORTAR PROBLEMAS (Reiniciar proceso) */}
+      {/* BOTONES DE PAUSA Y REPETIR (Solo para trabajadores) */}
       {!staff && (
-        <div className="col-span-2 mt-1">
+        <div className="col-span-2 grid grid-cols-2 gap-2 mt-1">
           <button 
-            onClick={() => {
-              const motivo = window.prompt("¿Cuál es el problema? (Ej. Se rompió, falta piedra, etc.)");
-              if (motivo) {
-                const targetStage = isDigital ? "Diseño 3D" : "Ceras";
-                patch({ stage: targetStage, progreso: 0, notas: `${order.notas || ""}\n[Reinicio]: ${motivo}` }, `Reiniciado a ${targetStage}`);
-              }
-            }}
+            onClick={handlePausar}
+            className="w-full bg-amber-950/40 border border-amber-900/50 text-amber-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all"
+          >
+            <PauseCircle className="w-4 h-4" /> Pausar / Falta Mat.
+          </button>
+          <button 
+            onClick={handleRepetir}
             className="w-full bg-red-950/40 border border-red-900/50 text-red-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all"
           >
-            <AlertTriangle className="w-4 h-4" /> Reportar Problema / Reiniciar
+            <RotateCcw className="w-4 h-4" /> Repetir / Arruinado
           </button>
         </div>
       )}
@@ -112,14 +132,14 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           <select 
             value={order.import_status || IMPORT_STAGES[0]} 
             onChange={(e) => patch({ import_status: e.target.value }, `Importación: ${e.target.value}`)}
-            className="flex h-9 w-full rounded-md border border-blue-800 bg-blue-950/50 px-3 py-1 text-sm text-blue-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+            className="flex h-9 w-full rounded-md border border-blue-800 bg-blue-950/50 px-3 py-1 text-sm text-blue-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           >
             {IMPORT_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
       )}
 
-      {/* TIPO DE TRABAJO Y CASTABLE */}
+      {/* TIPO DE TRABAJO Y CASTABLE (Solo Admin/Ventas) */}
       {staff && !isImport && (
         <div className="col-span-2 grid grid-cols-2 gap-3 bg-zinc-900/30 p-3 rounded-lg border border-white/5 mt-2">
           <div>
@@ -127,7 +147,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             <select 
               value={order.tipo || "Fabricación"} 
               onChange={(e) => patch({ tipo: e.target.value }, `Tipo: ${e.target.value}`)}
-              className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
+              className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
             >
               {ORDER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -141,16 +161,9 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
                 onChange={(e) => patch({ es_castable: e.target.checked }, `Castable: ${e.target.checked ? "Sí" : "No"}`)}
                 className="w-5 h-5 accent-[#c5a572] rounded border-zinc-800"
               />
-              <span className="text-sm text-zinc-300">Requiere fundición en plata/oro</span>
+              <span className="text-sm text-zinc-300">Requiere fundición</span>
             </label>
           </div>
-        </div>
-      )}
-
-      {/* MOSTRAR CASTABLE A LOS TRABAJADORES (Solo lectura) */}
-      {!staff && order.es_castable && (
-        <div className="col-span-2 bg-amber-900/20 border border-amber-700/50 p-2 rounded-lg text-amber-400 text-xs font-bold text-center">
-          ⚠️ Este trabajo requiere fundición (Castable)
         </div>
       )}
 
@@ -161,7 +174,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           <select 
             value={order.asignado_a || ""} 
             onChange={(e) => patch({ asignado_a: e.target.value || null }, "Asignación actualizada")}
-            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
+            className="flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572]"
           >
             <option value="">Sin asignar</option>
             {users?.map((u) => (
@@ -199,13 +212,9 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         </>
       )}
 
-      {!staff && (order.metal || order.peso_metal || order.piedra) && !isImport && (
-        <div className="col-span-2 text-xs text-zinc-400">{[order.metal, order.peso_metal && `${order.peso_metal} g`, order.piedra].filter(Boolean).join(" · ")}</div>
-      )}
-
-      {/* PROGRESO Y BARRA DE TIEMPO */}
+      {/* PROGRESO */}
       <div className="col-span-2 mt-2">
-        <div className="flex justify-between mb-1"><Label>Progreso del trabajo</Label><span className="text-xs font-mono text-amber-400">{progreso}%</span></div>
+        <div className="flex justify-between mb-1"><Label>Progreso</Label><span className="text-xs font-mono text-amber-400">{progreso}%</span></div>
         <Slider value={[progreso]} max={100} step={5} onValueChange={([v]) => setProgreso(v)}
           onValueCommit={([v]) => {
             clearTimeout(timer.current);
@@ -214,14 +223,14 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         <DeadlineProgressBar fecha_entrega={order.fecha_entrega} progreso={order.progreso} stage={order.stage} />
       </div>
       
-      {/* BOTÓN DE CERRAR ORDEN (Solo visible para Admin/Ventas) */}
+      {/* BOTÓN FINAL (SOLO ADMIN/VENTAS) */}
       {staff && order.stage === "Terminado" && (
         <div className="col-span-2 mt-4">
           <button 
-            onClick={() => patch({ stage: "Entregado" }, "Pedido entregado al cliente y cerrado")}
+            onClick={() => patch({ stage: "Entregado" }, "Pedido entregado al cliente")}
             className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg"
           >
-            Cerrar Orden y Entregar al Cliente
+            Cerrar Orden y Entregar
           </button>
         </div>
       )}
