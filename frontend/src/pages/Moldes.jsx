@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { FileText, Trash2, FolderOpen, Loader2, Camera, Images, PenLine, Pencil, Plus, Search, LayoutGrid, X } from "lucide-react";
+import { FileText, Trash2, FolderOpen, Loader2, Camera, Images, Pencil, Plus, Search, LayoutGrid, X } from "lucide-react";
 
 export default function Moldes() {
   const [libraries, setLibraries] = useState([]);
@@ -9,7 +9,6 @@ export default function Moldes() {
   const [molds, setMolds] = useState([]);
   const [search, setSearch] = useState("");
   
-  // --- NUEVOS ESTADOS PARA CATEGORÍAS DINÁMICAS ---
   const [customCategories, setCustomCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("TODOS");
   const [showNewCat, setShowNewCat] = useState(false);
@@ -57,11 +56,8 @@ export default function Moldes() {
 
   useEffect(() => { loadMolds(); }, [selectedLib, loadMolds]);
 
-  // --- LÓGICA DE CATEGORÍAS DINÁMICAS ---
   const dynamicCategories = useMemo(() => {
-    // Sacamos los tipos de molde que vienen de la base de datos
     const tiposDeMoldes = molds.map(m => m.tipo?.toUpperCase()).filter(Boolean);
-    // Los unimos con las categorías que el usuario cree manualmente
     const combinadas = new Set(["TODOS", ...tiposDeMoldes, ...customCategories.map(c => c.toUpperCase())]);
     return Array.from(combinadas);
   }, [molds, customCategories]);
@@ -77,12 +73,11 @@ export default function Moldes() {
   const removeCategory = (cat, e) => {
     e.stopPropagation();
     if (cat === "TODOS") return;
-    if (window.confirm(`¿Quitar la categoría "${cat}"? (Los moldes no se borrarán)`)) {
+    if (window.confirm(`¿Quitar la categoría "${cat}"?`)) {
       setCustomCategories(customCategories.filter(c => c !== cat));
       if (selectedCategory === cat) setSelectedCategory("TODOS");
     }
   };
-  // --------------------------------------
 
   const handleCreateLibrary = async () => {
     if (!newLibName.trim()) return toast.error("Escribe un nombre");
@@ -168,7 +163,7 @@ export default function Moldes() {
           allExtractedMolds = [...allExtractedMolds, ...r.data.moldes];
           if (!mainTitle && r.data.titulo) mainTitle = r.data.titulo;
         } else {
-          toast.warning(`No se detectaron moldes en la foto ${i + 1}. Puedes agregarlos a mano.`);
+          toast.warning(`No se detectaron moldes en la foto ${i + 1}.`);
         }
       } catch (error) {
         toast.error(`Error al leer la foto ${i + 1}`);
@@ -239,7 +234,6 @@ export default function Moldes() {
     } catch { toast.error("Error al borrar"); }
   };
 
-  // FILTRADO POR TEXTO Y CATEGORÍA
   const filteredMolds = useMemo(() => {
     const q = search.toLowerCase();
     return molds.filter(m => {
@@ -252,20 +246,12 @@ export default function Moldes() {
   const s = {
     page: { minHeight: "100vh", background: "transparent", color: "var(--m-text)", padding: "20px", fontFamily: "inherit", paddingBottom: "100px" },
     title: { fontSize: "28px", fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, color: "var(--m-text)", margin: "0 0 5px 0" },
-    
-    // Buscador Estilo Tienda
     searchBox: { display: "flex", alignItems: "center", background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "25px", padding: "10px 15px", gap: "10px", marginBottom: "20px" },
     searchInput: { flex: 1, background: "transparent", border: "none", outline: "none", color: "var(--m-text)", fontSize: "16px" },
-
-    // Botones
     btnPrimary: { background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", color: "#23180a", border: "none", padding: "12px 20px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" },
     btnSecondary: { background: "var(--m-surface-2)", color: "var(--m-text)", border: "1px solid var(--m-border)", padding: "12px 20px", borderRadius: "8px", cursor: "pointer", fontSize: "14px" },
-    
-    // Carpetas
     folderCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "22px", padding: "24px 20px", cursor: "pointer", textAlign: "center", position: "relative", boxShadow: "var(--glass-shadow)" },
     folderDeleteBtn: { position: "absolute", top: "10px", right: "10px", background: "rgba(255,0,0,0.1)", border: "none", borderRadius: "50%", width: "30px", height: "30px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--m-danger)", fontSize: "14px", cursor: "pointer" },
-
-    // NUEVO: Carrusel de Categorías (Bolitas)
     catCarousel: { display: "flex", gap: "15px", overflowX: "auto", paddingBottom: "15px", marginBottom: "10px", scrollbarWidth: "none" },
     catItem: { display: "flex", flexDirection: "column", alignItems: "center", gap: "5px", cursor: "pointer" },
     catCircle: (isActive) => ({
@@ -276,8 +262,6 @@ export default function Moldes() {
       transition: "all 0.2s", position: "relative"
     }),
     catName: { fontSize: "11px", fontWeight: "bold", textAlign: "center", maxWidth: "65px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-    
-    // NUEVO: Grid de Moldes (Tipo Tienda)
     grid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" },
     productCard: { background: "var(--m-surface)", border: "1px solid var(--m-border)", borderRadius: "12px", overflow: "hidden", display: "flex", flexDirection: "column", cursor: "pointer", position: "relative" },
     productImg: { width: "100%", aspectRatio: "1", objectFit: "cover", background: "var(--m-surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", fontWeight: "bold", color: "var(--m-muted)" },
@@ -286,11 +270,14 @@ export default function Moldes() {
     productTitle: { fontSize: "12px", fontWeight: "bold", color: "var(--m-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     productSub: { fontSize: "11px", color: "var(--m-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
     deleteBtn: { position: "absolute", top: "5px", right: "5px", background: "rgba(0,0,0,0.5)", borderRadius: "50%", padding: "4px", border: "none", color: "#fff", zIndex: 2 },
+    
+    // AQUI ESTA EL ARREGLO DEL MODAL PARA QUE NO SE TAPE CON EL MENU
+    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "var(--m-overlay)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: "15px" },
+    modal: { background: "var(--m-surface)", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid var(--m-border)", maxHeight: "85vh", display: "flex", flexDirection: "column" },
+    modalScroll: { overflowY: "auto", flex: 1, paddingRight: "5px" },
+    closeBtn: { background: "var(--m-surface-2)", border: "none", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--m-text)" },
 
-    // Modales y formularios
-    modalBg: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "var(--m-overlay)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: "10px" },
-    modal: { background: "var(--m-surface)", padding: "20px", borderRadius: "16px", width: "100%", maxWidth: "600px", border: "1px solid var(--m-border)", maxHeight: "95vh", overflowY: "auto", display: "flex", flexDirection: "column" },
-    readContainer: { background: "var(--m-inset)", border: "1px solid var(--m-border)", borderRadius: "8px", padding: "15px", marginBottom: "15px" },
+    readContainer: { background: "var(--m-inset)", border: "1px solid var(--m-border)", borderRadius: "8px", padding: "15px", marginBottom: "10px" },
     readLabel: { fontSize: "12px", color: "var(--m-gold)", textTransform: "uppercase", marginBottom: "5px", display: "block" },
     readValue: { fontSize: "16px", color: "var(--m-text)", whiteSpace: "pre-wrap" },
     label: { fontSize: "12px", color: "var(--m-muted)", marginBottom: "6px", display: "block", marginTop: "10px", fontWeight: "bold" },
@@ -298,13 +285,10 @@ export default function Moldes() {
     textarea: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", background: "var(--m-inset)", color: "var(--m-text)", boxSizing: "border-box", fontSize: "15px", minHeight: "80px", resize: "vertical" },
     row: { display: "flex", gap: "10px" },
     col: { flex: 1, minWidth: 0 },
-    
-    // Escaneo
     btnScanSingle: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "var(--m-surface)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     btnScanMulti: { flex: 1, padding: "12px", borderRadius: "8px", border: "1px dashed var(--m-gold)", background: scanning ? "rgba(212,175,55,0.1)" : "var(--m-surface)", color: "var(--m-gold)", fontWeight: "bold", cursor: "pointer", textAlign: "center", display: "flex", justifyContent: "center", alignItems: "center", gap: "5px" },
     progressBar: { width: "100%", height: "6px", background: "var(--m-border)", borderRadius: "3px", marginTop: "5px", overflow: "hidden" },
     progressFill: { height: "100%", background: "linear-gradient(135deg, #f0d391 0%, #d2ab62 50%, #b08033 100%)", width: `${progress}%`, transition: "width 0.3s ease" },
-    
     batchCard: { background: "var(--m-inset)", padding: "12px", borderRadius: "8px", border: "1px solid var(--m-border)", marginBottom: "10px" },
     btnAddLib: { background: "transparent", color: "var(--m-gold)", border: "1px dashed var(--m-gold)", padding: "15px", borderRadius: "10px", width: "100%", cursor: "pointer", marginBottom: "20px", fontWeight: "bold", fontSize: "16px" },
     inputNewLib: { width: "100%", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-gold)", background: "var(--m-surface)", color: "var(--m-text)", marginBottom: "10px", boxSizing: "border-box", fontSize: "16px" },
@@ -316,7 +300,6 @@ export default function Moldes() {
   return (
     <div style={s.page}>
       
-      {/* HEADER Y BUSCADOR */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
         <div>
           <h1 style={s.title}>{selectedLib ? selectedLib.nombre : "Mis Colecciones"}</h1>
@@ -340,7 +323,6 @@ export default function Moldes() {
         </button>
       )}
 
-      {/* VISTA 1: CARPETAS */}
       {!selectedLib && (
         <>
           {!showNewLib ? (
@@ -372,10 +354,8 @@ export default function Moldes() {
         </>
       )}
 
-      {/* VISTA 2: CATÁLOGO DENTRO DE LA CARPETA */}
       {selectedLib && (
         <>
-          {/* BOTONES DE ESCANEO CON BARRA DE PROGRESO */}
           {scanning ? (
             <div style={{ background: "var(--m-surface)", padding: "15px", borderRadius: "10px", border: "1px solid var(--m-border)", textAlign: "center", marginBottom: "20px" }}>
               <span style={{ color: "var(--m-gold)", fontWeight: "bold" }}><Loader2 className="inline animate-spin w-4 h-4 mr-1.5 -mt-0.5" />Procesando hoja {currentSheet} de {totalSheets} ({progress}%)</span>
@@ -394,7 +374,6 @@ export default function Moldes() {
             </div>
           )}
 
-          {/* CARRUSEL DE CATEGORÍAS (Bolitas) */}
           <div style={s.catCarousel}>
             {dynamicCategories.map(cat => (
               <div key={cat} style={s.catItem} onClick={() => setSelectedCategory(cat)}>
@@ -410,7 +389,6 @@ export default function Moldes() {
               </div>
             ))}
             
-            {/* Botón para agregar nueva categoría */}
             <div style={s.catItem} onClick={() => setShowNewCat(true)}>
               <div style={{...s.catCircle(false), borderStyle: "dashed"}}>
                 <Plus className="w-6 h-6" />
@@ -419,7 +397,6 @@ export default function Moldes() {
             </div>
           </div>
 
-          {/* INPUT PARA NUEVA CATEGORÍA */}
           {showNewCat && (
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <input autoFocus style={s.input} placeholder="Ej. Plancha, Dije..." value={newCatName} onChange={(e) => setNewCatName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()} />
@@ -428,7 +405,6 @@ export default function Moldes() {
             </div>
           )}
 
-          {/* GRID DE MOLDES (TIPO TIENDA) */}
           <div style={s.grid}>
             {filteredMolds.map((m) => (
               <div key={m.id} style={s.productCard} onClick={() => openViewModal(m)}>
@@ -453,23 +429,25 @@ export default function Moldes() {
             <p style={{ color: "var(--m-muted)", textAlign: "center", marginTop: "30px" }}>No hay moldes en esta categoría.</p>
           )}
 
-          {/* BOTÓN FLOTANTE PARA CREAR MOLDE A MANO */}
           <button style={s.fab} onClick={openNewModal}><Plus className="w-6 h-6" /></button>
         </>
       )}
 
-      {/* MODAL REVISIÓN LOTE (Se mantiene igual) */}
       {batchOpen && (
         <div style={s.modalBg}>
           <div style={s.modal}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+              <h2 style={{ color: "var(--m-gold)", margin: 0, fontSize: "20px" }}>Revisar Lista</h2>
+              <button style={s.closeBtn} onClick={() => setBatchOpen(false)}><X className="w-5 h-5" /></button>
+            </div>
             <div style={{ background: "var(--m-surface-2)", padding: "15px", borderRadius: "8px", marginBottom: "15px", borderLeft: "4px solid var(--m-gold)" }}>
-              <label style={{ ...s.label, marginTop: 0 }}>Título General de la Hoja</label>
+              <label style={{ ...s.label, marginTop: 0 }}>Título de la Hoja</label>
               <input style={s.input} value={batchTitle} onChange={(e) => setBatchTitle(e.target.value)} placeholder="Ej. Anillo Graduación" />
             </div>
 
-            <p style={{ color: "var(--m-muted)", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes. Corrige cualquier error antes de guardar.</p>
+            <p style={{ color: "var(--m-muted)", fontSize: "14px", marginBottom: "15px" }}>Se encontraron <b>{batchMoldes.length}</b> moldes.</p>
             
-            <div style={{ display: "flex", flexDirection: "column", maxHeight: "50vh", overflowY: "auto" }}>
+            <div style={{ ...s.modalScroll, display: "flex", flexDirection: "column" }}>
               {batchMoldes.map((m, idx) => (
                 <div key={idx} style={s.batchCard}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -488,7 +466,7 @@ export default function Moldes() {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "15px", position: "sticky", bottom: 0, background: "var(--m-surface)", paddingTop: "10px", borderTop: "1px solid var(--m-border)" }}>
+            <div style={{ display: "flex", gap: "10px", marginTop: "15px", paddingTop: "10px", borderTop: "1px solid var(--m-border)" }}>
               <button onClick={saveBatch} disabled={saving} style={{ ...s.btnPrimary, flex: 2, padding: "15px" }}>
                 {saving ? "Guardando..." : `Guardar ${batchMoldes.length} Moldes`}
               </button>
@@ -498,57 +476,62 @@ export default function Moldes() {
         </div>
       )}
 
-      {/* MODAL INDIVIDUAL (Se mantiene igual) */}
       {modalOpen && (
         <div style={s.modalBg} onClick={() => setModalOpen(false)}>
-          <div style={{...s.modal, maxWidth: "600px"}} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h2 style={{ color: "var(--m-gold)", margin: 0 }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles del Molde") : "Nuevo Molde"}</h2>
-              {editing && !isEditMode && (
-                <button style={{ ...s.btnPrimary, padding: "8px 12px", fontSize: "12px" }} onClick={() => setIsEditMode(true)}><Pencil className="inline w-4 h-4 mr-1.5 -mt-0.5" />Editar</button>
-              )}
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            
+            {/* BARRA SUPERIOR CON BOTÓN DE CERRAR (X) SIEMPRE VISIBLE */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", flexShrink: 0 }}>
+              <h2 style={{ color: "var(--m-gold)", margin: 0, fontSize: "20px" }}>{editing ? (isEditMode ? "Editar Molde" : "Detalles") : "Nuevo Molde"}</h2>
+              <button style={s.closeBtn} onClick={() => setModalOpen(false)}><X className="w-5 h-5" /></button>
             </div>
             
-            {!isEditMode && editing ? (
-              <div>
-                {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
-                <div style={{...s.readContainer, marginTop: formData.foto_url ? "15px" : "0"}}>
-                  <span style={s.readLabel}>Número</span>
-                  <div style={{ ...s.readValue, fontSize: "24px", color: "var(--m-gold)", fontWeight: "bold" }}>{formData.numero}</div>
+            {/* CONTENEDOR CON SCROLL INTERNO */}
+            <div style={s.modalScroll}>
+              {!isEditMode && editing ? (
+                <div>
+                  {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
+                  <div style={{...s.readContainer, marginTop: formData.foto_url ? "15px" : "0"}}>
+                    <span style={s.readLabel}>Número</span>
+                    <div style={{ ...s.readValue, fontSize: "24px", color: "var(--m-gold)", fontWeight: "bold" }}>{formData.numero}</div>
+                  </div>
+                  <div style={s.readContainer}><span style={s.readLabel}>Tipo</span><div style={s.readValue}>{formData.tipo || "-"}</div></div>
+                  <div style={s.readContainer}><span style={s.readLabel}>Carrera / Diseño</span><div style={s.readValue}>{formData.carrera || "-"}</div></div>
+                  <div style={s.row}>
+                    <div style={{...s.readContainer, flex: 1}}><span style={s.readLabel}>Medida</span><div style={s.readValue}>{formData.medida || "-"}</div></div>
+                    <div style={{...s.readContainer, flex: 1}}><span style={s.readLabel}>Notas</span><div style={s.readValue}>{formData.notas || "-"}</div></div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+                    <button style={{ ...s.btnPrimary, flex: 1 }} onClick={() => setIsEditMode(true)}><Pencil className="inline w-4 h-4 mr-1.5 -mt-0.5" />Editar</button>
+                    <button style={{ ...s.btnSecondary, flex: 1 }} onClick={() => setModalOpen(false)}>Cerrar</button>
+                  </div>
                 </div>
-                <div style={s.readContainer}><span style={s.readLabel}>Tipo</span><div style={s.readValue}>{formData.tipo || "-"}</div></div>
-                <div style={s.readContainer}><span style={s.readLabel}>Carrera / Diseño</span><div style={s.readValue}>{formData.carrera || "-"}</div></div>
-                <div style={s.row}>
-                  <div style={{...s.readContainer, flex: 1}}><span style={s.readLabel}>Medida</span><div style={s.readValue}>{formData.medida || "-"}</div></div>
-                  <div style={{...s.readContainer, flex: 1}}><span style={s.readLabel}>Notas</span><div style={s.readValue}>{formData.notas || "-"}</div></div>
-                </div>
-                <button style={{ ...s.btnSecondary, width: "100%", marginTop: "20px" }} onClick={() => setModalOpen(false)}>Cerrar</button>
-              </div>
-            ) : (
-              <form onSubmit={handleSave}>
-                <label style={s.label}>Foto del Molde (Opcional)</label>
-                {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
-                <button type="button" style={s.btnPhoto} onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
-                  {uploadingPhoto ? "Subiendo foto..." : "Subir / Cambiar foto"}
-                </button>
-                <input type="file" accept="image/*" ref={photoInputRef} style={{ display: "none" }} onChange={handlePhotoUpload} disabled={uploadingPhoto} />
+              ) : (
+                <form onSubmit={handleSave}>
+                  <label style={s.label}>Foto del Molde (Opcional)</label>
+                  {formData.foto_url && <img src={formData.foto_url} alt="Molde" style={s.photoPreview} />}
+                  <button type="button" style={s.btnPhoto} onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}>
+                    {uploadingPhoto ? "Subiendo foto..." : "Subir / Cambiar foto"}
+                  </button>
+                  <input type="file" accept="image/*" ref={photoInputRef} style={{ display: "none" }} onChange={handlePhotoUpload} disabled={uploadingPhoto} />
 
-                <div style={s.row}>
-                  <div style={s.col}><label style={s.label}>Número</label><input style={s.input} required value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} /></div>
-                  <div style={s.col}><label style={s.label}>Tipo</label><input style={s.input} value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} placeholder="Anillo, Dije..." /></div>
-                </div>
-                <label style={s.label}>Carrera / Diseño</label>
-                <textarea style={s.textarea} value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
-                <div style={s.row}>
-                  <div style={s.col}><label style={s.label}>Medida</label><input style={s.input} value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} /></div>
-                  <div style={s.col}><label style={s.label}>Notas</label><input style={s.input} value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} /></div>
-                </div>
-                <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
-                  <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || uploadingPhoto}>{saving ? "..." : "Guardar"}</button>
-                  <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => editing ? setIsEditMode(false) : setModalOpen(false)}>Cancelar</button>
-                </div>
-              </form>
-            )}
+                  <div style={s.row}>
+                    <div style={s.col}><label style={s.label}>Número</label><input style={s.input} required value={formData.numero} onChange={(e) => setFormData({...formData, numero: e.target.value})} /></div>
+                    <div style={s.col}><label style={s.label}>Tipo</label><input style={s.input} value={formData.tipo} onChange={(e) => setFormData({...formData, tipo: e.target.value})} placeholder="Anillo, Dije..." /></div>
+                  </div>
+                  <label style={s.label}>Carrera / Diseño</label>
+                  <textarea style={s.textarea} value={formData.carrera} onChange={(e) => setFormData({...formData, carrera: e.target.value})} />
+                  <div style={s.row}>
+                    <div style={s.col}><label style={s.label}>Medida</label><input style={s.input} value={formData.medida} onChange={(e) => setFormData({...formData, medida: e.target.value})} /></div>
+                    <div style={s.col}><label style={s.label}>Notas</label><input style={s.input} value={formData.notas} onChange={(e) => setFormData({...formData, notas: e.target.value})} /></div>
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", marginTop: "25px" }}>
+                    <button type="submit" style={{ ...s.btnPrimary, flex: 1 }} disabled={saving || uploadingPhoto}>{saving ? "..." : "Guardar"}</button>
+                    <button type="button" style={{ ...s.btnSecondary, flex: 1 }} onClick={() => editing ? setIsEditMode(false) : setModalOpen(false)}>Cancelar</button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         </div>
       )}
