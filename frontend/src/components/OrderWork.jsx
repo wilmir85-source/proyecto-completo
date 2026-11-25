@@ -20,9 +20,6 @@ const isDigitalType = (t) => DIGITAL_TYPES.includes(t);
 
 /* ============================================================
    RUTA DEL PEDIDO — única fuente de verdad.
-   Se guarda en el pedido como nota [RUTA: a > b > c] (mismo
-   mecanismo que la pausa, sin tocar backend). Si el backend
-   algún día expone order.ruta (array), se usa primero.
    ============================================================ */
 const CIERRE = ["Terminado", "Entregado"];
 
@@ -34,10 +31,10 @@ export const buildRoute = (tipo, esCastable) => {
     : ["Ventas", "Vulcanizado", ...CIERRE];
   if (tipo === "Ceras") return esCastable
     ? ["Ventas", "Ceras", "Casting", "Fabricación", ...CIERRE]
-    : ["Ventas", "Ceras", ...CIERRE]; // solo venta de ceras: termina al entregar
+    : ["Ventas", "Ceras", ...CIERRE]; // Solo venta de ceras: termina al entregar
   if (isDigitalType(tipo)) return esCastable
-    ? ["Ventas", "Diseño 3D", "Casting", "Fabricación", ...CIERRE] // fabricación: resina castable → fundición
-    : ["Ventas", "Diseño 3D", ...CIERRE]; // solo entrega/venta del archivo o molde
+    ? ["Ventas", "Diseño 3D", "Casting", "Fabricación", ...CIERRE] // Fabricación: resina castable → fundición
+    : ["Ventas", "Diseño 3D", ...CIERRE]; // Solo entrega/venta del archivo o molde
   if (tipo === "Reparaciones") return ["Ventas", "Reparaciones", ...CIERRE];
   if (tipo === "Grabado Láser") return ["Ventas", "Grabado Láser", ...CIERRE];
   return ["Ventas", "Diseño 3D", "Ceras", "Casting", "Fabricación", ...CIERRE]; // Fabricación (default)
@@ -58,7 +55,6 @@ export const getOrderRoute = (order) => {
 
 const routeNota = (route) => `[RUTA: ${route.join(" > ")}]`;
 
-// Reescribe la última marca [RUTA: …] o la agrega si no existe.
 export const upsertRouteNota = (notas = "", route) => {
   const matches = [...notas.matchAll(/\[RUTA:[^\]]*\]/g)];
   if (!matches.length) return [notas?.trimEnd(), routeNota(route)].filter(Boolean).join("\n");
@@ -66,25 +62,23 @@ export const upsertRouteNota = (notas = "", route) => {
   return notas.slice(0, last.index) + routeNota(route) + notas.slice(last.index + last[0].length);
 };
 
-// Siguiente etapa según la ruta guardada. "Entregado" (cierre total)
-// NUNCA se devuelve aquí: eso es solo de admin/ventas.
 const getNextStage = (order, route) => {
   const i = route.indexOf(order.stage);
   if (i === -1 || i >= route.length - 1) return null;
   const next = route[i + 1];
-  return next === "Entregado" ? null : next;
+  return next === "Entregado" ? null : next; // "Entregado" solo lo hace admin/ventas
 };
 
 // Origen al repetir: la ruta lo decide, no se elige a mano.
 const getRepeatOrigin = (order, route) => {
-  if (route.includes("Inyección")) return "Inyección"; // el molde ya existe: se reinyecta
-  if (route.includes("Diseño 3D") && (isDigitalType(order.tipo) || order.es_castable)) return "Diseño 3D";
+  if (route.includes("Inyección")) return "Inyección"; // El molde ya existe: se reinyecta
+  if (route.includes("Diseño 3D") && (isDigitalType(order.tipo) || order.es_castable)) return "Diseño 3D"; // Se reimprime
   if (route.includes("Ceras")) return "Ceras";
   return route.find((s) => s !== "Ventas") || route[0];
 };
 
 /* ============================================================
-   PAUSA (derivada de notas, igual que antes)
+   PAUSA
    ============================================================ */
 const getPauseInfo = (notas = "") => {
   const iP = notas.lastIndexOf("[PAUSADO");
@@ -100,7 +94,6 @@ const getPauseInfo = (notas = "") => {
 
 const appendNota = (notas, tag) => [notas?.trimEnd(), tag].filter(Boolean).join("\n");
 
-// Mini-mapa: ahora muestra la ruta REAL del pedido (sin ALT_SLOT).
 const StageChain = ({ order, isImport, route }) => {
   const { chain, current, accent } = useMemo(() => {
     if (isImport) {
@@ -133,7 +126,6 @@ const StageChain = ({ order, isImport, route }) => {
   );
 };
 
-// Diálogo de motivo. En "repetir" el destino está BLOQUEADO al origen de la ruta.
 const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) => {
   const [motivo, setMotivo] = useState("");
   const isPausa = kind === "pausar";
@@ -151,6 +143,10 @@ const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) =>
     onConfirm(m, fixedTarget);
   };
 
+  const repeatReasonText = fixedTarget === "Inyección" ? "para volver a inyectar" 
+    : fixedTarget === "Diseño 3D" ? "para volver a imprimir en resina" 
+    : "para rehacer el proceso";
+
   return (
     <div
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
@@ -164,7 +160,7 @@ const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) =>
             {isPausa ? <PauseCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
           </div>
           <div className="min-w-0">
-            <h3 className="text-zinc-100 font-bold">{isPausa ? "Pausar trabajo" : "Repetir trabajo"}</h3>
+            <h3 className="text-zinc-100 font-bold">{isPausa ? "Pausar trabajo" : "Repetir / Devolver pieza"}</h3>
             <p className="text-xs text-zinc-400 mt-0.5">
               {isPausa
                 ? `El pedido quedará marcado como pausado en ${order.stage} hasta que lo reanudes.`
@@ -176,7 +172,7 @@ const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) =>
           </button>
         </div>
 
-        <Label>{isPausa ? "Motivo de la pausa" : "¿Qué pasó?"}</Label>
+        <Label>{isPausa ? "Motivo de la pausa" : "¿Qué pasó con la pieza?"}</Label>
         <textarea
           autoFocus rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) confirmar(); }}
@@ -188,8 +184,8 @@ const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) =>
           <div className="mt-3 flex items-start gap-3 px-3 py-2.5 rounded-lg border border-[#c5a572]/40 bg-[#c5a572]/5" data-testid="repeat-origin">
             <Lock className="w-4 h-4 text-[#c5a572] shrink-0 mt-0.5" />
             <div className="min-w-0">
-              <div className="text-sm font-bold text-[#c5a572]">Regresa a: {fixedTarget}</div>
-              <div className="text-[11px] text-zinc-500">Lo define la ruta del pedido — no se elige a mano. Al marcar listo, recorre la misma ruta hacia adelante.</div>
+              <div className="text-sm font-bold text-[#c5a572]">Regresa automáticamente a: {fixedTarget}</div>
+              <div className="text-[11px] text-zinc-500">Lo define la ruta del pedido (no se elige a mano). Al marcar "Listo" de nuevo, recorrerá la misma cadena hacia adelante {repeatReasonText}.</div>
             </div>
           </div>
         )}
@@ -206,6 +202,7 @@ const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) =>
           </button>
         </div>
         <p className="text-[10px] text-zinc-600 mt-2 text-center">Ctrl + Enter para confirmar · Esc para cancelar</p>
+        <p className="text-[10px] text-zinc-600 mt-1 text-center">El progreso se reiniciará al 0% en el departamento de origen.</p>
       </div>
     </div>
   );
@@ -238,7 +235,6 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
   };
 
   const isImport = order.tipo === "Importación de máquinas";
-  const isDigital = isDigitalType(order.tipo);
   const route = useMemo(() => getOrderRoute(order), [order.tipo, order.es_castable, order.notas, order.ruta]);
   const nextStage = isImport ? null : getNextStage(order, route);
   const repeatOrigin = useMemo(() => getRepeatOrigin(order, route), [order, route]);
@@ -248,12 +244,10 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
   const importIdx = IMPORT_STAGES.indexOf(order.import_status || IMPORT_STAGES[0]);
   const nextImport = importIdx >= 0 && importIdx < IMPORT_STAGES.length - 1 ? IMPORT_STAGES[importIdx + 1] : null;
   const canAdvanceImport = nextImport && (nextImport !== "Entregada al Cliente" || staff);
-  // El trabajador NUNCA puede elegir "Entregada al Cliente" ni desde el select interno.
   const importOptions = IMPORT_STAGES.filter((s) =>
     staff || s !== "Entregada al Cliente" || s === (order.import_status || IMPORT_STAGES[0])
   );
 
-  // Staff: el select solo ofrece la ruta de ESTE pedido (más la etapa actual si es un pedido viejo fuera de ruta).
   const routeOptions = route.includes(order.stage) ? route : [order.stage, ...route];
 
   const confirmarPausa = (motivo) => {
@@ -270,7 +264,6 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
   const reanudar = () =>
     patch({ notas: appendNota(orderRef.current.notas, `[REANUDADO en ${orderRef.current.stage}]`) }, "Trabajo reanudado");
 
-  // Al cambiar tipo o castable, la ruta se recalcula y se reescribe en el pedido.
   const changeTipo = (tipo) => {
     const r = buildRoute(tipo, !!orderRef.current.es_castable);
     patch({ tipo, notas: upsertRouteNota(orderRef.current.notas, r) }, `Tipo: ${tipo} · ruta actualizada`);
@@ -324,16 +317,16 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         )}
       </div>
 
-      {/* AVANCE DE CADENA (trabajadores) — según la ruta guardada */}
+      {/* BOTÓN "LISTO" (trabajadores) — según la ruta guardada */}
       {!staff && !isImport && nextStage && (
         <div className="col-span-2 mt-1">
           <button type="button" disabled={busy || pause.paused}
             title={pause.paused ? "Reanuda el pedido para poder avanzarlo" : undefined}
-            onClick={() => patch({ stage: nextStage, progreso: 0 }, `¡Trabajo terminado! Enviado a ${nextStage}`)}
+            onClick={() => patch({ stage: nextStage, progreso: 0 }, `¡Listo! Enviado a ${nextStage}`)}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
             data-testid="btn-advance">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-            Terminar y enviar a {nextStage}
+            ✅ Listo: Enviar a {nextStage}
           </button>
         </div>
       )}
@@ -365,7 +358,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             <button type="button" onClick={() => setDialog("pausar")} disabled={busy}
               className="w-full bg-amber-950/40 border border-amber-900/50 text-amber-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all hover:bg-amber-950/70 disabled:opacity-40"
               data-testid="btn-pause">
-              <PauseCircle className="w-4 h-4" /> Pausar / Falta Mat.
+              <PauseCircle className="w-4 h-4" /> En espera / Falta Mat.
             </button>
           )}
           <button type="button" onClick={() => setDialog("repetir")} disabled={busy}
