@@ -3,11 +3,11 @@ import { api } from "@/lib/api";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { STAGES, ORDER_TYPES, toISO, toLocalInput, apiError } from "@/lib/stages";
+import { ORDER_TYPES, toISO, toLocalInput, apiError } from "@/lib/stages";
 import { useFinishOrder } from "@/components/FinishOrderDialog";
 import { DeadlineProgressBar } from "@/components/DeadlineProgressBar";
 import {
-  CheckCircle2, AlertTriangle, PauseCircle, PlayCircle, RotateCcw, Loader2, X, PackageCheck,
+  CheckCircle2, AlertTriangle, PauseCircle, PlayCircle, RotateCcw, Loader2, X, PackageCheck, Lock,
 } from "lucide-react";
 
 const Label = ({ children }) => (
@@ -16,26 +16,76 @@ const Label = ({ children }) => (
 
 const IMPORT_STAGES = ["Comprada (USA)", "En Bodega USA", "En Vuelo a GT", "En Aduana (GT)", "Lista en Taller", "Entregada al Cliente"];
 const DIGITAL_TYPES = ["Diseño", "Molde", "Diseño 3D"];
-const JEWELRY_CHAIN = ["Ventas", "Diseño 3D", "Ceras", "Casting", "Fabricación", "Terminado", "Entregado"];
-const DIGITAL_CHAIN = ["Ventas", "Diseño 3D", "Terminado", "Entregado"];
-const ALT_SLOT = { "Inyección": 2, "Vulcanizado": 3, "Grabado Láser": 4, "Reparaciones": 4 };
-
 const isDigitalType = (t) => DIGITAL_TYPES.includes(t);
 
-// Cadena de avance: respeta el tipo de trabajo y nunca "avanza" desde Terminado/Entregado.
-const getNextStage = (currentStage, orderType) => {
-  if (currentStage === "Terminado" || currentStage === "Entregado") return null;
-  if (orderType === "Importación de máquinas") return null;
-  if (currentStage === "Ventas") return "Diseño 3D";
-  if (isDigitalType(orderType)) return "Terminado";
-  if (currentStage === "Diseño 3D") return "Ceras";
-  if (currentStage === "Ceras" || currentStage === "Inyección") return "Casting";
-  if (currentStage === "Casting" || currentStage === "Vulcanizado") return "Fabricación";
-  if (currentStage === "Fabricación" || currentStage === "Grabado Láser" || currentStage === "Reparaciones") return "Terminado";
-  return null;
+/* ============================================================
+   RUTA DEL PEDIDO — única fuente de verdad.
+   Se guarda en el pedido como nota [RUTA: a > b > c] (mismo
+   mecanismo que la pausa, sin tocar backend). Si el backend
+   algún día expone order.ruta (array), se usa primero.
+   ============================================================ */
+const CIERRE = ["Terminado", "Entregado"];
+
+export const buildRoute = (tipo, esCastable) => {
+  if (tipo === "Importación de máquinas") return [...IMPORT_STAGES];
+  if (tipo === "Inyección") return ["Ventas", "Vulcanizado", "Inyección", "Casting", "Fabricación", ...CIERRE];
+  if (tipo === "Vulcanizado") return esCastable
+    ? ["Ventas", "Vulcanizado", "Inyección", "Casting", "Fabricación", ...CIERRE]
+    : ["Ventas", "Vulcanizado", ...CIERRE];
+  if (tipo === "Ceras") return esCastable
+    ? ["Ventas", "Ceras", "Casting", "Fabricación", ...CIERRE]
+    : ["Ventas", "Ceras", ...CIERRE]; // solo venta de ceras: termina al entregar
+  if (isDigitalType(tipo)) return esCastable
+    ? ["Ventas", "Diseño 3D", "Casting", "Fabricación", ...CIERRE] // fabricación: resina castable → fundición
+    : ["Ventas", "Diseño 3D", ...CIERRE]; // solo entrega/venta del archivo o molde
+  if (tipo === "Reparaciones") return ["Ventas", "Reparaciones", ...CIERRE];
+  if (tipo === "Grabado Láser") return ["Ventas", "Grabado Láser", ...CIERRE];
+  return ["Ventas", "Diseño 3D", "Ceras", "Casting", "Fabricación", ...CIERRE]; // Fabricación (default)
 };
 
-// El estado "pausado" se deriva de las notas (sin tocar el backend): gana la última marca.
+const parseRouteNota = (notas = "") => {
+  const m = [...notas.matchAll(/\[RUTA:\s*([^\]]+)\]/g)].pop();
+  if (!m) return null;
+  const stages = m[1].split(">").map((s) => s.trim()).filter(Boolean);
+  return stages.length >= 2 ? stages : null;
+};
+
+export const getOrderRoute = (order) => {
+  if (order.tipo === "Importación de máquinas") return [...IMPORT_STAGES];
+  if (Array.isArray(order.ruta) && order.ruta.length >= 2) return order.ruta;
+  return parseRouteNota(order.notas) || buildRoute(order.tipo || "Fabricación", !!order.es_castable);
+};
+
+const routeNota = (route) => `[RUTA: ${route.join(" > ")}]`;
+
+// Reescribe la última marca [RUTA: …] o la agrega si no existe.
+export const upsertRouteNota = (notas = "", route) => {
+  const matches = [...notas.matchAll(/\[RUTA:[^\]]*\]/g)];
+  if (!matches.length) return [notas?.trimEnd(), routeNota(route)].filter(Boolean).join("\n");
+  const last = matches[matches.length - 1];
+  return notas.slice(0, last.index) + routeNota(route) + notas.slice(last.index + last[0].length);
+};
+
+// Siguiente etapa según la ruta guardada. "Entregado" (cierre total)
+// NUNCA se devuelve aquí: eso es solo de admin/ventas.
+const getNextStage = (order, route) => {
+  const i = route.indexOf(order.stage);
+  if (i === -1 || i >= route.length - 1) return null;
+  const next = route[i + 1];
+  return next === "Entregado" ? null : next;
+};
+
+// Origen al repetir: la ruta lo decide, no se elige a mano.
+const getRepeatOrigin = (order, route) => {
+  if (route.includes("Inyección")) return "Inyección"; // el molde ya existe: se reinyecta
+  if (route.includes("Diseño 3D") && (isDigitalType(order.tipo) || order.es_castable)) return "Diseño 3D";
+  if (route.includes("Ceras")) return "Ceras";
+  return route.find((s) => s !== "Ventas") || route[0];
+};
+
+/* ============================================================
+   PAUSA (derivada de notas, igual que antes)
+   ============================================================ */
 const getPauseInfo = (notas = "") => {
   const iP = notas.lastIndexOf("[PAUSADO");
   const iR = Math.max(notas.lastIndexOf("[REANUDADO"), notas.lastIndexOf("[REPETIR]"));
@@ -50,16 +100,14 @@ const getPauseInfo = (notas = "") => {
 
 const appendNota = (notas, tag) => [notas?.trimEnd(), tag].filter(Boolean).join("\n");
 
-// Mini-mapa de la cadena: el trabajador ve dónde está y qué sigue.
-const StageChain = ({ order, isImport, isDigital }) => {
+// Mini-mapa: ahora muestra la ruta REAL del pedido (sin ALT_SLOT).
+const StageChain = ({ order, isImport, route }) => {
   const { chain, current, accent } = useMemo(() => {
     if (isImport) {
       return { chain: IMPORT_STAGES, current: IMPORT_STAGES.indexOf(order.import_status || IMPORT_STAGES[0]), accent: "blue" };
     }
-    const base = isDigital ? [...DIGITAL_CHAIN] : [...JEWELRY_CHAIN];
-    if (!isDigital && ALT_SLOT[order.stage] != null) base[ALT_SLOT[order.stage]] = order.stage;
-    return { chain: base, current: base.indexOf(order.stage), accent: "gold" };
-  }, [order.stage, order.import_status, isImport, isDigital]);
+    return { chain: route, current: route.indexOf(order.stage), accent: "gold" };
+  }, [order.stage, order.import_status, isImport, route]);
 
   const dot = (i) =>
     i < current ? "bg-emerald-500"
@@ -85,19 +133,12 @@ const StageChain = ({ order, isImport, isDigital }) => {
   );
 };
 
-const REPEAT_DESTS = [
-  { id: "Diseño 3D", desc: "Reimprimir en resina castable" },
-  { id: "Ceras", desc: "Volver a fabricar la cera a mano" },
-  { id: "Inyección", desc: "Volver a inyectar con el molde de goma" },
-];
-
-// Diálogo propio en lugar de window.prompt / window.confirm.
-const MotivoDialog = ({ kind, order, suggestedTarget, busy, onClose, onConfirm }) => {
+// Diálogo de motivo. En "repetir" el destino está BLOQUEADO al origen de la ruta.
+const MotivoDialog = ({ kind, order, fixedTarget, busy, onClose, onConfirm }) => {
   const [motivo, setMotivo] = useState("");
-  const [target, setTarget] = useState(suggestedTarget);
   const isPausa = kind === "pausar";
 
-  useEffect(() => { setMotivo(""); setTarget(suggestedTarget); }, [kind, suggestedTarget]);
+  useEffect(() => { setMotivo(""); }, [kind, fixedTarget]);
   useEffect(() => {
     const h = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h);
@@ -107,7 +148,7 @@ const MotivoDialog = ({ kind, order, suggestedTarget, busy, onClose, onConfirm }
   const confirmar = () => {
     const m = motivo.trim();
     if (!m || busy) return;
-    onConfirm(m, target);
+    onConfirm(m, fixedTarget);
   };
 
   return (
@@ -127,7 +168,7 @@ const MotivoDialog = ({ kind, order, suggestedTarget, busy, onClose, onConfirm }
             <p className="text-xs text-zinc-400 mt-0.5">
               {isPausa
                 ? `El pedido quedará marcado como pausado en ${order.stage} hasta que lo reanudes.`
-                : "Registra qué pasó y elige a qué etapa regresa la pieza."}
+                : "Registra qué pasó. La pieza regresa a su origen según la ruta del pedido."}
             </p>
           </div>
           <button type="button" onClick={onClose} className="ml-auto text-zinc-500 hover:text-zinc-200 transition-colors" aria-label="Cerrar">
@@ -144,21 +185,11 @@ const MotivoDialog = ({ kind, order, suggestedTarget, busy, onClose, onConfirm }
         />
 
         {!isPausa && (
-          <div className="mt-3">
-            <Label>Regresar a</Label>
-            <div className="grid gap-2">
-              {REPEAT_DESTS.map((d) => (
-                <button key={d.id} type="button" onClick={() => setTarget(d.id)}
-                  className={`flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg border transition-all ${target === d.id ? "border-[#c5a572] bg-[#c5a572]/10" : "border-zinc-800 bg-zinc-950 hover:border-zinc-700"}`}>
-                  <span>
-                    <span className={`block text-sm font-bold ${target === d.id ? "text-[#c5a572]" : "text-zinc-300"}`}>{d.id}</span>
-                    <span className="block text-[11px] text-zinc-500">{d.desc}</span>
-                  </span>
-                  {d.id === suggestedTarget && (
-                    <span className="text-[9px] uppercase tracking-widest text-emerald-400 border border-emerald-800 bg-emerald-950/50 rounded-full px-2 py-0.5 shrink-0">Sugerido</span>
-                  )}
-                </button>
-              ))}
+          <div className="mt-3 flex items-start gap-3 px-3 py-2.5 rounded-lg border border-[#c5a572]/40 bg-[#c5a572]/5" data-testid="repeat-origin">
+            <Lock className="w-4 h-4 text-[#c5a572] shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-[#c5a572]">Regresa a: {fixedTarget}</div>
+              <div className="text-[11px] text-zinc-500">Lo define la ruta del pedido — no se elige a mano. Al marcar listo, recorre la misma ruta hacia adelante.</div>
             </div>
           </div>
         )}
@@ -171,7 +202,7 @@ const MotivoDialog = ({ kind, order, suggestedTarget, busy, onClose, onConfirm }
           <button type="button" onClick={confirmar} disabled={!motivo.trim() || busy} data-testid="motivo-confirm"
             className={`flex-1 py-2.5 rounded-xl text-white font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${isPausa ? "bg-amber-600 hover:bg-amber-500" : "bg-red-600 hover:bg-red-500"}`}>
             {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-            {isPausa ? "Pausar pedido" : `Enviar a ${target}`}
+            {isPausa ? "Pausar pedido" : `Enviar a ${fixedTarget}`}
           </button>
         </div>
         <p className="text-[10px] text-zinc-600 mt-2 text-center">Ctrl + Enter para confirmar · Esc para cancelar</p>
@@ -189,9 +220,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
   orderRef.current = order;
   const { notifyFinished } = useFinishOrder();
 
-  // Sincroniza el slider cuando el pedido cambia desde el servidor o se abre otro pedido.
   useEffect(() => { setProgreso(order.progreso ?? 0); }, [order.id, order.progreso]);
-  // Cancela commits pendientes al desmontar o cambiar de pedido.
   useEffect(() => () => clearTimeout(timer.current), [order.id]);
 
   const patch = async (body, msg) => {
@@ -210,34 +239,53 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
 
   const isImport = order.tipo === "Importación de máquinas";
   const isDigital = isDigitalType(order.tipo);
-  const nextStage = getNextStage(order.stage, order.tipo);
+  const route = useMemo(() => getOrderRoute(order), [order.tipo, order.es_castable, order.notas, order.ruta]);
+  const nextStage = isImport ? null : getNextStage(order, route);
+  const repeatOrigin = useMemo(() => getRepeatOrigin(order, route), [order, route]);
   const pause = useMemo(() => getPauseInfo(order.notas || ""), [order.notas]);
-  const suggestedTarget = isDigital || order.es_castable ? "Diseño 3D" : order.stage === "Inyección" ? "Inyección" : "Ceras";
+  const closed = order.stage === "Entregado";
 
   const importIdx = IMPORT_STAGES.indexOf(order.import_status || IMPORT_STAGES[0]);
   const nextImport = importIdx >= 0 && importIdx < IMPORT_STAGES.length - 1 ? IMPORT_STAGES[importIdx + 1] : null;
   const canAdvanceImport = nextImport && (nextImport !== "Entregada al Cliente" || staff);
+  // El trabajador NUNCA puede elegir "Entregada al Cliente" ni desde el select interno.
+  const importOptions = IMPORT_STAGES.filter((s) =>
+    staff || s !== "Entregada al Cliente" || s === (order.import_status || IMPORT_STAGES[0])
+  );
+
+  // Staff: el select solo ofrece la ruta de ESTE pedido (más la etapa actual si es un pedido viejo fuera de ruta).
+  const routeOptions = route.includes(order.stage) ? route : [order.stage, ...route];
 
   const confirmarPausa = (motivo) => {
     setDialog(null);
-    patch({ notas: appendNota(order.notas, `[PAUSADO en ${order.stage}]: ${motivo}`) }, "Pedido pausado y motivo guardado");
+    patch({ notas: appendNota(orderRef.current.notas, `[PAUSADO en ${orderRef.current.stage}]: ${motivo}`) }, "Pedido pausado y motivo guardado");
   };
   const confirmarRepetir = (motivo, target) => {
     setDialog(null);
     patch(
-      { stage: target, progreso: 0, notas: appendNota(order.notas, `[REPETIR]: ${motivo} (Regresó a ${target})`) },
+      { stage: target, progreso: 0, notas: appendNota(orderRef.current.notas, `[REPETIR]: ${motivo} (Regresó a ${target})`) },
       `Repetido: enviado a ${target}`
     );
   };
   const reanudar = () =>
-    patch({ notas: appendNota(order.notas, `[REANUDADO en ${order.stage}]`) }, "Trabajo reanudado");
+    patch({ notas: appendNota(orderRef.current.notas, `[REANUDADO en ${orderRef.current.stage}]`) }, "Trabajo reanudado");
+
+  // Al cambiar tipo o castable, la ruta se recalcula y se reescribe en el pedido.
+  const changeTipo = (tipo) => {
+    const r = buildRoute(tipo, !!orderRef.current.es_castable);
+    patch({ tipo, notas: upsertRouteNota(orderRef.current.notas, r) }, `Tipo: ${tipo} · ruta actualizada`);
+  };
+  const changeCastable = (v) => {
+    const r = buildRoute(orderRef.current.tipo || "Fabricación", v);
+    patch({ es_castable: v, notas: upsertRouteNota(orderRef.current.notas, r) }, `Castable: ${v ? "Sí" : "No"} · ruta actualizada`);
+  };
 
   const selectCls = "flex h-9 w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1 text-sm text-zinc-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c5a572] disabled:opacity-50";
 
   return (
     <div className="grid grid-cols-2 gap-3" data-testid="order-work">
 
-      <StageChain order={order} isImport={isImport} isDigital={isDigital} />
+      <StageChain order={order} isImport={isImport} route={route} />
 
       {pause.paused && (
         <div className="col-span-2 flex items-start gap-3 bg-amber-950/30 border border-amber-900/50 rounded-lg p-3" data-testid="pause-banner">
@@ -259,9 +307,11 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         {staff ? (
           <select value={order.stage} disabled={busy}
             onChange={(e) => patch({ stage: e.target.value }, `Movido a ${e.target.value}`)}
-            className={selectCls}>
-            {STAGES.map((s) => (
-              <option key={s} value={s}>{s}{s === nextStage ? " → siguiente" : ""}</option>
+            className={selectCls} data-testid="staff-stage-select">
+            {routeOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}{s === nextStage ? " → siguiente" : ""}{s === "Entregado" ? " (cierre: solo admin/ventas)" : ""}
+              </option>
             ))}
           </select>
         ) : (
@@ -269,19 +319,30 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             {order.stage}
           </div>
         )}
+        {staff && !isImport && (
+          <p className="text-[10px] text-zinc-600 mt-1">Solo se muestran las etapas de la ruta de este pedido.</p>
+        )}
       </div>
 
-      {/* AVANCE DE CADENA (trabajadores) */}
+      {/* AVANCE DE CADENA (trabajadores) — según la ruta guardada */}
       {!staff && !isImport && nextStage && (
         <div className="col-span-2 mt-1">
           <button type="button" disabled={busy || pause.paused}
             title={pause.paused ? "Reanuda el pedido para poder avanzarlo" : undefined}
-            onClick={() => patch({ stage: nextStage, progreso: 100 }, `¡Trabajo terminado! Enviado a ${nextStage}`)}
+            onClick={() => patch({ stage: nextStage, progreso: 0 }, `¡Trabajo terminado! Enviado a ${nextStage}`)}
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
             data-testid="btn-advance">
             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
             Terminar y enviar a {nextStage}
           </button>
+        </div>
+      )}
+
+      {/* TERMINADO: el trabajador ya no puede hacer nada; el cierre es de admin/ventas */}
+      {!staff && !isImport && order.stage === "Terminado" && (
+        <div className="col-span-2 flex items-center gap-2 text-[11px] text-zinc-500 bg-zinc-900/40 border border-white/5 rounded-lg px-3 py-2">
+          <Lock className="w-3.5 h-3.5 shrink-0" />
+          Pieza terminada. El cierre y la entrega los hace únicamente Ventas / Admin.
         </div>
       )}
 
@@ -297,10 +358,10 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         </div>
       )}
 
-      {/* PAUSA / REPETIR (trabajadores) */}
-      {!staff && (
+      {/* PAUSA / REPETIR (trabajadores) — nunca en una orden cerrada */}
+      {!staff && !isImport && !closed && (
         <div className="col-span-2 grid grid-cols-2 gap-2 mt-1">
-          {!pause.paused && (
+          {!pause.paused && order.stage !== "Terminado" && (
             <button type="button" onClick={() => setDialog("pausar")} disabled={busy}
               className="w-full bg-amber-950/40 border border-amber-900/50 text-amber-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all hover:bg-amber-950/70 disabled:opacity-40"
               data-testid="btn-pause">
@@ -308,7 +369,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             </button>
           )}
           <button type="button" onClick={() => setDialog("repetir")} disabled={busy}
-            className={`${pause.paused ? "col-span-2" : ""} w-full bg-red-950/40 border border-red-900/50 text-red-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all hover:bg-red-950/70 disabled:opacity-40`}
+            className={`${pause.paused || order.stage === "Terminado" ? "col-span-2" : ""} w-full bg-red-950/40 border border-red-900/50 text-red-400 font-bold py-2 rounded-xl flex items-center justify-center gap-2 transition-all hover:bg-red-950/70 disabled:opacity-40`}
             data-testid="btn-repeat">
             <RotateCcw className="w-4 h-4" /> Repetir / Arruinado
           </button>
@@ -322,18 +383,19 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           <select value={order.import_status || IMPORT_STAGES[0]} disabled={busy}
             onChange={(e) => patch({ import_status: e.target.value }, `Importación: ${e.target.value}`)}
             className="flex h-9 w-full rounded-md border border-blue-800 bg-blue-950/50 px-3 py-1 text-sm text-blue-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50">
-            {IMPORT_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {importOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          {!staff && <p className="text-[10px] text-blue-300/50 mt-1">La entrega al cliente solo la marca Ventas / Admin.</p>}
         </div>
       )}
 
-      {/* TIPO DE TRABAJO Y CASTABLE (Solo Admin/Ventas) */}
+      {/* TIPO DE TRABAJO Y CASTABLE (Solo Admin/Ventas) — reescriben la ruta */}
       {staff && !isImport && (
         <div className="col-span-2 grid grid-cols-2 gap-3 bg-zinc-900/30 p-3 rounded-lg border border-white/5 mt-2">
           <div>
             <Label>Tipo de trabajo</Label>
             <select value={order.tipo || "Fabricación"} disabled={busy}
-              onChange={(e) => patch({ tipo: e.target.value }, `Tipo: ${e.target.value}`)}
+              onChange={(e) => changeTipo(e.target.value)}
               className={selectCls}>
               {ORDER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -342,11 +404,12 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             <Label>¿Es Castable? (Fundición)</Label>
             <label className="flex items-center gap-2 h-9 cursor-pointer">
               <input type="checkbox" checked={order.es_castable || false} disabled={busy}
-                onChange={(e) => patch({ es_castable: e.target.checked }, `Castable: ${e.target.checked ? "Sí" : "No"}`)}
+                onChange={(e) => changeCastable(e.target.checked)}
                 className="w-5 h-5 accent-[#c5a572] rounded border-zinc-800" />
               <span className="text-sm text-zinc-300">Requiere fundición</span>
             </label>
           </div>
+          <p className="col-span-2 text-[10px] text-zinc-600 -mt-1">Cambiar esto recalcula y guarda la ruta del pedido.</p>
         </div>
       )}
 
@@ -421,7 +484,8 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         <div className="col-span-2 mt-4">
           <button type="button" disabled={busy}
             onClick={() => patch({ stage: "Entregado" }, "Pedido entregado al cliente")}
-            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2">
+            className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold py-3 rounded-xl shadow-lg disabled:opacity-40 flex items-center justify-center gap-2"
+            data-testid="btn-close-order">
             {busy && <Loader2 className="w-5 h-5 animate-spin" />}
             Cerrar Orden y Entregar
           </button>
@@ -429,7 +493,7 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
       )}
 
       {dialog && (
-        <MotivoDialog kind={dialog} order={order} suggestedTarget={suggestedTarget} busy={busy}
+        <MotivoDialog kind={dialog} order={order} fixedTarget={repeatOrigin} busy={busy}
           onClose={() => setDialog(null)}
           onConfirm={dialog === "pausar" ? confirmarPausa : confirmarRepetir} />
       )}
