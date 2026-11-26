@@ -148,8 +148,8 @@ export default function Tablero() {
         </div>
       </header>
 
-      {/* ARREGLO DE SCROLL: touch-pan-x para tablets, overflow-auto en compu */}
-      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x touch-pan-y overscroll-x-contain scrollbar-thin scrollbar-visible pb-4" data-testid="kanban-scroll">
+      {/* ARREGLO DE SCROLL PARA TABLETS: Espaciador inferior (pb-32) para que el menú no estorbe */}
+      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x snap-x snap-mandatory overscroll-x-contain scrollbar-none pb-28 md:pb-4" data-testid="kanban-scroll">
         <div className="flex gap-5 md:gap-6 px-4 md:px-8 pb-6 pt-4 h-full min-w-max">
           {STAGES.map((stage) => {
             const list = displayOrders.filter((o) => o.stage === stage);
