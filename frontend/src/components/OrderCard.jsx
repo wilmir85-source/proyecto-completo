@@ -32,8 +32,8 @@ export const OrderCard = ({ order: o, canEdit, canDelete, onOpen, onMove, onDele
         <div className="inline-block text-xs font-mono font-bold text-[#c5a572] bg-[#c5a572]/10 px-1.5 py-0.5 rounded border border-[#c5a572]/20 mb-1 tracking-widest">
           {o.folio || "S/N"}
         </div>
-        <div className="font-medium text-sm truncate text-zinc-100">{o.cliente}</div>
-        <div className="text-xs text-zinc-400 mt-0.5 line-clamp-2 leading-relaxed">{o.descripcion}</div>
+        <div className="font-medium text-sm md:text-base truncate text-zinc-100">{o.cliente}</div>
+        <div className="text-sm md:text-xs text-zinc-400 mt-0.5 line-clamp-2 leading-relaxed">{o.descripcion}</div>
       </div>
       {canDelete && (
         <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-zinc-400 hover:text-red-400 bg-white/5 hover:bg-red-500/20 w-11 h-11 flex items-center justify-center rounded-full md:opacity-0 group-hover:opacity-100 transition-all" data-testid={`btn-delete-${o.id}`}>
@@ -45,7 +45,7 @@ export const OrderCard = ({ order: o, canEdit, canDelete, onOpen, onMove, onDele
     {o.progreso > 0 && <div className="mt-3"><ProgressBar value={o.progreso} /></div>}
     
     <MoneyGate>{o.stage === "Terminado" && o.saldo > 0 && (
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 backdrop-blur-md border border-red-500/40 rounded-lg px-2.5 py-1.5 shadow-inner" data-testid={`saldo-alert-${o.id}`}>
+      <div className="mt-3 flex items-center gap-1.5 text-sm text-red-300 bg-red-950/60 backdrop-blur-md border border-red-500/40 rounded-lg px-2.5 py-1.5 shadow-inner" data-testid={`saldo-alert-${o.id}`}>
         <AlertTriangle className="w-3.5 h-3.5" /> Saldo pendiente <span className="font-bold">{money(o.saldo)}</span>
       </div>
     )}</MoneyGate>
@@ -55,16 +55,16 @@ export const OrderCard = ({ order: o, canEdit, canDelete, onOpen, onMove, onDele
         {o.asignado_nombre && <Avatar name={o.asignado_nombre} />}
         {["atrasado", "por_vencer"].includes(o.estado_entrega)
           ? <DueBadge status={o.estado_entrega} testid={`due-${o.id}`} />
-          : <span className="text-xs text-zinc-400 flex items-center gap-1 truncate"><Clock className="w-3 h-3 text-[#c5a572]" />{o.fecha_entrega ? fmtDate(o.fecha_entrega, { day: "numeric", month: "short" }) : "sin fecha"}</span>}
+          : <span className="text-sm md:text-xs text-zinc-400 flex items-center gap-1 truncate"><Clock className="w-3 h-3 text-[#c5a572]" />{o.fecha_entrega ? fmtDate(o.fecha_entrega, { day: "numeric", month: "short" }) : "sin fecha"}</span>}
       </div>
       {canEdit && (
         <div onClick={(e) => e.stopPropagation()}>
           <Select value={o.stage} onValueChange={onMove}>
-            <SelectTrigger className="h-11 w-36 bg-white/5 border-white/10 text-xs text-zinc-300 hover:bg-white/10 hover:border-[#c5a572]/50 transition-colors rounded-lg" data-testid={`stage-select-${o.id}`}>
+            <SelectTrigger className="h-11 w-36 bg-white/5 border-white/10 text-sm text-zinc-300 hover:bg-white/10 hover:border-[#c5a572]/50 transition-colors rounded-lg" data-testid={`stage-select-${o.id}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-zinc-950/95 backdrop-blur-xl border-[#c5a572]/30 shadow-2xl">
-              {STAGES.map((s) => <SelectItem key={s} value={s} className="text-xs focus:bg-[#c5a572]/20 focus:text-[#c5a572]">{s}</SelectItem>)}
+              {STAGES.map((s) => <SelectItem key={s} value={s} className="text-sm focus:bg-[#c5a572]/20 focus:text-[#c5a572]">{s}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
