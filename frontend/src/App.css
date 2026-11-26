@@ -1,2 +1,38 @@
 /* App-level styles */
 .app-root { min-height: 100vh; }
+/* =========================================
+   SCROLL HORIZONTAL INTELIGENTE (PC vs MÓVIL)
+   ========================================= */
+
+@media (pointer: coarse) {
+  .kanban-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .kanban-scroll::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (pointer: fine) {
+  .kanban-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  .kanban-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  .kanban-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #c5a572, #8b6f47);
+    border-radius: 4px;
+  }
+  .kanban-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #d4b886, #a0825a);
+  }
+  .kanban-scroll {
+    cursor: grab;
+  }
+  .kanban-scroll:active {
+    cursor: grabbing;
+  }
+}
