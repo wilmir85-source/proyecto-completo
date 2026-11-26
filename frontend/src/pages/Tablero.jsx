@@ -97,7 +97,7 @@ export default function Tablero() {
       <header className="px-4 md:px-8 pt-6 pb-0 flex flex-col gap-2 bg-[#09090b] z-30 shrink-0 border-b border-white/5">
         <div className="flex flex-wrap gap-4 items-end justify-between">
           <div>
-            <div className="text-xs md:text-xs uppercase tracking-[0.3em] text-zinc-400 mb-1 md:mb-2 flex items-center gap-2">
+            <div className="text-sm md:text-xs uppercase tracking-[0.3em] text-zinc-400 mb-1 md:mb-2 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Se actualiza solo
             </div>
             <h1 className="font-display text-2xl md:text-4xl font-light">Pedidos</h1>
@@ -105,7 +105,7 @@ export default function Tablero() {
           {staff && <NewOrderDialog users={users} onCreated={load} openSignal={searchParams.get("nuevo")} onClosed={() => clearParam("nuevo")} />}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-2">
+        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-none pb-2">
           <button onClick={() => setFilterMode("all")} className={`min-h-[44px] px-4 rounded-full text-sm font-medium border whitespace-nowrap transition-colors ${filterMode === "all" ? "bg-[#c5a572]/20 text-[#c5a572] border-[#c5a572]/50" : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200"}`}>
             Todos
           </button>
@@ -120,7 +120,7 @@ export default function Tablero() {
           </button>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-thin pb-3 pt-1">
+        <div className="flex gap-2 overflow-x-auto touch-pan-x touch-pan-y scrollbar-none pb-3 pt-1">
           {STAGES.map((stage) => {
             const count = displayOrders.filter((o) => o.stage === stage).length;
             const isActive = activeStage === stage;
@@ -138,7 +138,7 @@ export default function Tablero() {
                 <span className={`w-1.5 h-1.5 rounded-full ${isActive ? stageStyle.bar : "bg-zinc-600"}`} />
                 {stage}
                 {count > 0 && (
-                  <span className={`ml-1 px-1 rounded-full text-xs ${isActive ? "bg-white/20" : "bg-white/10"}`}>
+                  <span className={`ml-1 px-1.5 rounded-full text-sm ${isActive ? "bg-white/20" : "bg-white/10"}`}>
                     {count}
                   </span>
                 )}
@@ -148,8 +148,13 @@ export default function Tablero() {
         </div>
       </header>
 
-      {/* ARREGLO DE SCROLL PARA TABLETS: Espaciador inferior (pb-32) para que el menú no estorbe */}
-      <div ref={kanbanRef} className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x snap-x snap-mandatory overscroll-x-contain scrollbar-none pb-28 md:pb-4" data-testid="kanban-scroll">
+      {/* SCROLL HORIZONTAL CON EL DEDO: suave, sin barra visible, con snap */}
+      <div 
+        ref={kanbanRef} 
+        className="flex-1 overflow-x-auto overflow-y-hidden touch-pan-x snap-x snap-mandatory overscroll-x-none scrollbar-none scroll-smooth pb-28 md:pb-4" 
+        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        data-testid="kanban-scroll"
+      >
         <div className="flex gap-5 md:gap-6 px-4 md:px-8 pb-6 pt-4 h-full min-w-max">
           {STAGES.map((stage) => {
             const list = displayOrders.filter((o) => o.stage === stage);
@@ -168,7 +173,7 @@ export default function Tablero() {
                     <span className={`w-2 h-2 rounded-full ${a.bar}`} />
                     <span className={`font-display text-sm uppercase tracking-widest ${a.text}`}>{stage}</span>
                   </div>
-                  <span className="text-xs bg-white/5 px-2 py-0.5 rounded-full text-zinc-400 font-mono">{list.length}</span>
+                  <span className="text-sm bg-white/5 px-2 py-0.5 rounded-full text-zinc-400 font-mono">{list.length}</span>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto touch-pan-y space-y-4 pt-4 pr-1 pb-10 scrollbar-thin">
@@ -178,7 +183,7 @@ export default function Tablero() {
                       onDelete={() => remove(o.id)} onDragStart={() => setDragging(o.id)} />
                   ))}
                   {list.length === 0 && (
-                    <div className="text-xs text-zinc-400 py-6 text-center border border-dashed border-white/5 rounded-xl bg-zinc-900/20">
+                    <div className="text-sm text-zinc-400 py-6 text-center border border-dashed border-white/5 rounded-xl bg-zinc-900/20">
                       Sin pedidos en esta etapa
                     </div>
                   )}
