@@ -29,6 +29,7 @@ class OrderIn(BaseModel):
     peso_metal: Optional[float] = Field(default=None, ge=0)
     piedra: Optional[str] = ""
     tipo: Optional[str] = "Fabricación"
+    es_castable: Optional[bool] = False  # ✅ AGREGADO
 
 
 class OrderUpdate(BaseModel):
@@ -45,6 +46,7 @@ class OrderUpdate(BaseModel):
     peso_metal: Optional[float] = Field(default=None, ge=0)
     piedra: Optional[str] = None
     tipo: Optional[str] = None
+    es_castable: Optional[bool] = None  # ✅ AGREGADO
 
 
 class AbonoIn(BaseModel):
@@ -255,7 +257,7 @@ async def create_order(payload: OrderIn, user=Depends(STAFF)):
 @router.patch("/orders/{order_id}")
 async def update_order(order_id: str, payload: OrderUpdate, user=Depends(current_user)):
     update = payload.model_dump(exclude_unset=True)
-    update = {k: v for k, v in update.items() if v is not None or k in ("asignado_a", "peso_metal", "fecha_entrega")}
+    update = {k: v for k, v in update.items() if v is not None or k in ("asignado_a", "peso_metal", "fecha_entrega", "es_castable")}
     return hide_money(await op_update_order(order_id, update, user), user)
 
 
