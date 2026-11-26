@@ -4,7 +4,20 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "sonner";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 
-const ThemedToaster = () => <Toaster theme={useTheme().applied} position="top-center" richColors />;
+const ThemedToaster = () => (
+  <Toaster 
+    theme={useTheme().applied} 
+    position="top-center" 
+    richColors 
+    className="z-[999999]" 
+    toastOptions={{ 
+      style: { 
+        marginTop: 'calc(env(safe-area-inset-top) + 1rem)' 
+      } 
+    }} 
+  />
+);
+
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Layout from "@/components/Layout";
