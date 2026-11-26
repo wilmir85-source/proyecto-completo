@@ -18,9 +18,6 @@ const IMPORT_STAGES = ["Comprada (USA)", "En Bodega USA", "En Vuelo a GT", "En A
 const DIGITAL_TYPES = ["Diseño", "Molde", "Diseño 3D"];
 const isDigitalType = (t) => DIGITAL_TYPES.includes(t);
 
-/* ============================================================
-   RUTA DEL PEDIDO — única fuente de verdad.
-   ============================================================ */
 const CIERRE = ["Terminado", "Entregado"];
 
 export const buildRoute = (tipo, esCastable) => {
@@ -31,13 +28,13 @@ export const buildRoute = (tipo, esCastable) => {
     : ["Ventas", "Vulcanizado", ...CIERRE];
   if (tipo === "Ceras") return esCastable
     ? ["Ventas", "Ceras", "Casting", "Fabricación", ...CIERRE]
-    : ["Ventas", "Ceras", ...CIERRE]; // Solo venta de ceras: termina al entregar
+    : ["Ventas", "Ceras", ...CIERRE];
   if (isDigitalType(tipo)) return esCastable
-    ? ["Ventas", "Diseño 3D", "Casting", "Fabricación", ...CIERRE] // Fabricación: resina castable → fundición
-    : ["Ventas", "Diseño 3D", ...CIERRE]; // Solo entrega/venta del archivo o molde
+    ? ["Ventas", "Diseño 3D", "Casting", "Fabricación", ...CIERRE]
+    : ["Ventas", "Diseño 3D", ...CIERRE];
   if (tipo === "Reparaciones") return ["Ventas", "Reparaciones", ...CIERRE];
   if (tipo === "Grabado Láser") return ["Ventas", "Grabado Láser", ...CIERRE];
-  return ["Ventas", "Diseño 3D", "Ceras", "Casting", "Fabricación", ...CIERRE]; // Fabricación (default)
+  return ["Ventas", "Diseño 3D", "Ceras", "Casting", "Fabricación", ...CIERRE];
 };
 
 const parseRouteNota = (notas = "") => {
@@ -66,20 +63,16 @@ const getNextStage = (order, route) => {
   const i = route.indexOf(order.stage);
   if (i === -1 || i >= route.length - 1) return null;
   const next = route[i + 1];
-  return next === "Entregado" ? null : next; // "Entregado" solo lo hace admin/ventas
+  return next === "Entregado" ? null : next;
 };
 
-// Origen al repetir: la ruta lo decide, no se elige a mano.
 const getRepeatOrigin = (order, route) => {
-  if (route.includes("Inyección")) return "Inyección"; // El molde ya existe: se reinyecta
-  if (route.includes("Diseño 3D") && (isDigitalType(order.tipo) || order.es_castable)) return "Diseño 3D"; // Se reimprime
+  if (route.includes("Inyección")) return "Inyección";
+  if (route.includes("Diseño 3D") && (isDigitalType(order.tipo) || order.es_castable)) return "Diseño 3D";
   if (route.includes("Ceras")) return "Ceras";
   return route.find((s) => s !== "Ventas") || route[0];
 };
 
-/* ============================================================
-   PAUSA
-   ============================================================ */
 const getPauseInfo = (notas = "") => {
   const iP = notas.lastIndexOf("[PAUSADO");
   const iR = Math.max(notas.lastIndexOf("[REANUDADO"), notas.lastIndexOf("[REPETIR]"));
@@ -317,8 +310,8 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
         )}
       </div>
 
-      {/* BOTÓN "LISTO" (trabajadores) — según la ruta guardada */}
-      {!staff && !isImport && nextStage && (
+      {/* BOTÓN "LISTO" (AHORA VISIBLE PARA TODOS, ADMINS Y TRABAJADORES) */}
+      {!isImport && nextStage && (
         <div className="col-span-2 mt-1">
           <button type="button" disabled={busy || pause.paused}
             title={pause.paused ? "Reanuda el pedido para poder avanzarlo" : undefined}
@@ -378,7 +371,6 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
             className="flex h-9 w-full rounded-md border border-blue-800 bg-blue-950/50 px-3 py-1 text-sm text-blue-200 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:opacity-50">
             {importOptions.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
-          {!staff && <p className="text-[10px] text-blue-300/50 mt-1">La entrega al cliente solo la marca Ventas / Admin.</p>}
         </div>
       )}
 
