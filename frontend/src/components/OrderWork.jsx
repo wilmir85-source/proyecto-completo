@@ -387,11 +387,16 @@ export const OrderWork = ({ order, staff, users, onChange }) => {
           </div>
           <div>
             <Label>¿Es Castable? (Fundición)</Label>
-            <label className="flex items-center gap-2 h-9 cursor-pointer">
-              <input type="checkbox" checked={order.es_castable || false} disabled={busy}
+            {/* ARREGLO AQUÍ: El span tiene pointer-events-none para que el clic pase directo al checkbox */}
+            <label className="flex items-center gap-2 h-9 cursor-pointer bg-zinc-950 px-3 rounded-md border border-zinc-800 hover:border-[#c5a572] transition-colors">
+              <input 
+                type="checkbox" 
+                checked={order.es_castable || false} 
+                disabled={busy}
                 onChange={(e) => changeCastable(e.target.checked)}
-                className="w-5 h-5 accent-[#c5a572] rounded border-zinc-800" />
-              <span className="text-sm text-zinc-300">Requiere fundición</span>
+                className="w-5 h-5 accent-[#c5a572] rounded border-zinc-800 cursor-pointer" 
+              />
+              <span className="text-sm text-zinc-300 pointer-events-none select-none">Requiere fundición</span>
             </label>
           </div>
           <p className="col-span-2 text-[10px] text-zinc-600 -mt-1">Cambiar esto recalcula y guarda la ruta del pedido.</p>
